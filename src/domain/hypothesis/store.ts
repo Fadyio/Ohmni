@@ -300,11 +300,9 @@ export class InMemoryHypothesisStore implements HypothesisStore {
     }
 
     if (!Array.isArray(params.evidenceIds) || params.evidenceIds.length === 0) {
-      if (params.confidence === "HIGH" || params.confidence === "VERY_HIGH") {
-        throw new Error(
-          `Cannot elevate hypothesis "${params.hypothesisId}" to ${params.confidence} without citing at least one supporting evidence record.`
-        );
-      }
+      throw new Error(
+        `Updating hypothesis "${params.hypothesisId}" confidence requires citing at least one valid evidence record ID.`
+      );
     }
 
     // Validate cited evidence IDs exist

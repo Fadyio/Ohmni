@@ -238,7 +238,7 @@ describe("WebMCP Hypothesis Synthesis Tools (Milestone 6)", () => {
             reason: "Pure intuition without evidence.",
           })
         )
-      ).rejects.toThrow(/Cannot elevate hypothesis .* to HIGH without citing at least one supporting evidence/);
+      ).rejects.toThrow(/Updating hypothesis .* confidence requires citing at least one valid evidence record ID/);
     });
   });
 

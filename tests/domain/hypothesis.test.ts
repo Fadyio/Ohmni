@@ -271,7 +271,7 @@ describe("Hypothesis Domain Model & Store (Milestone 6)", () => {
           evidenceIds: [],
           reason: "I just think it is high.",
         });
-      }).toThrow(/Cannot elevate hypothesis .* to HIGH without citing at least one supporting evidence record/);
+      }).toThrow(/Updating hypothesis .* confidence requires citing at least one valid evidence record ID/);
     });
 
     it("rejects updating confidence with empty reason", () => {
