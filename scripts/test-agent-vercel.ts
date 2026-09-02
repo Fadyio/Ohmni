@@ -215,18 +215,20 @@ async function main(): Promise<void> {
   }
 
   // Step 2: Test Minimal Server Canary (Part 7)
-  console.info("\nStep 2: Executing Minimal Gemini Server Canary (POST /api/bench-agent/health)...");
+  console.info("\nStep 2: Executing Minimal Gemini Server Canary (GET /api/bench-agent?health=1)...");
   try {
-    const canaryRes = await fetch(`${normalizedUrl}/api/bench-agent/health`, {
-      method: "POST",
+    const canaryRes = await fetch(`${normalizedUrl}/api/bench-agent?health=1`, {
       headers: {
-        "content-type": "application/json",
-        origin: normalizedUrl,
         "x-bench-agent-session": "canary-check-session",
       },
-      body: JSON.stringify({ canary: true }),
     });
-    const canaryPayload = (await canaryRes.json()) as { ok?: boolean; message?: string; error?: string; requestId?: string };
+    const text = await canaryRes.text();
+    let canaryPayload: { ok?: boolean; message?: string; error?: string; requestId?: string } = {};
+    try {
+      canaryPayload = JSON.parse(text);
+    } catch {
+      throw new Error(`Canary returned invalid JSON (HTTP ${canaryRes.status}): ${text.slice(0, 200)}`);
+    }
     if (!canaryRes.ok || canaryPayload.ok !== true) {
       throw new Error(`Canary failed (HTTP ${canaryRes.status}): ${canaryPayload.message || canaryPayload.error || "Unknown"}`);
     }
@@ -235,7 +237,6 @@ async function main(): Promise<void> {
     console.error("❌ CANARY FAILED: Gemini server function canary check failed:", err);
     process.exit(1);
   }
-
   // Step 3: Test Gemini Single Tool Execution Isolation (Part 8)
   console.info("\nStep 3: Testing Gemini Single-Tool Request Isolation (read_device_info)...");
   try {
