@@ -1,24 +1,21 @@
 /**
  * Chronological Live Investigation Narrative Rail (Right 30%).
- * Milestone 7.13 — Visual Rescue: 3D OHMNI Identity + Cohesive Product UI
+ * Milestone 7.14 — Fix State Machine & Truthful Narrative Rail.
  *
- * Requirements:
- * - Abstract Agent Orb Node with active luminous core.
- * - Cohesive light surface palette (#FFFFFF, #ECEFF4, #12151A).
- * - Start state:
- *     AGENT
- *     Ready.
- *     Goal: "The controller restarts when the fan turns on."
- *     [ Begin investigation ]
- * - During investigation:
- *     Real active action callout with tool metadata
- *     Human approval gate with [ Approve ] / [ Deny ]
- *     Chronological list of completed empirical events
+ * Invariants:
+ * 1. Truthful Completed Events: ONLY events with status === "completed" appear under History/Completed.
+ * 2. Single Approval UI: When in approval state, right rail shows "WAITING FOR YOU" notice only.
+ *    No duplicate Approve/Deny buttons in the sidebar. Main canvas owns the decision.
+ * 3. Minimal Clean Rail:
+ *    - Header: Gemini ● Live
+ *    - GOAL
+ *    - CURRENT ACTION (if active or waiting approval)
+ *    - HISTORY (clean vertical timeline)
  */
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Play, Square, CheckCircle2, ShieldAlert, RotateCcw, Activity } from "lucide-react";
+import { Play, Square, Check, ShieldAlert, RotateCcw, Activity, Clock, X, AlertCircle } from "lucide-react";
 import { AgentOrbNode } from "../agent/AgentOrbNode";
 import type { BenchAgentState } from "../../hooks/useBenchAgent";
 
@@ -37,65 +34,68 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
   onSetGoal,
   onStartAgent,
   onStopAgent,
-  onApprove,
-  onDeny,
 }) => {
   const active = agentState.status === "investigating" || agentState.status === "approval";
   const isIdle = agentState.status === "idle" || agentState.status === "stopped";
   const currentGoal = agentState.goal || "The controller restarts when the fan turns on.";
   const canStart = agentState.providerAvailable && currentGoal.trim().length > 0 && isIdle;
 
-  // Local state for editable goal input
   const [goalText, setGoalText] = useState(currentGoal);
   const [copied, setCopied] = useState(false);
 
-  const handleGoalChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement> | React.FormEvent<HTMLTextAreaElement | HTMLInputElement>) => {
-    const val = (e.target as HTMLTextAreaElement | HTMLInputElement).value;
-    setGoalText(val);
-    onSetGoal(val);
+  const handleGoalChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement> | React.FormEvent<HTMLTextAreaElement | HTMLInputElement>
+  ) => {
+    const value = (e.target as HTMLInputElement | HTMLTextAreaElement).value;
+    setGoalText(value);
+    onSetGoal(value);
   };
 
-  // Global Keyboard Accelerators for Human Approval Gate ([A] Approve, [D]/[Esc] Deny)
-  useEffect(() => {
-    if (agentState.status !== "approval" || !onApprove || !onDeny) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === "a" || e.key === "A") {
-        e.preventDefault();
-        onApprove();
-      } else if (e.key === "d" || e.key === "D" || e.key === "Escape") {
-        e.preventDefault();
-        onDeny();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [agentState.status, onApprove, onDeny]);
-
-  // Generate human-friendly label from tool call name
   const getHumanToolName = (toolName: string) => {
-    if (toolName.includes("reset")) return "Reading reset history";
-    if (toolName.includes("relay") || toolName.includes("stress")) return "Controlled relay actuation test";
-    if (toolName.includes("voltage")) return "Measuring supply rail voltage";
-    if (toolName.includes("hypothesis") || toolName.includes("propose")) return "Synthesizing root cause hypothesis";
-    if (toolName.includes("evidence") || toolName.includes("link")) return "Logging empirical evidence fact";
-    return toolName;
+    switch (toolName) {
+      case "read_device_info":
+        return "Read device descriptor";
+      case "read_reset_history":
+        return "Read reset history";
+      case "read_system_health":
+        return "Read system health";
+      case "measure_supply_voltage":
+        return "Measure supply voltage";
+      case "run_relay_stress_test":
+        return "Controlled relay stress test";
+      case "list_evidence":
+        return "List empirical evidence";
+      case "get_evidence":
+        return "Inspect evidence record";
+      case "propose_hypothesis":
+        return "Propose diagnostic hypothesis";
+      case "update_hypothesis":
+        return "Update diagnostic hypothesis";
+      case "link_evidence":
+        return "Link evidence to hypothesis";
+      case "confirm_hypothesis":
+        return "Confirm root cause hypothesis";
+      case "reject_hypothesis":
+        return "Reject diagnostic hypothesis";
+      case "request_human_intervention":
+        return "Request physical intervention";
+      default:
+        return toolName.replace(/_/g, " ");
+    }
   };
 
-  // Derive completed chronological real events from activity
+  // Strictly filter completed events: status === "completed" ONLY
   const completedEvents = useMemo(() => {
-    const events: { id: string; title: string; tool: string }[] = [];
+    const events: { id: string; title: string; tool: string; durationMs?: number }[] = [];
 
     agentState.activity.forEach((act, idx) => {
-      if (act.status === "completed" || act.status === "requested" || act.status === "waiting-approval") {
-        const title = getHumanToolName(act.call.name);
-        if (!events.some((e) => e.title === title)) {
-          events.push({
-            id: `evt-${idx}-${act.call.name}`,
-            title,
-            tool: act.call.name,
-          });
-        }
+      if (act.status === "completed") {
+        events.push({
+          id: `evt-${idx}-${act.call.name}`,
+          title: getHumanToolName(act.call.name),
+          tool: act.call.name,
+          durationMs: act.durationMs,
+        });
       }
     });
 
@@ -103,7 +103,8 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
   }, [agentState.activity]);
 
   const activeTool = agentState.activity.length > 0 ? agentState.activity[agentState.activity.length - 1] : null;
-  const isExecutingTool = activeTool?.status === "requested" || activeTool?.status === "waiting-approval";
+  const isExecutingTool = activeTool?.status === "requested";
+  const isWaitingApproval = agentState.status === "approval";
 
   return (
     <div
@@ -119,7 +120,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
         color: "var(--ohmni-lab-text)",
       }}
     >
-      {/* Rail Header with Abstract Agent Orb Node */}
+      {/* Header: Gemini ● Live */}
       <div
         style={{
           padding: "1.25rem 1.5rem",
@@ -130,21 +131,22 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           background: "var(--ohmni-lab-raised)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <AgentOrbNode
             status={agentState.status}
-            isExecutingTool={isExecutingTool}
-            size={22}
+            isExecutingTool={isExecutingTool || isWaitingApproval}
+            size={20}
           />
-
           <div>
-            <div style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--ohmni-lab-text)", letterSpacing: "0.01em" }}>
-              AGENT INVESTIGATION
+            <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--ohmni-lab-text)", letterSpacing: "-0.01em" }}>
+              Gemini
             </div>
             <div
               data-testid="bench-agent-status"
-              className="font-mono"
               style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
                 fontSize: "11px",
                 fontWeight: 600,
                 color: active
@@ -156,7 +158,22 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                   : "var(--ohmni-lab-muted)",
               }}
             >
-              {agentState.status.toUpperCase()}
+              <span
+                style={{
+                  display: "inline-block",
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: active
+                    ? "var(--ohmni-lab-brand)"
+                    : agentState.status === "completed"
+                    ? "var(--ohmni-lab-verified)"
+                    : agentState.status === "failed"
+                    ? "var(--ohmni-lab-fault)"
+                    : "#94A3B8",
+                }}
+              />
+              <span>{active ? "Live" : isIdle ? "Ready" : agentState.status.toUpperCase()}</span>
             </div>
           </div>
         </div>
@@ -170,15 +187,18 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               fontSize: "11px",
               color: "var(--ohmni-lab-fault)",
               borderColor: "rgba(220, 80, 80, 0.3)",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
             }}
           >
-            <Square size={11} />
+            <Square size={10} />
             <span>Stop</span>
           </button>
         )}
       </div>
 
-      {/* Main Narrative Stream */}
+      {/* Narrative Stream */}
       <div
         style={{
           flex: 1,
@@ -186,23 +206,22 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           padding: "1.5rem",
           display: "flex",
           flexDirection: "column",
-          gap: "1.25rem",
+          gap: "1.5rem",
         }}
       >
-        {/* Goal Card */}
-        <div
-          style={{
-            background: "var(--ohmni-lab-soft-raised)",
-            border: "1px solid var(--ohmni-lab-border)",
-            borderRadius: "var(--radius-md)",
-            padding: "1rem 1.25rem",
-            display: "flex",
-            flexDirection: "column",
-            gap: "6px",
-          }}
-        >
-          <div className="font-mono" style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--ohmni-lab-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            INVESTIGATION GOAL
+        {/* GOAL */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div
+            className="font-mono"
+            style={{
+              fontSize: "10.5px",
+              fontWeight: 700,
+              color: "var(--ohmni-lab-muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            GOAL
           </div>
           {isIdle ? (
             <textarea
@@ -212,19 +231,32 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               onInput={handleGoalChange}
               rows={2}
               style={{
-                background: "transparent",
-                border: "none",
+                background: "var(--ohmni-lab-soft-raised)",
+                border: "1px solid var(--ohmni-lab-border)",
+                borderRadius: "var(--radius-md)",
+                padding: "0.75rem 0.85rem",
                 outline: "none",
                 color: "var(--ohmni-lab-text)",
-                fontSize: "13.5px",
+                fontSize: "13px",
                 fontFamily: "var(--font-sans)",
-                fontWeight: 600,
+                fontWeight: 500,
                 lineHeight: 1.45,
                 resize: "none",
               }}
             />
           ) : (
-            <div style={{ fontSize: "13.5px", fontWeight: 600, color: "var(--ohmni-lab-text)", lineHeight: 1.45 }}>
+            <div
+              style={{
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "var(--ohmni-lab-text)",
+                lineHeight: 1.45,
+                background: "var(--ohmni-lab-soft-raised)",
+                padding: "0.75rem 0.85rem",
+                borderRadius: "var(--radius-md)",
+                border: "1px solid var(--ohmni-lab-border)",
+              }}
+            >
               {goalText}
             </div>
           )}
@@ -232,24 +264,26 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
 
         {/* Start Button when Idle */}
         {isIdle && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "0.25rem" }}>
-            <button
-              data-testid="bench-agent-start"
-              id="start-agent-btn"
-              onClick={onStartAgent}
-              disabled={!canStart}
-              className="btn-primary"
-              style={{
-                width: "100%",
-                padding: "13px",
-                fontSize: "14.5px",
-                fontWeight: 700,
-              }}
-            >
-              <Play size={15} />
-              <span>Begin investigation</span>
-            </button>
-          </div>
+          <button
+            data-testid="bench-agent-start"
+            id="start-agent-btn"
+            onClick={onStartAgent}
+            disabled={!canStart}
+            className="btn-primary"
+            style={{
+              width: "100%",
+              padding: "12px",
+              fontSize: "14px",
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+            }}
+          >
+            <Play size={14} />
+            <span>Begin investigation</span>
+          </button>
         )}
 
         {/* Failure Diagnostic Block */}
@@ -325,94 +359,133 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           </div>
         )}
 
-        {/* Approval Card when in Approval State */}
-        {agentState.status === "approval" && (
-          <div
-            data-testid="bench-agent-approval"
-            style={{
-              background: "rgba(229, 157, 55, 0.08)",
-              border: "1.5px solid var(--ohmni-lab-warning)",
-              borderRadius: "var(--radius-md)",
-              padding: "1.25rem",
-              display: "flex",
-              flexDirection: "column",
-              gap: "10px",
-              boxShadow: "0 4px 16px rgba(229, 157, 55, 0.15)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-warning)", fontSize: "12px", fontWeight: 700 }}>
-              <ShieldAlert size={15} />
-              <span>APPROVAL REQUIRED</span>
+        {/* CURRENT ACTION */}
+        {isWaitingApproval ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div
+              className="font-mono"
+              style={{
+                fontSize: "10.5px",
+                fontWeight: 700,
+                color: "var(--ohmni-lab-action)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              WAITING FOR YOU
             </div>
-            <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--ohmni-lab-text)" }}>
-              {getHumanToolName(agentState.approval.tool.name)}
-            </div>
-            <div className="font-mono" style={{ fontSize: "11px", color: "var(--ohmni-lab-muted)" }}>
-              {agentState.approval.tool.name}
-            </div>
-            <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
-              <button
-                data-testid="bench-agent-approve"
-                onClick={onApprove}
-                className="btn-primary"
-                style={{
-                  padding: "8px 16px",
-                  fontSize: "12.5px",
-                  background: "var(--ohmni-lab-warning)",
-                  color: "#12151A",
-                  fontWeight: 800,
-                }}
-              >
-                Approve (A)
-              </button>
-              <button
-                data-testid="bench-agent-deny"
-                onClick={onDeny}
-                className="btn-secondary"
-                style={{
-                  padding: "8px 14px",
-                  fontSize: "12.5px",
-                }}
-              >
-                Deny (D)
-              </button>
+            <div
+              style={{
+                background: "rgba(255, 181, 74, 0.08)",
+                border: "1px solid rgba(255, 181, 74, 0.35)",
+                borderRadius: "var(--radius-md)",
+                padding: "1rem 1.15rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-action)", fontSize: "11px", fontWeight: 700 }}>
+                <ShieldAlert size={14} />
+                <span>AUTHORIZATION REQUIRED</span>
+              </div>
+              <div style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--ohmni-lab-text)" }}>
+                {getHumanToolName(agentState.approval.tool.name)}
+              </div>
+              <div className="font-mono" style={{ fontSize: "10.5px", color: "var(--ohmni-lab-muted)" }}>
+                {agentState.approval.tool.name}
+              </div>
+              <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--ohmni-lab-muted)", lineHeight: 1.4 }}>
+                Review safety envelope and authorize test in the main canvas.
+              </p>
             </div>
           </div>
-        )}
-
-        {/* Active Tool Call Callout */}
-        {active && activeTool && (
-          <div
-            style={{
-              background: "rgba(73, 103, 255, 0.06)",
-              border: "1px solid var(--ohmni-lab-brand)",
-              borderRadius: "var(--radius-md)",
-              padding: "1rem 1.25rem",
-              display: "flex",
-              flexDirection: "column",
-              gap: "6px",
-              boxShadow: "0 4px 14px rgba(73, 103, 255, 0.1)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-brand)", fontSize: "11.5px", fontWeight: 700 }}>
-              <Activity size={13} className="animate-spin" />
-              <span>CURRENT INSTRUMENT ACTION</span>
+        ) : active && activeTool && isExecutingTool ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div
+              className="font-mono"
+              style={{
+                fontSize: "10.5px",
+                fontWeight: 700,
+                color: "var(--ohmni-lab-brand)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              CURRENT ACTION
             </div>
-            <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--ohmni-lab-text)" }}>
-              {getHumanToolName(activeTool.call.name)}
-            </div>
-            <div className="font-mono" style={{ fontSize: "11px", color: "var(--ohmni-lab-muted)" }}>
-              {activeTool.call.name}
+            <div
+              style={{
+                background: "rgba(73, 103, 255, 0.06)",
+                border: "1px solid var(--ohmni-lab-brand)",
+                borderRadius: "var(--radius-md)",
+                padding: "1rem 1.15rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-brand)", fontSize: "11px", fontWeight: 700 }}>
+                <Activity size={13} className="animate-spin" />
+                <span>EXECUTING INSTRUMENT</span>
+              </div>
+              <div style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--ohmni-lab-text)" }}>
+                {getHumanToolName(activeTool.call.name)}
+              </div>
+              <div className="font-mono" style={{ fontSize: "10.5px", color: "var(--ohmni-lab-muted)" }}>
+                {activeTool.call.name}
+              </div>
             </div>
           </div>
-        )}
+        ) : null}
 
-        {/* Chronological Completed Real Events */}
-        {completedEvents.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-lab-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              COMPLETED EVENTS ({completedEvents.length})
+        {/* HISTORY (Vertical Timeline) */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div
+            className="font-mono"
+            style={{
+              fontSize: "10.5px",
+              fontWeight: 700,
+              color: "var(--ohmni-lab-muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <span>HISTORY</span>
+            {completedEvents.length > 0 && <span>({completedEvents.length})</span>}
+          </div>
+
+          {completedEvents.length === 0 && !active && (
+            <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted)", fontStyle: "italic", padding: "4px 0" }}>
+              No instrument actions executed yet.
             </div>
+          )}
+
+          {/* Timeline items */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              position: "relative",
+              paddingLeft: "18px",
+            }}
+          >
+            {/* Timeline vertical spine line */}
+            {(completedEvents.length > 1 || (completedEvents.length > 0 && active)) && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: "6px",
+                  top: "10px",
+                  bottom: "10px",
+                  width: "1.5px",
+                  background: "var(--ohmni-lab-border)",
+                }}
+              />
+            )}
 
             {completedEvents.map((evt) => (
               <div
@@ -422,24 +495,85 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                   display: "flex",
                   alignItems: "flex-start",
                   gap: "10px",
-                  padding: "10px 12px",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--ohmni-lab-soft-raised)",
-                  border: "1px solid var(--ohmni-lab-border)",
-                  fontSize: "12.5px",
+                  padding: "6px 0",
+                  position: "relative",
                 }}
               >
-                <CheckCircle2 size={16} color="var(--ohmni-lab-verified)" style={{ marginTop: "1px", flexShrink: 0 }} />
-                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <span style={{ fontWeight: 600, color: "var(--ohmni-lab-text)" }}>{evt.title}</span>
-                  <span className="font-mono" style={{ fontSize: "10.5px", color: "var(--ohmni-lab-muted)" }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "-18px",
+                    top: "9px",
+                    width: "14px",
+                    height: "14px",
+                    borderRadius: "50%",
+                    background: "var(--ohmni-lab-raised)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 1,
+                  }}
+                >
+                  <Check size={11} color="var(--ohmni-lab-verified)" strokeWidth={3} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+                  <span style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--ohmni-lab-text)" }}>
+                    {evt.title}
+                  </span>
+                  <span className="font-mono" style={{ fontSize: "10px", color: "var(--ohmni-lab-muted)" }}>
                     {evt.tool}
                   </span>
                 </div>
               </div>
             ))}
+
+            {/* In-progress / Pending step on timeline if active */}
+            {isWaitingApproval && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "10px",
+                  padding: "6px 0",
+                  position: "relative",
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "-18px",
+                    top: "9px",
+                    width: "14px",
+                    height: "14px",
+                    borderRadius: "50%",
+                    background: "var(--ohmni-lab-raised)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 1,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "50%",
+                      background: "var(--ohmni-lab-action)",
+                    }}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+                  <span style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--ohmni-lab-action)" }}>
+                    Waiting for approval
+                  </span>
+                  <span className="font-mono" style={{ fontSize: "10px", color: "var(--ohmni-lab-muted)" }}>
+                    {agentState.approval.tool.name}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

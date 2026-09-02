@@ -21,6 +21,8 @@ export const EvidenceScene: React.FC<EvidenceSceneProps> = ({
 }) => {
   return (
     <motion.div
+      data-scene="evidence"
+      data-testid="evidence-scene"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}

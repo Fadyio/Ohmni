@@ -1,33 +1,12 @@
 /**
  * OHMNI 3D Wordmark Component
- * Milestone 7.13 — Visual Rescue: 3D OHMNI Identity
+ * Milestone 7.14 — Precision-Machined Typography & Clipped Specular Identity.
  *
- * Requirements:
- * - Real CSS 3D typographic brand object (NOT a flat static SVG / image).
- * - Individual letter DOM elements: O, H, M, N, I.
- * - Structure:
- *     <div className="ohmni-3d-scene">
- *       <div className="ohmni-3d-word">
- *         <span>O</span>
- *         <span>H</span>
- *         <span>M</span>
- *         <span>N</span>
- *         <span>I</span>
- *       </div>
- *     </div>
- * - CSS: perspective, transform-style: preserve-3d, translateZ, rotateX, rotateY.
- * - Machined aluminum + precision instrument aesthetic:
- *     Front face: #111318
- *     Extrusion: deep navy / indigo layers (#131926, #0D121D)
- *     Highlight edge: #5570FF (subtle reflective blue highlight)
- * - Intro animation:
- *     0ms: translateZ(-180px) rotateX(35deg) opacity 0
- *     0–700ms: translateZ(0) rotateX(0) opacity 1, staggered ~50-70ms
- *     Settling blue light sweep across face (~900ms total)
- * - Idle micro-parallax:
- *     Pointer tracking: rotateY ±4deg, rotateX ±2deg max with smooth spring
- *     Returns to neutral on pointer leave
- * - Supports variant="hero" (landing ~120–170px tall) and variant="compact" (navbar brand).
+ * Invariants:
+ * 1. Precision Sizing: Reduced hero size (~35% reduction from 152px to ~98px) for cohesive balance.
+ * 2. Tight Extrusion Depth: 50–65% reduced extrusion depth (tight 2–3 layer micro-machined shadow).
+ * 3. Clipped Light Sweep: Light sweep is clipped strictly to letter faces with NO rectangular background spill.
+ * 4. Micro-Parallax: Pointer tracking (±2.5° Y, ±1.5° X) returning smoothly to neutral.
  */
 
 import React, { useRef, useEffect, useState, useCallback } from "react";
@@ -61,7 +40,7 @@ export const Ohmni3DWordmark: React.FC<Ohmni3DWordmarkProps> = ({
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [lightSweepActive, setLightSweepActive] = useState<boolean>(true);
 
-  // Micro-parallax handler (±2deg X, ±4deg Y)
+  // Micro-parallax handler (±1.5deg X, ±2.8deg Y)
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!interactive || shouldReduceMotion) return;
@@ -73,12 +52,11 @@ export const Ohmni3DWordmark: React.FC<Ohmni3DWordmarkProps> = ({
       const normX = (e.clientX - centerX) / (rect.width / 2);
       const normY = (e.clientY - centerY) / (rect.height / 2);
 
-      // Clamped micro-parallax
       const clampedX = Math.max(-1, Math.min(1, normX));
       const clampedY = Math.max(-1, Math.min(1, normY));
 
-      setRotY(clampedX * (isHero ? 4.0 : 2.5));
-      setRotX(-clampedY * (isHero ? 2.2 : 1.5));
+      setRotY(clampedX * (isHero ? 2.8 : 1.8));
+      setRotX(-clampedY * (isHero ? 1.5 : 1.0));
     },
     [interactive, shouldReduceMotion, isHero]
   );
@@ -91,16 +69,14 @@ export const Ohmni3DWordmark: React.FC<Ohmni3DWordmarkProps> = ({
 
   const handlePointerEnter = useCallback(() => {
     setIsHovered(true);
-    // Trigger subtle light sweep on hover if enough time elapsed
     setLightSweepActive(true);
   }, []);
 
-  // Deactivate light sweep after intro duration
   useEffect(() => {
     const timer = setTimeout(() => {
       setLightSweepActive(false);
       onAnimationComplete?.();
-    }, 1200);
+    }, 1100);
     return () => clearTimeout(timer);
   }, [onAnimationComplete]);
 
@@ -108,12 +84,13 @@ export const Ohmni3DWordmark: React.FC<Ohmni3DWordmarkProps> = ({
     <div
       ref={sceneRef}
       data-testid="ohmni-3d-wordmark"
+      id={isHero ? "landing-3d-wordmark" : "navbar-3d-wordmark"}
       className={`ohmni-3d-scene ${isHero ? "ohmni-3d-scene--hero" : "ohmni-3d-scene--compact"} ${className}`}
       onPointerMove={handlePointerMove}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
       style={{
-        perspective: isHero ? "1200px" : "800px",
+        perspective: isHero ? "1000px" : "600px",
         perspectiveOrigin: "50% 50%",
         display: "inline-flex",
         alignItems: "center",
@@ -127,30 +104,29 @@ export const Ohmni3DWordmark: React.FC<Ohmni3DWordmarkProps> = ({
       <motion.div
         ref={wordRef}
         className="ohmni-3d-word"
-        layoutId={isHero ? "ohmni-brand-hero" : undefined}
         animate={{
           rotateX: rotX,
           rotateY: rotY,
-          scale: isHovered && isHero ? 1.015 : 1.0,
+          scale: isHovered && isHero ? 1.01 : 1.0,
         }}
         transition={{
           type: "spring",
-          stiffness: 140,
-          damping: 22,
-          mass: 0.6,
+          stiffness: 160,
+          damping: 24,
+          mass: 0.5,
         }}
         style={{
           display: "inline-flex",
           alignItems: "center",
           transformStyle: "preserve-3d",
           position: "relative",
-          letterSpacing: isHero ? "0.06em" : "0.05em",
+          letterSpacing: isHero ? "0.05em" : "0.04em",
           fontWeight: 900,
           lineHeight: 1,
         }}
       >
         {LETTERS.map((letter, idx) => {
-          const delay = shouldReduceMotion ? 0 : idx * 0.065;
+          const delay = shouldReduceMotion ? 0 : idx * 0.055;
 
           return (
             <motion.span
@@ -163,9 +139,9 @@ export const Ohmni3DWordmark: React.FC<Ohmni3DWordmarkProps> = ({
                   ? { opacity: 1 }
                   : {
                       opacity: 0,
-                      z: isHero ? -180 : -60,
-                      rotateX: isHero ? 35 : 20,
-                      y: isHero ? 14 : 4,
+                      z: isHero ? -120 : -40,
+                      rotateX: isHero ? 25 : 15,
+                      y: isHero ? 10 : 3,
                     }
               }
               animate={{
@@ -175,23 +151,23 @@ export const Ohmni3DWordmark: React.FC<Ohmni3DWordmarkProps> = ({
                 y: 0,
               }}
               transition={{
-                duration: isHero ? 0.72 : 0.45,
+                duration: isHero ? 0.65 : 0.4,
                 delay,
-                ease: [0.16, 1, 0.3, 1], // fluid cubic ease-out
+                ease: [0.16, 1, 0.3, 1],
               }}
               style={{
                 display: "inline-block",
                 position: "relative",
                 transformStyle: "preserve-3d",
                 fontFamily: "var(--font-sans)",
-                fontSize: isHero ? "clamp(72px, 11vw, 152px)" : "22px",
-                color: "var(--ohmni-brand-front, #111318)",
+                fontSize: isHero ? "clamp(48px, 7.2vw, 102px)" : "22px",
+                color: "#111318",
                 textTransform: "uppercase",
-                padding: isHero ? "0 0.03em" : "0 0.02em",
+                padding: isHero ? "0 0.025em" : "0 0.02em",
                 willChange: "transform, opacity",
               }}
             >
-              {/* Front Face Layer */}
+              {/* Front Face Layer with Precision Extrusion Shadow */}
               <span
                 className="ohmni-3d-face"
                 style={{
@@ -202,25 +178,21 @@ export const Ohmni3DWordmark: React.FC<Ohmni3DWordmarkProps> = ({
                   textShadow: isHero
                     ? `
                       0 1px 0 #5570FF,
-                      0 2px 0 #394FA8,
-                      0 3px 0 #283777,
-                      0 4px 0 #1D2857,
-                      0 5px 0 #151D3F,
-                      0 6px 1px rgba(17, 24, 52, 0.6),
-                      0 10px 24px rgba(10, 15, 35, 0.22),
-                      0 20px 48px rgba(10, 15, 35, 0.14)
+                      0 2px 0 #283777,
+                      0 3px 0 #151D3F,
+                      0 4px 10px rgba(10, 15, 35, 0.18)
                     `
                     : `
                       0 1px 0 #5570FF,
                       0 1.5px 0 #283777,
-                      0 2px 4px rgba(10, 15, 35, 0.18)
+                      0 2px 4px rgba(10, 15, 35, 0.12)
                     `,
                 }}
               >
                 {letter}
               </span>
 
-              {/* Reflective Specular Blue Bevel Edge */}
+              {/* Reflective Specular Bevel Edge */}
               <span
                 aria-hidden="true"
                 className="ohmni-3d-bevel"
@@ -233,43 +205,46 @@ export const Ohmni3DWordmark: React.FC<Ohmni3DWordmarkProps> = ({
                   color: "transparent",
                   pointerEvents: "none",
                   zIndex: 3,
-                  WebkitTextStroke: isHero ? "1px rgba(85, 112, 255, 0.38)" : "0.5px rgba(85, 112, 255, 0.3)",
+                  WebkitTextStroke: isHero ? "0.75px rgba(85, 112, 255, 0.35)" : "0.5px rgba(85, 112, 255, 0.25)",
                   transform: "translateZ(1px)",
                 }}
               >
                 {letter}
               </span>
+
+              {/* Specular Letter-Clipped Light Sweep */}
+              {lightSweepActive && (
+                <motion.span
+                  aria-hidden="true"
+                  className="ohmni-3d-letter-sweep"
+                  initial={{ opacity: 0, scaleX: 0.8 }}
+                  animate={{
+                    opacity: [0, 0.85, 0],
+                  }}
+                  transition={{
+                    duration: 0.6,
+                    delay: delay + 0.3,
+                    ease: "easeInOut",
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    color: "transparent",
+                    WebkitTextStroke: "1px rgba(255, 255, 255, 0.85)",
+                    pointerEvents: "none",
+                    zIndex: 4,
+                    transform: "translateZ(2px)",
+                  }}
+                >
+                  {letter}
+                </motion.span>
+              )}
             </motion.span>
           );
         })}
-
-        {/* Dynamic Blue Light Sweep */}
-        {lightSweepActive && (
-          <motion.div
-            aria-hidden="true"
-            className="ohmni-3d-light-sweep"
-            initial={{ x: "-120%", opacity: 0 }}
-            animate={{ x: "220%", opacity: [0, 0.95, 0.95, 0] }}
-            transition={{
-              duration: 0.95,
-              delay: isHero ? 0.42 : 0.2,
-              ease: "easeInOut",
-            }}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "60%",
-              height: "100%",
-              background:
-                "linear-gradient(105deg, transparent 15%, rgba(85, 112, 255, 0.15) 35%, rgba(136, 172, 255, 0.75) 50%, rgba(255, 255, 255, 0.95) 53%, rgba(85, 112, 255, 0.25) 65%, transparent 85%)",
-              mixBlendMode: "overlay",
-              pointerEvents: "none",
-              zIndex: 4,
-              transform: "skewX(-24deg)",
-            }}
-          />
-        )}
       </motion.div>
     </div>
   );

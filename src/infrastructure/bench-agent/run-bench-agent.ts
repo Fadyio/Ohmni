@@ -1,3 +1,4 @@
+import { requiresHumanApproval } from "@/domain/safety/tool-safety-policy";
 import { translateRegisteredTools } from "./tool-translation";
 import type {
   AgentFunctionCall,
@@ -161,7 +162,7 @@ export async function runBenchAgent(
           continue;
         }
 
-        if (currentTool.annotations?.readOnlyHint !== true) {
+        if (requiresHumanApproval(currentTool.name, currentTool.annotations)) {
           onEvent({ type: "approval-requested", call, tool: currentTool });
           const approved = await awaitWithAbort(
             requestApproval({ call, tool: currentTool }),

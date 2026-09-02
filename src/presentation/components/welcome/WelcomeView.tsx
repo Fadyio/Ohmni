@@ -42,6 +42,8 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
   return (
     <div
       id="welcome-view-root"
+      data-scene="landing"
+      data-testid="welcome-view-root"
       style={{
         width: "100%",
         maxWidth: "100vw",
@@ -130,8 +132,8 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
         {/* Dimensional 3D OHMNI Hero Wordmark */}
         <div
           ref={wordmarkRef}
-          id="landing-3d-wordmark"
-          data-testid="landing-3d-wordmark"
+          id="hero-wordmark-wrapper"
+          data-testid="hero-wordmark-wrapper"
           style={{
             marginBottom: "1.75rem",
             transformOrigin: "top left",

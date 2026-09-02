@@ -20,6 +20,7 @@ import { TestRequestScene } from "./scenes/TestRequestScene";
 import { RunningExperimentScene } from "./scenes/RunningExperimentScene";
 import { EvidenceScene } from "./scenes/EvidenceScene";
 import { HypothesisScene } from "./scenes/HypothesisScene";
+import { classifyTool } from "@/domain/safety/tool-safety-policy";
 import type { TelemetryRingBuffer } from "@/domain/telemetry/ring-buffer";
 import type { ScopeEventMarker } from "../../hooks/useOscilloscopeBuffer";
 import type { EvidenceRecord } from "@/domain/evidence/types";
@@ -104,7 +105,12 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
     ) {
       return "running";
     }
-    if (agentState.status === "approval") return "test-request";
+    if (agentState.status === "approval") {
+      const toolName = agentState.approval.tool.name;
+      if (classifyTool(toolName, agentState.approval.tool.annotations) === "physical") {
+        return "test-request";
+      }
+    }
     if (hypothesis !== null || agentState.status === "completed") return "hypothesis";
     if (evidenceRecords.length > 0) return "evidence";
     if (hasInspectedResetHistory) return "observing";
@@ -177,7 +183,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
       )}
 
       {/* Scene Render Container */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {currentScene === "ready" && (
           <ReadyScene
             key="ready"

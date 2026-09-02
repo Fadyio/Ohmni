@@ -1,18 +1,12 @@
 /**
  * GSAP Transition Hook: Welcome (World 1) -> Lab Mode (World 2).
- * Milestone 7.13 — Visual Rescue: 3D OHMNI Identity + Cohesive Product UI
+ * Milestone 7.14 — Truthful Transition Choreography (No Content Overlap).
  *
  * Sequence:
- * 0ms:        User clicks [ Diagnose the demo device ]
- * 0–150ms:    CTA compresses / tactile response
- * 0–250ms:    OHMNI 3D wordmark slightly rotates toward camera & elevates
- * 150–650ms:  Wordmark letters compress horizontally, scales down & travels to top-left navigation
- * 100–450ms:  Hero text fades & translates left
- * 150–700ms:  Hardware visual centers and transitions into Workbench canvas
- * 300–800ms:  Cohesive background transition
- * 500–900ms:  Lab chrome (with navbar brand) appears smoothly
- * 600–1000ms: Agent column slides and settles into 30% right rail
- * 700–1100ms: Board boot sequence triggers
+ * 0–250ms:   Headline and copy exit completely before hardware moves into their region.
+ * 200–550ms: OHMNI 3D wordmark compresses and travels smoothly to top-left navigation position.
+ * 300–750ms: Hardware PCB visual moves into the central workbench canvas position.
+ * 600–900ms: Lab chrome and 70/30 workbench appear cleanly.
  */
 
 import { useRef, useCallback } from "react";
@@ -75,63 +69,49 @@ export function useLandingToLabTransition() {
         );
       }
 
-      // 0–750ms: 3D Wordmark morph & travel to navbar position
-      const wordmarkTarget = wordmarkRef?.current || "#landing-3d-wordmark";
-      if (wordmarkTarget) {
-        // Step 1: Rotate toward camera & brief initial lift
-        tl.to(
-          wordmarkTarget,
-          {
-            scale: 1.05,
-            rotationX: 14,
-            y: -10,
-            duration: 0.22,
-            ease: "power2.out",
-          },
-          0
-        );
-
-        // Step 2: Compress and travel to top-left navbar destination
-        tl.to(
-          wordmarkTarget,
-          {
-            scale: 0.24,
-            x: "-38vw",
-            y: "-32vh",
-            opacity: 0.3,
-            duration: 0.62,
-            ease: "power3.inOut",
-          },
-          0.18
-        );
-      }
-
-      // 100–450ms: Hero text fades & translates left
+      // Step 1: 0–250ms: Headline & copy exits BEFORE hardware crosses region
       if (heroTextRef.current) {
         tl.to(
           heroTextRef.current,
           {
             opacity: 0,
-            x: -40,
-            duration: 0.35,
+            x: -35,
+            duration: 0.25,
             ease: "power2.inOut",
           },
-          0.1
+          0
         );
       }
 
-      // 0–600ms: Hardware visual centers and scales into workbench canvas
+      // Step 2: 200–550ms: 3D Wordmark shrinks and travels to navbar brand position
+      const wordmarkTarget = wordmarkRef?.current || "#landing-3d-wordmark";
+      if (wordmarkTarget) {
+        tl.to(
+          wordmarkTarget,
+          {
+            scale: 0.26,
+            x: "-38vw",
+            y: "-33vh",
+            opacity: 0.4,
+            duration: 0.35,
+            ease: "power3.inOut",
+          },
+          0.2
+        );
+      }
+
+      // Step 3: 300–750ms: Hardware moves toward lab position
       const visualTarget = hardwareVisualRef.current || "#hero-hardware-wrapper";
       if (visualTarget) {
         tl.to(
           visualTarget,
           {
-            scale: 1.25,
-            x: "-12vw",
-            duration: 0.6,
+            scale: 1.15,
+            x: "-10vw",
+            duration: 0.45,
             ease: "power3.out",
           },
-          0
+          0.3
         );
       }
 
@@ -148,47 +128,45 @@ export function useLandingToLabTransition() {
         );
       }
 
-      // 500–900ms: Lab chrome appears
+      // Step 4: 600–900ms: Lab appears
       if (labChromeRef.current) {
         tl.fromTo(
           labChromeRef.current,
-          { opacity: 0, y: -20 },
+          { opacity: 0, y: -15 },
           {
             opacity: 1,
             y: 0,
-            duration: 0.4,
-            ease: "power2.out",
-          },
-          0.5
-        );
-      }
-
-      // 600–1000ms: Agent rail slides/fades in
-      if (agentRailRef.current) {
-        tl.fromTo(
-          agentRailRef.current,
-          { opacity: 0, x: 50 },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 0.4,
+            duration: 0.3,
             ease: "power2.out",
           },
           0.6
         );
       }
 
-      // 700–1100ms: Main lab scene settles
+      if (agentRailRef.current) {
+        tl.fromTo(
+          agentRailRef.current,
+          { opacity: 0, x: 40 },
+          {
+            opacity: 1,
+            x: 0,
+            duration: 0.3,
+            ease: "power2.out",
+          },
+          0.65
+        );
+      }
+
       if (labMainSceneRef.current) {
         tl.fromTo(
           labMainSceneRef.current,
           { opacity: 0 },
           {
             opacity: 1,
-            duration: 0.4,
+            duration: 0.3,
             ease: "power2.out",
           },
-          0.7
+          0.65
         );
       }
 

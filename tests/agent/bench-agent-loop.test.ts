@@ -861,4 +861,122 @@ describe("runBenchAgent", () => {
     expect(provider.requests[1]?.previousInteractionId).toBe("interaction-initial-diag");
     expect(provider.requests[2]?.previousInteractionId).toBe("interaction-retest-step");
   });
+
+  it("executes reasoning tools (propose_hypothesis, update_hypothesis, link_evidence) automatically without requesting approval", async () => {
+    const modelContext = new InMemoryModelContext();
+    const events: unknown[] = [];
+    let approvalRequested = false;
+    const executedCalls: string[] = [];
+
+    await modelContext.registerTool({
+      name: "propose_hypothesis",
+      description: "Propose a diagnostic hypothesis.",
+      inputSchema: { type: "object", additionalProperties: true },
+      annotations: { readOnlyHint: false },
+      execute: async (input) => {
+        executedCalls.push("propose_hypothesis");
+        return { id: "H-001", title: input.title };
+      },
+    });
+
+    await modelContext.registerTool({
+      name: "link_evidence",
+      description: "Link evidence to hypothesis.",
+      inputSchema: { type: "object", additionalProperties: true },
+      annotations: { readOnlyHint: false },
+      execute: async () => {
+        executedCalls.push("link_evidence");
+        return { success: true };
+      },
+    });
+
+    const provider = new DeterministicProvider([
+      {
+        interactionId: "turn-reasoning",
+        functionCalls: [
+          {
+            id: "call-propose",
+            name: "propose_hypothesis",
+            arguments: { title: "Relay Inrush Brownout" },
+          },
+          {
+            id: "call-link",
+            name: "link_evidence",
+            arguments: { hypothesis_id: "H-001", evidence_id: "E-001" },
+          },
+        ],
+      },
+      {
+        interactionId: "turn-done",
+        functionCalls: [],
+        text: "Diagnosis reasoned successfully.",
+      },
+    ]);
+    const result = await runBenchAgent({
+      goal: "Synthesize diagnosis",
+      modelContext,
+      provider,
+      requestApproval: async () => {
+        approvalRequested = true;
+        return true;
+      },
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(approvalRequested).toBe(false);
+    expect(executedCalls).toEqual(["propose_hypothesis", "link_evidence"]);
+    expect(result.status).toBe("completed");
+  });
+
+
+  it("strictly pauses for human authorization when executing physical tools (run_relay_stress_test)", async () => {
+    const modelContext = new InMemoryModelContext();
+    const events: unknown[] = [];
+    let approvalCallCount = 0;
+    const executedCalls: string[] = [];
+
+    await modelContext.registerTool({
+      name: "run_relay_stress_test",
+      description: "Actuate hardware relay.",
+      inputSchema: { type: "object", additionalProperties: true },
+      annotations: { readOnlyHint: false },
+      execute: async () => {
+        executedCalls.push("run_relay_stress_test");
+        return { status: "completed", cycles: 3 };
+      },
+    });
+
+    const provider = new DeterministicProvider([
+      {
+        interactionId: "turn-physical",
+        functionCalls: [
+          {
+            id: "call-physical",
+            name: "run_relay_stress_test",
+            arguments: { cycles: 3 },
+          },
+        ],
+      },
+      {
+        interactionId: "turn-done",
+        functionCalls: [],
+        text: "Physical test completed.",
+      },
+    ]);
+
+    const result = await runBenchAgent({
+      goal: "Test physical hardware",
+      modelContext,
+      provider,
+      requestApproval: async () => {
+        approvalCallCount += 1;
+        return true;
+      },
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(approvalCallCount).toBe(1);
+    expect(executedCalls).toEqual(["run_relay_stress_test"]);
+    expect(result.status).toBe("completed");
+  });
 });

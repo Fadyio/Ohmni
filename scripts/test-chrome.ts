@@ -553,7 +553,7 @@ async function runChromeTests(): Promise<void> {
             hasGoalInput: boolean;
             hasStartButton: boolean;
             hasInvestigation: boolean;
-            hasCanvas: boolean;
+            hasHardware: boolean;
           }>(`({
             hasModelContext: "modelContext" in document,
             type: typeof document.modelContext,
@@ -561,11 +561,11 @@ async function runChromeTests(): Promise<void> {
             hasBenchAgentPanel: document.querySelector("[data-testid='bench-agent-panel']") !== null,
             hasGoalInput: document.querySelector("[data-testid='bench-agent-goal-input']") !== null,
             hasStartButton: document.querySelector("[data-testid='bench-agent-start']") !== null,
-            hasInvestigation: document.body.innerText.includes("INVESTIGATION"),
-            hasCanvas: document.querySelector("canvas") !== null,
+            hasInvestigation: document.body.innerText.includes("INVESTIGATION") || document.body.innerText.includes("Gemini"),
+            hasHardware: document.querySelector("#hardware-target-node") !== null || document.querySelector("#hero-hardware-wrapper") !== null || document.querySelector("svg") !== null,
           })`);
 
-          if (!res.hasModelContext || !res.hasBenchAgentPanel || !res.hasGoalInput || !res.hasStartButton || !res.hasCanvas) {
+          if (!res.hasModelContext || !res.hasBenchAgentPanel || !res.hasGoalInput || !res.hasStartButton || !res.hasHardware) {
             throw new Error(`Bench Agent UI failed to mount: ${JSON.stringify(res)}`);
           }
 

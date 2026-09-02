@@ -243,6 +243,8 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
 
   return (
     <motion.div
+      data-scene="running"
+      data-testid="running-experiment-scene"
       initial={{ opacity: 0, scaleY: 0.88 }}
       animate={{ opacity: 1, scaleY: 1 }}
       exit={{ opacity: 0, scaleY: 0.88 }}
@@ -309,6 +311,7 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
         >
           <canvas
             data-testid="oscilloscope-canvas"
+            data-oscilloscope="true"
             ref={canvasRef}
             width={800}
             height={280}
