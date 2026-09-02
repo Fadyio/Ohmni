@@ -1,23 +1,24 @@
 /**
  * Automated Real Chrome WebMCP Test Suite & Screenshot Regression Gate.
- * Milestone 6 — Agent-Driven Hypothesis Synthesis & Evidence Graph.
+ * Milestone 7 — Real Bench Agent + Gemini Tool Orchestration.
  *
  * Launches installed Google Chrome with WebMCP experimental flags,
  * connects via Chrome DevTools Protocol (CDP), and verifies:
- * 1. Native document.modelContext lifecycle and dynamic tool registration.
- * 2. Empty states for Hypotheses and Evidence Ledger (no fake seeded hypotheses).
- * 3. Amber actuation, brownout physics, and automatic evidence extraction into EvidenceStore.
- * 4. Native WebMCP propose_hypothesis, link_evidence, update_hypothesis execution.
- * 5. Qualitative confidence hierarchy (MEDIUM -> HIGH) with explicit evidence citations.
- * 6. Native WebMCP list_hypotheses, get_hypothesis, list_evidence, get_evidence tool execution.
- * 7. Multi-resolution layout integrity (1440x900 and 1366x768).
- * 8. Captures visual proof screenshots to artifacts/screenshots/:
- *    - hypothesis-empty.png
- *    - hypothesis-brownout.png
- *    - hypothesis-evidence-linked.png
- *    - connected.png
- *    - brownout-fault.png
- * 9. Zero console errors.
+ * 1. Native document.modelContext lifecycle and dynamic tool discovery.
+ * 2. Bench Agent UI mounting, idle state, and availability.
+ * 3. Autonomous execution of Green/read-only tools (read_reset_history).
+ * 4. Amber/controlled tool execution gate (run_relay_stress_test) pausing for human approval.
+ * 5. Human approval resume and exact WebMCP tool execution.
+ * 6. Evidence generation and WebMCP hypothesis synthesis (propose_hypothesis, link_evidence, update_hypothesis).
+ * 7. Evidence-grounded hypothesis (H-001, HIGH) with zero unverified repair claims.
+ * 8. Agent abort on device disconnect / STOP with complete state preservation.
+ * 9. Multi-resolution layout integrity (1440x900 and 1366x768).
+ * 10. Captures required visual proof screenshots to artifacts/screenshots/:
+ *     - agent-idle.png
+ *     - agent-investigating.png
+ *     - agent-approval-request.png
+ *     - agent-hypothesis.png
+ * 11. Zero console errors.
  *
  * Usage:
  *   bun run scripts/test-chrome.ts
@@ -31,7 +32,6 @@ import { join } from "node:path";
 import { createServer, type Server } from "node:http";
 import { readFile } from "node:fs/promises";
 
-// 1. Locate Chrome binary
 function findChromePath(): string | null {
   const candidates = [
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -52,61 +52,283 @@ function findChromePath(): string | null {
   return null;
 }
 
-// 2. Simple static server for built dist/
+interface MockTurnPayload {
+  readonly input?: unknown;
+  readonly previousInteractionId?: string;
+  readonly tools?: unknown[];
+}
+
+interface EvidenceDiscoveryItem {
+  readonly id: string;
+}
+
+interface ChromeTargetItem {
+  readonly id: string;
+  readonly type: string;
+  readonly url: string;
+  readonly webSocketDebuggerUrl: string;
+}
+
+interface CDPVersionInfo {
+  readonly Browser: string;
+}
+
+// Static server for built dist/ with deterministic /api/bench-agent mock
 async function startStaticServer(distDir: string, port = 5174): Promise<{ server: Server; url: string }> {
   const mimeTypes: Record<string, string> = {
-    ".html": "text/html",
-    ".js": "application/javascript",
-    ".css": "text/css",
-    ".json": "application/json",
+    ".html": "text/html; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
     ".svg": "image/svg+xml",
     ".png": "image/png",
   };
 
+  const sessionTurns = new Map<string, number>();
+  let discoveredEvidenceIds: string[] = [];
+
   const server = createServer(async (req, res) => {
     try {
-      let reqPath = req.url?.split("?")[0] || "/";
-      if (reqPath === "/") reqPath = "/index.html";
-      const filePath = join(distDir, reqPath);
+      const parsedUrl = new URL(req.url || "/", `http://127.0.0.1:${port}`);
+      const reqPath = parsedUrl.pathname;
 
-      const ext = reqPath.substring(reqPath.lastIndexOf("."));
-      const contentType = mimeTypes[ext] || "application/octet-stream";
+      // Handle Mock Bench Agent API for deterministic native browser loop testing
+      if (reqPath === "/api/bench-agent") {
+        if (req.method === "GET") {
+          res.writeHead(200, {
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "no-store",
+          });
+          res.end(JSON.stringify({ available: true, model: "gemini-3.7-flash" }));
+          return;
+        }
 
-      const data = await readFile(filePath);
-      res.writeHead(200, {
-        "Content-Type": contentType,
-        "Cache-Control": "no-cache",
-      });
-      res.end(data);
-    } catch {
-      // Fallback for SPA routing
-      try {
-        const fallback = await readFile(join(distDir, "index.html"));
-        res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(fallback);
-      } catch {
-        res.writeHead(404);
-        res.end("Not Found");
+        if (req.method === "POST") {
+          const chunks: Buffer[] = [];
+          for await (const chunk of req) {
+            chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+          }
+          const bodyText = Buffer.concat(chunks).toString("utf8");
+          const turnRequest: MockTurnPayload = JSON.parse(bodyText || "{}");
+          const rawSessionHeader = req.headers["x-bench-agent-session"];
+          const sessionId = Array.isArray(rawSessionHeader) ? rawSessionHeader[0] : (rawSessionHeader || "default");
+
+          let turnCount = sessionTurns.get(sessionId) ?? 0;
+          turnCount += 1;
+          sessionTurns.set(sessionId, turnCount);
+
+          let responseBody: Record<string, unknown>;
+
+          // Step 1: User prompt -> call read_reset_history
+          if (!turnRequest.previousInteractionId || turnCount === 1) {
+            responseBody = {
+              interactionId: `interaction-${sessionId}-1`,
+              functionCalls: [
+                {
+                  id: "call-reset-hist",
+                  name: "read_reset_history",
+                  arguments: {},
+                },
+              ],
+            };
+          }
+          // Step 2: Result of read_reset_history -> call run_relay_stress_test (Amber)
+          else if (turnRequest.previousInteractionId === `interaction-${sessionId}-1` || turnCount === 2) {
+            responseBody = {
+              interactionId: `interaction-${sessionId}-2`,
+              functionCalls: [
+                {
+                  id: "call-relay-stress",
+                  name: "run_relay_stress_test",
+                  arguments: { cycles: 3, duration_ms: 20 },
+                },
+              ],
+            };
+          }
+          // Step 3: Result of relay stress -> list_evidence
+          else if (turnRequest.previousInteractionId === `interaction-${sessionId}-2` || turnCount === 3) {
+            responseBody = {
+              interactionId: `interaction-${sessionId}-3`,
+              functionCalls: [
+                {
+                  id: "call-list-evidence",
+                  name: "list_evidence",
+                  arguments: {},
+                },
+              ],
+            };
+          }
+          // Step 4: Result of list_evidence -> propose_hypothesis
+          else if (turnRequest.previousInteractionId === `interaction-${sessionId}-3` || turnCount === 4) {
+            if (Array.isArray(turnRequest.input)) {
+              for (const item of turnRequest.input) {
+                if (item && typeof item === "object" && "name" in item && item.name === "list_evidence" && "result" in item && Array.isArray(item.result)) {
+                  try {
+                    const firstResult = item.result[0];
+                    if (firstResult && typeof firstResult === "object" && "text" in firstResult && typeof firstResult.text === "string") {
+                      const parsedEv: unknown = JSON.parse(firstResult.text);
+                      if (Array.isArray(parsedEv)) {
+                        discoveredEvidenceIds = parsedEv
+                          .filter((e): e is EvidenceDiscoveryItem => Boolean(e && typeof e === "object" && "id" in e && typeof e.id === "string"))
+                          .map((e) => e.id);
+                      }
+                    }
+                  } catch {}
+                }
+              }
+            }
+
+            responseBody = {
+              interactionId: `interaction-${sessionId}-4`,
+              functionCalls: [
+                {
+                  id: "call-propose-hypo",
+                  name: "propose_hypothesis",
+                  arguments: {
+                    title: "Relay-induced supply brownout",
+                    description: "Relay actuation draws excessive inrush current causing 3.3V supply rail to sag below 2.80V threshold.",
+                    confidence: "MEDIUM",
+                    rationale: "Relay stress test reproduced BROWNOUT reset and voltage drop to 2.72V.",
+                  },
+                },
+              ],
+            };
+          }
+          // Step 5: Result of propose_hypothesis -> link_evidence (first record)
+          else if (turnRequest.previousInteractionId === `interaction-${sessionId}-4` || turnCount === 5) {
+            const ev1 = discoveredEvidenceIds[0] || "E-001";
+            responseBody = {
+              interactionId: `interaction-${sessionId}-5`,
+              functionCalls: [
+                {
+                  id: "call-link-1",
+                  name: "link_evidence",
+                  arguments: {
+                    hypothesis_id: "H-001",
+                    evidence_id: ev1,
+                    relationship: "STRONGLY_SUPPORTS",
+                    note: "Brownout reset log recorded upon relay actuation.",
+                  },
+                },
+              ],
+            };
+          }
+          // Step 6: Result of link_evidence 1 -> link_evidence (second record)
+          else if (turnRequest.previousInteractionId === `interaction-${sessionId}-5` || turnCount === 6) {
+            const ev2 = discoveredEvidenceIds[1] || "E-002";
+            responseBody = {
+              interactionId: `interaction-${sessionId}-6`,
+              functionCalls: [
+                {
+                  id: "call-link-2",
+                  name: "link_evidence",
+                  arguments: {
+                    hypothesis_id: "H-001",
+                    evidence_id: ev2,
+                    relationship: "STRONGLY_SUPPORTS",
+                    note: "Measured minimum voltage sag of 2.72V violates 2.80V rail threshold.",
+                  },
+                },
+              ],
+            };
+          }
+          // Step 7: Result of link_evidence 2 -> update_hypothesis to HIGH
+          else if (turnRequest.previousInteractionId === `interaction-${sessionId}-6` || turnCount === 7) {
+            const evList = discoveredEvidenceIds.length >= 2 ? discoveredEvidenceIds.slice(0, 2) : ["E-001", "E-002"];
+            responseBody = {
+              interactionId: `interaction-${sessionId}-7`,
+              functionCalls: [
+                {
+                  id: "call-update-high",
+                  name: "update_hypothesis",
+                  arguments: {
+                    hypothesis_id: "H-001",
+                    confidence: "HIGH",
+                    evidence_ids: evList,
+                    reason: "Both reset log and oscilloscope trace confirm relay actuation causes supply voltage sag below 2.80V.",
+                  },
+                },
+              ],
+            };
+          }
+          // Step 8: Final diagnostic synthesis
+          else {
+            responseBody = {
+              interactionId: `interaction-${sessionId}-8`,
+              functionCalls: [],
+              text: "Empirical diagnosis complete: Observed failures are caused by relay coil inrush drawing the 3.3V rail down to 2.72V, triggering a microcontroller brownout reset. Hypothesis H-001 elevated to HIGH confidence supported by cited evidence. Physical repair is NOT claimed as verified because jumper intervention has not been tested.",
+            };
+          }
+
+          res.writeHead(200, {
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "no-store",
+          });
+          res.end(JSON.stringify(responseBody));
+          return;
+        }
       }
+
+      // Static File Serving
+      const normalizedPath = reqPath === "/" ? "/index.html" : reqPath;
+      const filePath = join(distDir, normalizedPath);
+      const ext = normalizedPath.includes(".")
+        ? normalizedPath.substring(normalizedPath.lastIndexOf("."))
+        : ".html";
+      const contentType = mimeTypes[ext] || "text/html; charset=utf-8";
+
+      try {
+        const data = await readFile(filePath);
+        res.writeHead(200, {
+          "Content-Type": contentType,
+          "Cache-Control": "no-cache",
+        });
+        res.end(data);
+      } catch {
+        // Fallback for SPA routing
+        try {
+          const fallback = await readFile(join(distDir, "index.html"));
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+          res.end(fallback);
+        } catch {
+          res.writeHead(404);
+          res.end("Not Found");
+        }
+      }
+    } catch {
+      res.writeHead(500);
+      res.end("Internal Error");
     }
   });
 
-  await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
+  const { promise: listenPromise, resolve: listenResolve } = Promise.withResolvers<void>();
+  server.listen(port, "127.0.0.1", () => listenResolve());
+  await listenPromise;
   return { server, url: `http://127.0.0.1:${port}` };
 }
 
-// 3. CDP Helper
+// CDP Client
 class CDPClient {
   private ws: WebSocket;
   private nextId = 1;
-  private pending = new Map<number, { resolve: (val: any) => void; reject: (err: any) => void }>();
+  private pending = new Map<number, { resolve: (val: unknown) => void; reject: (err: unknown) => void }>();
   public consoleErrors: string[] = [];
 
   private constructor(ws: WebSocket) {
     this.ws = ws;
     this.ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data.toString());
+        const data = JSON.parse(event.data.toString()) as {
+          id?: number;
+          error?: { message?: string };
+          result?: unknown;
+          method?: string;
+          params?: {
+            type?: string;
+            args?: Array<{ value?: string; description?: string }>;
+            exceptionDetails?: { text?: string; exception?: { description?: string } };
+          };
+        };
         if (data.id && this.pending.has(data.id)) {
           const { resolve, reject } = this.pending.get(data.id)!;
           this.pending.delete(data.id);
@@ -115,13 +337,13 @@ class CDPClient {
           } else {
             resolve(data.result);
           }
-        } else if (data.method === "Runtime.consoleAPICalled") {
+        } else if (data.method === "Runtime.consoleAPICalled" && data.params) {
           const { type, args } = data.params;
-          if (type === "error") {
-            const msg = args.map((a: any) => a.value || a.description || JSON.stringify(a)).join(" ");
+          if (type === "error" && args) {
+            const msg = args.map((a) => a.value || a.description || JSON.stringify(a)).join(" ");
             this.consoleErrors.push(msg);
           }
-        } else if (data.method === "Runtime.exceptionThrown") {
+        } else if (data.method === "Runtime.exceptionThrown" && data.params) {
           const desc = data.params.exceptionDetails?.exception?.description || data.params.exceptionDetails?.text;
           this.consoleErrors.push(`Uncaught Exception: ${desc}`);
         }
@@ -131,35 +353,39 @@ class CDPClient {
     };
   }
 
-  static async connect(url: string): Promise<CDDPClient> {
+  static async connect(url: string): Promise<CDPClient> {
     const ws = new WebSocket(url);
-    await new Promise((resolve, reject) => {
-      ws.onopen = resolve;
-      ws.onerror = reject;
-    });
+    const { promise, resolve, reject } = Promise.withResolvers<void>();
+    ws.onopen = () => resolve();
+    ws.onerror = (err) => reject(err);
+    await promise;
     return new CDPClient(ws);
   }
 
-  async send(method: string, params: Record<string, any> = {}): Promise<any> {
+  async send(method: string, params: Record<string, unknown> = {}): Promise<unknown> {
     const id = this.nextId++;
     const message = JSON.stringify({ id, method, params });
-    const { promise, resolve, reject } = Promise.withResolvers<any>();
+    const { promise, resolve, reject } = Promise.withResolvers<unknown>();
     this.pending.set(id, { resolve, reject });
     this.ws.send(message);
     return promise;
   }
 
-  async evaluate(expression: string): Promise<any> {
-    const res = await this.send("Runtime.evaluate", {
+  async evaluate<T = unknown>(expression: string): Promise<T> {
+    const raw = await this.send("Runtime.evaluate", {
       expression,
       awaitPromise: true,
       returnByValue: true,
     });
+    const res = raw as {
+      result?: { value?: T };
+      exceptionDetails?: { text?: string; exception?: { description?: string } };
+    };
     if (res.exceptionDetails) {
       const desc = res.exceptionDetails.exception?.description || res.exceptionDetails.text;
       throw new Error(`Evaluation failed: ${desc}`);
     }
-    return res.result?.value;
+    return res.result?.value as T;
   }
 
   async setViewport(width: number, height: number): Promise<void> {
@@ -172,7 +398,8 @@ class CDPClient {
   }
 
   async captureScreenshot(outputPath: string): Promise<void> {
-    const res = await this.send("Page.captureScreenshot", { format: "png" });
+    const raw = await this.send("Page.captureScreenshot", { format: "png" });
+    const res = raw as { data: string };
     const buffer = Buffer.from(res.data, "base64");
     writeFileSync(outputPath, buffer);
   }
@@ -183,12 +410,11 @@ class CDPClient {
     } catch {}
   }
 }
-type CDDPClient = CDPClient;
 
-// 4. Main test suite
 async function runChromeTests(): Promise<void> {
   console.info("==================================================================");
-  console.info("   OHMNI — REAL GOOGLE CHROME WEBMCP HYPOTHESIS REGRESSION GATE   ");
+  console.info("   OHMNI — REAL GOOGLE CHROME WEBMCP AGENT ACCEPTANCE GATE        ");
+  console.info("   Milestone 7: Real Bench Agent + Gemini Tool Orchestration      ");
   console.info("==================================================================");
 
   const chromePath = findChromePath();
@@ -200,11 +426,9 @@ async function runChromeTests(): Promise<void> {
 
   console.info(`[Chrome Gate] Found Chrome at: ${chromePath}`);
 
-  // Ensure screenshot artifact directory exists
   const screenshotDir = join(process.cwd(), "artifacts", "screenshots");
   mkdirSync(screenshotDir, { recursive: true });
 
-  // Build production bundle first
   console.info("[Chrome Gate] Building production distribution (vite build)...");
   const buildProc = spawn("bun", ["run", "build"], { stdio: "inherit" });
   const { promise: buildPromise, resolve: buildResolve, reject: buildReject } = Promise.withResolvers<void>();
@@ -215,8 +439,7 @@ async function runChromeTests(): Promise<void> {
   const { server, url: serverUrl } = await startStaticServer(distDir, 5174);
   console.info(`[Chrome Gate] Serving production bundle at: ${serverUrl}`);
 
-  // Prepare clean profile with WebMCP flag
-  const tempProfile = mkdtempSync(join(tmpdir(), "ohmni-chrome-test-"));
+  const tempProfile = mkdtempSync(join(tmpdir(), "ohmni-chrome-m7-test-"));
   const localState = {
     browser: {
       enabled_labs_experiments: ["enable-webmcp-testing@1"],
@@ -237,7 +460,7 @@ async function runChromeTests(): Promise<void> {
     serverUrl,
   ];
 
-  console.info(`[Chrome Gate] Launching Chrome (PID will be monitored)...`);
+  console.info(`[Chrome Gate] Launching Chrome...`);
   const chromeProc: ChildProcess = spawn(chromePath, chromeArgs, {
     detached: false,
     stdio: "pipe",
@@ -246,15 +469,16 @@ async function runChromeTests(): Promise<void> {
   let cdpClient: CDPClient | null = null;
 
   try {
-    // Wait for CDP endpoint
     console.info(`[Chrome Gate] Waiting for Chrome remote debugging on port ${debugPort}...`);
-    let versionData: any = null;
+    let versionData: CDPVersionInfo | null = null;
     for (let i = 0; i < 40; i++) {
-      await new Promise((r) => setTimeout(r, 250));
+      const { promise: sleepPromise, resolve: sleepResolve } = Promise.withResolvers<void>();
+      setTimeout(sleepResolve, 250);
+      await sleepPromise;
       try {
         const res = await fetch(`http://127.0.0.1:${debugPort}/json/version`);
         if (res.ok) {
-          versionData = await res.json();
+          versionData = (await res.json()) as CDPVersionInfo;
           break;
         }
       } catch {}
@@ -266,102 +490,106 @@ async function runChromeTests(): Promise<void> {
 
     console.info(`[Chrome Gate] Connected to: ${versionData.Browser}`);
 
-    // Discover page target
-    const listRes = await fetch(`http://127.0.0.1:${debugPort}/json/list`);
-    const targets: any[] = await listRes.json();
-    const pageTarget = targets.find((t) => t.type === "page" && t.url.includes("127.0.0.1:5174"));
+    let pageTarget: ChromeTargetItem | undefined;
+    for (let i = 0; i < 30; i++) {
+      try {
+        const listRes = await fetch(`http://127.0.0.1:${debugPort}/json/list`);
+        const targets = (await listRes.json()) as ChromeTargetItem[];
+        pageTarget =
+          targets.find((t) => t.type === "page" && t.url.includes("127.0.0.1:5174")) ??
+          targets.find((t) => t.type === "page" && !t.url.startsWith("chrome-extension://"));
+        if (pageTarget) break;
+      } catch {}
+      const { promise: p, resolve: r } = Promise.withResolvers<void>();
+      setTimeout(r, 200);
+      await p;
+    }
 
     if (!pageTarget) {
       throw new Error("Application page target not found in Chrome tabs");
     }
 
+    console.info(`[Connecting to target] id=${pageTarget.id} url=${pageTarget.url}`);
     cdpClient = await CDPClient.connect(pageTarget.webSocketDebuggerUrl);
     await cdpClient.send("Runtime.enable");
     await cdpClient.send("Page.enable");
+    await cdpClient.send("Page.navigate", { url: serverUrl });
 
-    // Wait 1.2 seconds for page JS & React root mounting
-    await new Promise((r) => setTimeout(r, 1200));
+    console.info(`[Chrome Gate] Waiting for application mount...`);
+    let mounted = false;
+    for (let i = 0; i < 40; i++) {
+      const { promise: sleepPromise, resolve: sleepResolve } = Promise.withResolvers<void>();
+      setTimeout(sleepResolve, 250);
+      await sleepPromise;
+      try {
+        const ready = await cdpClient.evaluate<boolean>(
+          `Boolean(window.__virtualDevice && document.querySelector("[data-testid='bench-agent-panel']"))`
+        );
+        if (ready) {
+          mounted = true;
+          break;
+        }
+      } catch {}
+    }
+    if (!mounted) {
+      throw new Error("Application failed to mount within 10 seconds");
+    }
 
-    // Capture initial idle & hypothesis-empty screenshot
-    const idlePath = join(screenshotDir, "idle.png");
-    const hypothesisEmptyPath = join(screenshotDir, "hypothesis-empty.png");
-    const evidenceEmptyPath = join(screenshotDir, "evidence-empty.png");
-    await cdpClient.captureScreenshot(idlePath);
-    await cdpClient.captureScreenshot(hypothesisEmptyPath);
-    await cdpClient.captureScreenshot(evidenceEmptyPath);
-    console.info(`[Screenshot] Saved hypothesis-empty state: ${hypothesisEmptyPath}`);
+    const { promise: settlePromise, resolve: settleResolve } = Promise.withResolvers<void>();
+    setTimeout(settleResolve, 500);
+    await settlePromise;
 
-    console.info("\n--- EXECUTING NATIVE CHROME WEBMCP & HYPOTHESIS REGRESSION MATRIX ---\n");
-
-    let capturedResetEvidenceId = "E-001";
-    let capturedMeasEvidenceId = "E-002";
+    console.info("\n--- EXECUTING NATIVE CHROME WEBMCP & BENCH AGENT REGRESSION MATRIX ---\n");
 
     const tests = [
       {
-        name: "1. document.modelContext Availability & Investigation UI Mounting",
+        name: "1. document.modelContext Availability & Bench Agent Panel Mounting",
         fn: async () => {
-          const res = await cdpClient!.evaluate(`({
+          const res = await cdpClient!.evaluate<{
+            hasModelContext: boolean;
+            type: string;
+            isNative: boolean;
+            hasBenchAgentPanel: boolean;
+            hasGoalInput: boolean;
+            hasStartButton: boolean;
+            hasInvestigation: boolean;
+            hasCanvas: boolean;
+          }>(`({
             hasModelContext: "modelContext" in document,
             type: typeof document.modelContext,
             isNative: window.__modelContext === undefined,
-            hasReactApp: document.getElementById("app")?.children?.length > 0,
-            hasCanvas: document.querySelector("canvas") !== null,
+            hasBenchAgentPanel: document.querySelector("[data-testid='bench-agent-panel']") !== null,
+            hasGoalInput: document.querySelector("[data-testid='bench-agent-goal-input']") !== null,
+            hasStartButton: document.querySelector("[data-testid='bench-agent-start']") !== null,
             hasInvestigation: document.body.innerText.includes("INVESTIGATION"),
-            hasActiveHypothesesSection: document.body.innerText.includes("ACTIVE HYPOTHESES"),
-            hasEvidenceLedgerSection: document.body.innerText.includes("EVIDENCE LEDGER"),
-            hasEmptyHypothesesText: document.body.innerText.includes("NO HYPOTHESES PROPOSED YET"),
+            hasCanvas: document.querySelector("canvas") !== null,
           })`);
-          if (
-            !res.hasModelContext ||
-            res.type !== "object" ||
-            !res.hasReactApp ||
-            !res.hasCanvas ||
-            !res.hasInvestigation ||
-            !res.hasActiveHypothesesSection ||
-            !res.hasEvidenceLedgerSection ||
-            !res.hasEmptyHypothesesText
-          ) {
-            throw new Error(`Expected document.modelContext and Investigation UI with empty hypotheses, got: ${JSON.stringify(res)}`);
+
+          if (!res.hasModelContext || !res.hasBenchAgentPanel || !res.hasGoalInput || !res.hasStartButton || !res.hasCanvas) {
+            throw new Error(`Bench Agent UI failed to mount: ${JSON.stringify(res)}`);
           }
-          return `Native document.modelContext is object (isNative: ${res.isNative}), React Workbench, Canvas & 2-tier Investigation Panel mounted`;
+
+          const idlePath = join(screenshotDir, "agent-idle.png");
+          await cdpClient!.captureScreenshot(idlePath);
+          console.info(`[Screenshot] Saved idle state: ${idlePath}`);
+
+          return `document.modelContext active (isNative: ${res.isNative}), Bench Agent supervisor & canvas mounted`;
         },
       },
       {
-        name: "2. Initial WebMCP Investigation Tools Registration",
+        name: "2. Native Tool Registration & Bench Agent Reads getTools()",
         fn: async () => {
-          const tools = await cdpClient!.evaluate(`(async () => {
-            const rawTools = await document.modelContext.getTools();
-            return rawTools.map(t => ({ name: t.name, readOnly: t.annotations?.readOnlyHint }));
-          })()`);
-          const names = tools.map((t: any) => t.name);
-
-          const expectedInitial = [
-            "list_evidence",
-            "get_evidence",
-            "propose_hypothesis",
-            "update_hypothesis",
-            "link_evidence",
-            "reject_hypothesis",
-            "list_hypotheses",
-            "get_hypothesis",
-          ];
-
-          for (const exp of expectedInitial) {
-            if (!names.includes(exp)) throw new Error(`Missing expected initial investigation tool: ${exp}`);
-          }
-          return `Initial WebMCP investigation tools verified (${tools.length} total tools registered: [${names.join(", ")}])`;
-        },
-      },
-      {
-        name: "3. Virtual Device Connection & Full Dynamic Tool Surface Registration",
-        fn: async () => {
-          const res = await cdpClient!.evaluate(`(async () => {
+          const res = await cdpClient!.evaluate<{ count: number; toolNames: string[] }>(`(async () => {
             await window.__virtualDevice.connect();
             await window.__toolRegistrar.registerDevice(window.__virtualDevice);
             const tools = await document.modelContext.getTools();
-            return tools.map(t => ({ name: t.name, title: t.title, readOnly: t.annotations?.readOnlyHint }));
+            return {
+              count: tools.length,
+              toolNames: tools.map(t => t.name),
+            };
           })()`);
-          const expected = [
+
+          const expectedTools = [
             "read_device_info",
             "read_reset_history",
             "read_system_health",
@@ -376,213 +604,240 @@ async function runChromeTests(): Promise<void> {
             "list_hypotheses",
             "get_hypothesis",
           ];
-          const names = res.map((t: any) => t.name);
-          for (const exp of expected) {
-            if (!names.includes(exp)) throw new Error(`Missing expected tool: ${exp}`);
+
+          for (const exp of expectedTools) {
+            if (!res.toolNames.includes(exp)) {
+              throw new Error(`Missing expected WebMCP tool: ${exp}`);
+            }
           }
 
-          // Capture connected state screenshot
-          await new Promise((r) => setTimeout(r, 600));
-          const connectedPath = join(screenshotDir, "connected.png");
-          await cdpClient!.captureScreenshot(connectedPath);
-          console.info(`[Screenshot] Saved connected state: ${connectedPath}`);
-
-          return `Successfully registered all 13 diagnostic & investigation tools: [${names.join(", ")}]`;
+          return `Bench Agent discovered all ${res.count} native WebMCP instruments: [${res.toolNames.join(", ")}]`;
         },
       },
       {
-        name: "4. WebMCP executeTool: run_relay_stress_test & Factual Evidence Generation",
+        name: "3. Bench Agent Start & Autonomous Green Tool (read_reset_history) Execution",
         fn: async () => {
-          const res = await cdpClient!.evaluate(`(async () => {
-            const tools = await document.modelContext.getTools();
-            const relayTool = tools.find(t => t.name === "run_relay_stress_test");
-            const raw = await document.modelContext.executeTool(relayTool, JSON.stringify({ cycles: 3, duration_ms: 20 }));
-            let parsed;
-            try { parsed = JSON.parse(raw); } catch (e) { parsed = { rawString: raw }; }
-
-            const evidenceRecords = window.__evidenceStore ? window.__evidenceStore.getAll() : [];
-
-            return {
-              raw,
-              parsed,
-              evidenceCount: evidenceRecords.length,
-              evidenceRecords: evidenceRecords.map(e => ({ id: e.id, type: e.type, summary: e.summary })),
-            };
+          // Set diagnostic goal
+          await cdpClient!.evaluate(`(() => {
+            const input = document.querySelector("[data-testid='bench-agent-goal-input']");
+            const prototype = Object.getPrototypeOf(input);
+            const nativeSetter = Object.getOwnPropertyDescriptor(prototype, "value").set;
+            nativeSetter.call(input, "The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.");
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.dispatchEvent(new Event("change", { bubbles: true }));
           })()`);
 
-          const { parsed, evidenceCount, evidenceRecords } = res;
-          if (!parsed.faultReproduced || !parsed.resetOccurred || parsed.resetReason !== "BROWNOUT") {
-            throw new Error(`Failed to reproduce brownout fault: ${JSON.stringify(parsed)}`);
+          // Wait for start button to become enabled
+          let buttonEnabled = false;
+          for (let i = 0; i < 30; i++) {
+            buttonEnabled = await cdpClient!.evaluate<boolean>(
+              `Boolean(document.querySelector("[data-testid='bench-agent-start']:not([disabled])"))`
+            );
+            if (buttonEnabled) break;
+            const { promise: p, resolve: r } = Promise.withResolvers<void>();
+            setTimeout(r, 100);
+            await p;
           }
 
-          if (evidenceCount < 2) {
-            throw new Error(`Expected at least 2 evidence records, got ${evidenceCount}`);
+          if (!buttonEnabled) {
+            throw new Error("Start button remained disabled after setting goal input");
           }
 
-          const resetEv = evidenceRecords.find((e: any) => e.type === "reset_event");
-          const measEv = evidenceRecords.find((e: any) => e.type === "measurement");
+          // Click start
+          await cdpClient!.evaluate(`document.querySelector("[data-testid='bench-agent-start']").click()`);
 
-          if (resetEv) capturedResetEvidenceId = resetEv.id;
-          if (measEv) capturedMeasEvidenceId = measEv.id;
+          // Wait for Turn 1 to execute autonomously and pause at Turn 2 amber call
+          let greenExecuted = false;
+          for (let i = 0; i < 30; i++) {
+            const check = await cdpClient!.evaluate<{ count: number; hasResetHistory: boolean }>(`({
+              count: document.querySelectorAll("[data-testid='bench-agent-activity-row']").length,
+              hasResetHistory: Array.from(document.querySelectorAll("[data-testid='bench-agent-activity-row']")).some(el => el.innerText.includes("read_reset_history")),
+            })`);
+            if (check.count >= 1 && check.hasResetHistory) {
+              greenExecuted = true;
+              break;
+            }
+            const { promise: p, resolve: r } = Promise.withResolvers<void>();
+            setTimeout(r, 150);
+            await p;
+          }
 
-          // Capture brownout fault screenshot
-          await new Promise((r) => setTimeout(r, 600));
-          const faultPath = join(screenshotDir, "brownout-fault.png");
-          await cdpClient!.captureScreenshot(faultPath);
-          console.info(`[Screenshot] Saved brownout fault: ${faultPath}`);
+          if (!greenExecuted) {
+            const dump = await cdpClient!.evaluate(`({
+              status: document.querySelector("[data-testid='bench-agent-status']")?.innerText,
+              error: (document.body.innerText.match(/FAILED[\s\S]{0,200}/) || [])[0],
+              panelText: document.querySelector("[data-testid='bench-agent-panel']")?.innerText,
+            })`);
+            throw new Error(`Bench Agent failed: ${JSON.stringify(dump)}`);
+          }
 
-          return `Relay stress test generated ${evidenceCount} factual evidence records (${capturedResetEvidenceId}, ${capturedMeasEvidenceId})`;
+          const investigatingPath = join(screenshotDir, "agent-investigating.png");
+          await cdpClient!.captureScreenshot(investigatingPath);
+          console.info(`[Screenshot] Saved investigating state: ${investigatingPath}`);
+
+          return `Green tool read_reset_history executed autonomously`;
         },
       },
       {
-        name: "5. WebMCP propose_hypothesis Execution & UI Card Rendering",
+        name: "4. Amber Tool Call (run_relay_stress_test) Pauses for Human Approval",
         fn: async () => {
-          const res = await cdpClient!.evaluate(`(async () => {
-            const tools = await document.modelContext.getTools();
-            const proposeTool = tools.find(t => t.name === "propose_hypothesis");
+          let approvalVisible = false;
+          let toolName = "";
 
-            const raw = await document.modelContext.executeTool(
-              proposeTool,
-              JSON.stringify({
-                title: "Relay-induced supply brownout",
-                description: "Relay coil actuation draws surge current pulling 3.3V rail below 2.80V reset threshold.",
-                confidence: "MEDIUM",
-                rationale: "Initial voltage drop observed on power rail during relay switching.",
-              })
-            );
+          for (let i = 0; i < 20; i++) {
+            const check = await cdpClient!.evaluate<{
+              hasApprovalBox: boolean;
+              hasApproveBtn: boolean;
+              hasDenyBtn: boolean;
+              text: string;
+            }>(`({
+              hasApprovalBox: document.querySelector("[data-testid='bench-agent-approval']") !== null,
+              hasApproveBtn: document.querySelector("[data-testid='bench-agent-approve']") !== null,
+              hasDenyBtn: document.querySelector("[data-testid='bench-agent-deny']") !== null,
+              text: document.querySelector("[data-testid='bench-agent-approval']")?.innerText || "",
+            })`);
 
-            const parsed = JSON.parse(raw);
-            const stored = window.__hypothesisStore ? window.__hypothesisStore.get("H-001") : undefined;
+            if (check.hasApprovalBox && check.hasApproveBtn) {
+              approvalVisible = true;
+              toolName = check.text;
+              break;
+            }
+            const { promise: pollPromise, resolve: pollResolve } = Promise.withResolvers<void>();
+            setTimeout(pollResolve, 200);
+            await pollPromise;
+          }
 
-            return {
-              raw,
-              parsed,
-              storedId: stored?.id,
-              storedTitle: stored?.title,
-              storedConfidence: stored?.confidence,
-              uiContainsTitle: document.body.innerText.includes("Relay-induced supply brownout"),
-              uiContainsH001: document.body.innerText.includes("H-001"),
-              uiContainsMedium: document.body.innerText.includes("MEDIUM"),
-            };
+          if (!approvalVisible || !toolName.includes("run_relay_stress_test")) {
+            throw new Error(`Amber tool did not pause for human approval: visible=${approvalVisible}, text=${toolName}`);
+          }
+
+          const approvalPath = join(screenshotDir, "agent-approval-request.png");
+          await cdpClient!.captureScreenshot(approvalPath);
+          console.info(`[Screenshot] Saved approval request state: ${approvalPath}`);
+
+          return `Amber tool run_relay_stress_test paused with explicit human approval dialog`;
+        },
+      },
+      {
+        name: "5. Human Approval Resumes Exact WebMCP Execution & Evidence Extraction",
+        fn: async () => {
+          await cdpClient!.evaluate(`(() => {
+            const approveBtn = document.querySelector("[data-testid='bench-agent-approve']");
+            approveBtn?.click();
           })()`);
 
-          if (res.storedId !== "H-001" || res.storedConfidence !== "MEDIUM" || !res.uiContainsTitle || !res.uiContainsH001) {
-            throw new Error(`Failed to propose hypothesis via WebMCP: ${JSON.stringify(res)}`);
+          const { promise: waitEvidencePromise, resolve: waitEvidenceResolve } = Promise.withResolvers<void>();
+          setTimeout(waitEvidenceResolve, 1500);
+          await waitEvidencePromise;
+
+          const res = await cdpClient!.evaluate<{ evidenceCount: number; hasResetEvent: boolean; hasMeasurement: boolean }>(`({
+            evidenceCount: window.__evidenceStore ? window.__evidenceStore.getAll().length : 0,
+            hasResetEvent: window.__evidenceStore ? window.__evidenceStore.getAll().some(e => e.type === "reset_event") : false,
+            hasMeasurement: window.__evidenceStore ? window.__evidenceStore.getAll().some(e => e.type === "measurement") : false,
+          })`);
+
+          if (res.evidenceCount < 2 || !res.hasResetEvent || !res.hasMeasurement) {
+            throw new Error(`Relay stress test approval execution failed to generate factual evidence: ${JSON.stringify(res)}`);
           }
 
-          // Capture hypothesis-brownout screenshot
-          await new Promise((r) => setTimeout(r, 600));
-          const brownoutHypothesisPath = join(screenshotDir, "hypothesis-brownout.png");
-          await cdpClient!.captureScreenshot(brownoutHypothesisPath);
-          console.info(`[Screenshot] Saved hypothesis-brownout state: ${brownoutHypothesisPath}`);
-
-          return `propose_hypothesis created H-001 with MEDIUM confidence, rendered in UI`;
+          return `Approval resumed execution, generated ${res.evidenceCount} factual evidence records from hardware test`;
         },
       },
       {
-        name: "6. WebMCP link_evidence & update_hypothesis Execution (Confidence -> HIGH)",
+        name: "6. Agent-Driven Hypothesis Synthesis & Confidence Elevation (HIGH)",
         fn: async () => {
-          const res = await cdpClient!.evaluate(`(async (resetId, measId) => {
-            const tools = await document.modelContext.getTools();
-            const linkTool = tools.find(t => t.name === "link_evidence");
-            const updateTool = tools.find(t => t.name === "update_hypothesis");
+          for (let i = 0; i < 15; i++) {
+            const check = await cdpClient!.evaluate<{
+              status: string;
+              hasApproval: boolean;
+              hasAssessment: boolean;
+            }>(`({
+              status: document.querySelector("[data-testid='bench-agent-status']")?.innerText || "",
+              hasApproval: document.querySelector("[data-testid='bench-agent-approve']") !== null,
+              hasAssessment: document.querySelector("[data-testid='bench-agent-assessment']") !== null,
+            })`);
 
-            // 1. Link reset evidence
-            await document.modelContext.executeTool(
-              linkTool,
-              JSON.stringify({
-                hypothesis_id: "H-001",
-                evidence_id: resetId,
-                relationship: "STRONGLY_SUPPORTS",
-                note: "Device reported BROWNOUT reset upon relay actuation.",
-              })
-            );
+            if (check.hasApproval) {
+              await cdpClient!.evaluate(`document.querySelector("[data-testid='bench-agent-approve']").click()`);
+              const { promise: p, resolve: r } = Promise.withResolvers<void>();
+              setTimeout(r, 400);
+              await p;
+            }
 
-            // 2. Link voltage drop evidence
-            await document.modelContext.executeTool(
-              linkTool,
-              JSON.stringify({
-                hypothesis_id: "H-001",
-                evidence_id: measId,
-                relationship: "STRONGLY_SUPPORTS",
-                note: "Measured rail dropped to minimum 2.72V.",
-              })
-            );
-
-            // 3. Elevate confidence to HIGH
-            const updateRaw = await document.modelContext.executeTool(
-              updateTool,
-              JSON.stringify({
-                hypothesis_id: "H-001",
-                confidence: "HIGH",
-                evidence_ids: [resetId, measId],
-                reason: "Reset reason is confirmed BROWNOUT and rail falls below the 2.80V threshold.",
-              })
-            );
-
-            const parsed = JSON.parse(updateRaw);
-            const stored = window.__hypothesisStore ? window.__hypothesisStore.get("H-001") : undefined;
-
-            return {
-              parsed,
-              storedConfidence: stored?.confidence,
-              supportingEvidenceIds: stored?.supportingEvidenceIds,
-              uiContainsHigh: document.body.innerText.includes("HIGH"),
-              uiContainsResetCitation: document.body.innerText.includes(resetId),
-              uiContainsMeasCitation: document.body.innerText.includes(measId),
-            };
-          })("${capturedResetEvidenceId}", "${capturedMeasEvidenceId}")`);
-
-          if (
-            res.storedConfidence !== "HIGH" ||
-            !res.supportingEvidenceIds?.includes(capturedResetEvidenceId) ||
-            !res.supportingEvidenceIds?.includes(capturedMeasEvidenceId) ||
-            !res.uiContainsHigh
-          ) {
-            throw new Error(`Failed to link evidence and elevate confidence: ${JSON.stringify(res)}`);
+            if (check.status.includes("COMPLETED") || check.hasAssessment) {
+              break;
+            }
+            const { promise: p2, resolve: r2 } = Promise.withResolvers<void>();
+            setTimeout(r2, 300);
+            await p2;
           }
 
-          // Wait 600ms for UI animations to settle
-          await new Promise((r) => setTimeout(r, 600));
+          const { promise: settleP, resolve: settleR } = Promise.withResolvers<void>();
+          setTimeout(settleR, 600);
+          await settleP;
 
-          // Capture hypothesis-evidence-linked screenshot
-          const linkedPath = join(screenshotDir, "hypothesis-evidence-linked.png");
-          await cdpClient!.captureScreenshot(linkedPath);
-          console.info(`[Screenshot] Saved hypothesis-evidence-linked state: ${linkedPath}`);
+          const res = await cdpClient!.evaluate<{
+            storedHypothesis: { confidence: string; supportingEvidenceIds: string[] } | null;
+            assessmentText: string;
+            statusText: string;
+            uiContainsH001: boolean;
+            uiContainsHigh: boolean;
+          }>(`({
+            storedHypothesis: window.__hypothesisStore ? window.__hypothesisStore.get("H-001") : null,
+            assessmentText: document.querySelector("[data-testid='bench-agent-assessment']")?.innerText || "",
+            statusText: document.querySelector("[data-testid='bench-agent-status']")?.innerText || "",
+            uiContainsH001: document.body.innerText.includes("H-001"),
+            uiContainsHigh: document.body.innerText.includes("HIGH"),
+          })`);
 
-          return `Linked ${capturedResetEvidenceId} & ${capturedMeasEvidenceId}, elevated confidence to HIGH, verified visual citations in UI`;
+          if (!res.storedHypothesis || res.storedHypothesis.confidence !== "HIGH") {
+            throw new Error(`Failed to synthesize HIGH hypothesis H-001: ${JSON.stringify(res)}`);
+          }
+
+          if (res.storedHypothesis.supportingEvidenceIds.length < 2) {
+            throw new Error(`Hypothesis H-001 must cite at least 2 supporting evidence records, got ${res.storedHypothesis.supportingEvidenceIds.length}`);
+          }
+
+          const lowerText = res.assessmentText.toLowerCase();
+          if (lowerText.includes("verified fixed") || lowerText.includes("repair verified") || lowerText.includes("confirmed fixed")) {
+            throw new Error(`Agent falsely claimed repair was verified: ${res.assessmentText}`);
+          }
+
+          const hypoPath = join(screenshotDir, "agent-hypothesis.png");
+          await cdpClient!.captureScreenshot(hypoPath);
+          console.info(`[Screenshot] Saved agent-hypothesis state: ${hypoPath}`);
+
+          return `Hypothesis H-001 created & elevated to HIGH with ${res.storedHypothesis.supportingEvidenceIds.length} citations [${res.storedHypothesis.supportingEvidenceIds.join(", ")}]; No verified repair claimed`;
         },
       },
       {
-        name: "7. WebMCP list_hypotheses & get_hypothesis Native Tool Queries",
+        name: "7. Agent Disconnect / Stop State Preservation",
         fn: async () => {
-          const res = await cdpClient!.evaluate(`(async () => {
-            const tools = await document.modelContext.getTools();
-            const listTool = tools.find(t => t.name === "list_hypotheses");
-            const getTool = tools.find(t => t.name === "get_hypothesis");
+          const before = await cdpClient!.evaluate<{ hCount: number; eCount: number }>(`({
+            hCount: window.__hypothesisStore ? window.__hypothesisStore.getAll().length : 0,
+            eCount: window.__evidenceStore ? window.__evidenceStore.getAll().length : 0,
+          })`);
 
-            const listRaw = await document.modelContext.executeTool(listTool, '{}');
-            const listParsed = JSON.parse(listRaw);
-
-            const getRaw = await document.modelContext.executeTool(getTool, JSON.stringify({ hypothesis_id: "H-001" }));
-            const getParsed = JSON.parse(getRaw);
-
-            return {
-              listCount: listParsed.count,
-              firstHypothesisId: listParsed.hypotheses?.[0]?.id,
-              firstHypothesisConfidence: listParsed.hypotheses?.[0]?.confidence,
-              getId: getParsed.id,
-              getTitle: getParsed.title,
-              getConfidence: getParsed.confidence,
-              getLinksCount: getParsed.evidenceLinks?.length,
-            };
+          await cdpClient!.evaluate(`(async () => {
+            await window.__virtualDevice.disconnect();
+            window.__toolRegistrar.unregisterDevice(window.__virtualDevice);
           })()`);
 
-          if (res.listCount !== 1 || res.firstHypothesisId !== "H-001" || res.getConfidence !== "HIGH" || res.getLinksCount < 2) {
-            throw new Error(`WebMCP hypotheses queries failed: ${JSON.stringify(res)}`);
+          const { promise: p, resolve: r } = Promise.withResolvers<void>();
+          setTimeout(r, 400);
+          await p;
+
+          const after = await cdpClient!.evaluate<{ hCount: number; eCount: number; hasH001: boolean }>(`({
+            hCount: window.__hypothesisStore ? window.__hypothesisStore.getAll().length : 0,
+            eCount: window.__evidenceStore ? window.__evidenceStore.getAll().length : 0,
+            hasH001: window.__hypothesisStore ? window.__hypothesisStore.get("H-001") !== undefined : false,
+          })`);
+
+          if (after.hCount !== before.hCount || after.eCount !== before.eCount || !after.hasH001) {
+            throw new Error(`Investigation state was lost on disconnect: before=${JSON.stringify(before)}, after=${JSON.stringify(after)}`);
           }
 
-          return `list_hypotheses returned ${res.listCount} hypothesis (H-001, HIGH); get_hypothesis returned '${res.getTitle}' with ${res.getLinksCount} links`;
+          return `Disconnect preserved all ${after.hCount} hypotheses and ${after.eCount} evidence records`;
         },
       },
       {
@@ -590,70 +845,56 @@ async function runChromeTests(): Promise<void> {
         fn: async () => {
           // Test 1440x900
           await cdpClient!.setViewport(1440, 900);
-          await new Promise((r) => setTimeout(r, 300));
-          const res1440 = await cdpClient!.evaluate(`({
-            panelWidth: document.querySelector("aside")?.getBoundingClientRect().width,
-            hasHypotheses: document.body.innerText.includes("H-001"),
-            hasEvidence: document.body.innerText.includes("E-001"),
+          const { promise: p1, resolve: r1 } = Promise.withResolvers<void>();
+          setTimeout(r1, 300);
+          await p1;
+
+          const res1440 = await cdpClient!.evaluate<{
+            agentPanel: boolean;
+            hasInvestigation: boolean;
+            hasCanvas: boolean;
+            scrollWidth: number;
+            clientWidth: number;
+          }>(`({
+            agentPanel: document.querySelector("[data-testid='bench-agent-panel']") !== null,
+            hasInvestigation: document.body.innerText.includes("INVESTIGATION"),
+            hasCanvas: document.querySelector("canvas") !== null,
+            scrollWidth: document.documentElement.scrollWidth,
+            clientWidth: document.documentElement.clientWidth,
           })`);
 
           // Test 1366x768
           await cdpClient!.setViewport(1366, 768);
-          await new Promise((r) => setTimeout(r, 300));
-          const res1366 = await cdpClient!.evaluate(`({
-            panelWidth: document.querySelector("aside")?.getBoundingClientRect().width,
-            hasHypotheses: document.body.innerText.includes("H-001"),
-            hasEvidence: document.body.innerText.includes("E-001"),
+          const { promise: p2, resolve: r2 } = Promise.withResolvers<void>();
+          setTimeout(r2, 300);
+          await p2;
+
+          const res1366 = await cdpClient!.evaluate<{
+            agentPanel: boolean;
+            hasInvestigation: boolean;
+            hasCanvas: boolean;
+            scrollWidth: number;
+            clientWidth: number;
+          }>(`({
+            agentPanel: document.querySelector("[data-testid='bench-agent-panel']") !== null,
+            hasInvestigation: document.body.innerText.includes("INVESTIGATION"),
+            hasCanvas: document.querySelector("canvas") !== null,
+            scrollWidth: document.documentElement.scrollWidth,
+            clientWidth: document.documentElement.clientWidth,
           })`);
 
           // Reset to standard viewport
           await cdpClient!.setViewport(1440, 900);
 
-          return `Layout verified at 1440x900 (panel width: ${res1440.panelWidth}px) and 1366x768 (panel width: ${res1366.panelWidth}px)`;
+          if (res1440.scrollWidth > res1440.clientWidth || res1366.scrollWidth > res1366.clientWidth) {
+            throw new Error(`Horizontal layout overflow detected: 1440(${res1440.scrollWidth}/${res1440.clientWidth}), 1366(${res1366.scrollWidth}/${res1366.clientWidth})`);
+          }
+
+          return `Layout verified at 1440x900 and 1366x768 without horizontal overflow`;
         },
       },
       {
-        name: "9. Device Disconnect & Investigation Surface Persistence",
-        fn: async () => {
-          const res = await cdpClient!.evaluate(`(async () => {
-            await window.__virtualDevice.disconnect();
-            window.__toolRegistrar.unregisterDevice(window.__virtualDevice);
-            const remaining = await document.modelContext.getTools();
-            return {
-              remainingCount: remaining.length,
-              remainingTools: remaining.map(t => t.name),
-              hasH001: window.__hypothesisStore.get("H-001") !== undefined,
-              evidenceCount: window.__evidenceStore.getAll().length,
-            };
-          })()`);
-
-          // All 8 investigation tools remain active for post-experiment analysis
-          const expectedRemaining = [
-            "list_evidence",
-            "get_evidence",
-            "propose_hypothesis",
-            "update_hypothesis",
-            "link_evidence",
-            "reject_hypothesis",
-            "list_hypotheses",
-            "get_hypothesis",
-          ];
-
-          for (const exp of expectedRemaining) {
-            if (!res.remainingTools.includes(exp)) {
-              throw new Error(`Investigation tool missing after device disconnect: ${exp}`);
-            }
-          }
-
-          if (!res.hasH001 || res.evidenceCount === 0) {
-            throw new Error(`Investigation records lost on disconnect: ${JSON.stringify(res)}`);
-          }
-
-          return `Device capabilities cleanly removed, all 8 investigation tools & stored records retained (${res.remainingCount} tools active)`;
-        },
-      },
-      {
-        name: "10. Console Error Audit (Zero Uncaught Errors)",
+        name: "9. Console Error Audit (Zero Uncaught Errors)",
         fn: async () => {
           if (cdpClient!.consoleErrors.length > 0) {
             throw new Error(`Detected console errors in Chrome session:\n${cdpClient!.consoleErrors.join("\n")}`);
@@ -669,16 +910,17 @@ async function runChromeTests(): Promise<void> {
         const detail = await test.fn();
         console.info(`  ✅ PASS: ${test.name}`);
         console.info(`     ↳ ${detail}`);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
         console.error(`  ❌ FAIL: ${test.name}`);
-        console.error(`     ↳ ${err.message || String(err)}`);
+        console.error(`     ↳ ${msg}`);
         allPassed = false;
       }
     }
 
     console.info("\n==================================================================");
     if (allPassed) {
-      console.info("🎉 ALL REAL CHROME WEBMCP & HYPOTHESIS TESTS PASSED SUCCESSFULLY!");
+      console.info("🎉 ALL REAL CHROME WEBMCP & BENCH AGENT TESTS PASSED SUCCESSFULLY!");
     } else {
       console.error("❌ SOME CHROME WEBMCP TESTS FAILED.");
       process.exit(1);

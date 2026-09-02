@@ -20,6 +20,7 @@ import { ExperimentStatusCard } from "./components/instruments/ExperimentStatusC
 import { EventTimeline } from "./components/timeline/EventTimeline";
 import { InvestigationPanel } from "./components/investigation/InvestigationPanel";
 import { VirtualBenchControls } from "./components/controls/VirtualBenchControls";
+import { BenchAgentPanel } from "./components/agent/BenchAgentPanel";
 import { useDeviceState } from "./hooks/useDeviceState";
 import { useExperimentTimeline } from "./hooks/useExperimentTimeline";
 import { useOscilloscopeBuffer } from "./hooks/useOscilloscopeBuffer";
@@ -169,23 +170,48 @@ export const App: React.FC<AppProps> = ({
         </>
       }
       rightPanel={
-        <InvestigationPanel
-          evidenceStore={resolvedEvidenceStore}
-          hypothesisStore={resolvedHypothesisStore}
-          selectedEvidenceId={selectedEvidenceId}
-          onSelectEvidence={(record) => {
-            setSelectedEvidenceId(record ? record.id : null);
-            if (record?.experimentId) {
-              setHighlightedExperimentId(record.experimentId);
-            }
+        <div
+          style={{
+            width: "320px",
+            minWidth: "320px",
+            height: "100%",
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
           }}
-          selectedHypothesisId={selectedHypothesisId}
-          onSelectHypothesis={(h) => {
-            setSelectedHypothesisId(h ? h.id : null);
-          }}
-          highlightedExperimentId={highlightedExperimentId}
-          onHighlightExperiment={setHighlightedExperimentId}
-        />
+        >
+          <div
+            style={{
+              flex: "0 1 38vh",
+              height: "38vh",
+              minHeight: "220px",
+              maxHeight: "360px",
+              overflow: "hidden",
+            }}
+          >
+            <BenchAgentPanel isConnected={isConnected} />
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+            <InvestigationPanel
+              evidenceStore={resolvedEvidenceStore}
+              hypothesisStore={resolvedHypothesisStore}
+              selectedEvidenceId={selectedEvidenceId}
+              onSelectEvidence={(record) => {
+                setSelectedEvidenceId(record ? record.id : null);
+                if (record?.experimentId) {
+                  setHighlightedExperimentId(record.experimentId);
+                }
+              }}
+              selectedHypothesisId={selectedHypothesisId}
+              onSelectHypothesis={(h) => {
+                setSelectedHypothesisId(h ? h.id : null);
+              }}
+              highlightedExperimentId={highlightedExperimentId}
+              onHighlightExperiment={setHighlightedExperimentId}
+            />
+          </div>
+        </div>
       }
       bottomTimeline={
         <EventTimeline

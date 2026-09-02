@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "bun test",
     "test:chrome": "bun run scripts/test-chrome.ts",
+    "test:agent:live": "bun run scripts/test-agent-live.ts",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit",
     "verify": "bun test && bun run typecheck && bun run build",
@@ -24,6 +25,7 @@
     "vite": "^8.2.2"
   },
   "dependencies": {
+    "@google/genai": "2.20.0",
     "framer-motion": "^13.1.1",
     "lucide-react": "^1.39.0",
     "react": "^19.2.8",
