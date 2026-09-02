@@ -1,13 +1,28 @@
+/**
+ * Bench Agent Execution Loop.
+ * Master Milestone 8 — Hardened Agent Loop & Idempotency.
+ *
+ * Implements:
+ * 1. WebMCP Tool Discovery & ModelContext execution
+ * 2. Idempotency: Deduplicates repeated call IDs
+ * 3. Transient Provider Retries (bounded, exponential backoff)
+ * 4. Human Approval Interlock for physical tools
+ * 5. Deterministic Step Limiting & Safe Teardown
+ */
+
 import { requiresHumanApproval } from "@/domain/safety/tool-safety-policy";
 import { translateRegisteredTools } from "./tool-translation";
 import type {
   AgentFunctionCall,
   AgentFunctionResult,
+  AgentTurnResult,
+  BenchAgentProvider,
   BenchAgentRunResult,
   RunBenchAgentOptions,
 } from "./types";
 
 export const MAX_AGENT_STEPS = 12;
+const MAX_PROVIDER_RETRIES = 2;
 
 const ABORT_MESSAGE = "Bench agent run stopped.";
 
@@ -21,6 +36,30 @@ function errorMessage(error: unknown, fallback: string): string {
     return error.message;
   }
   return fallback;
+}
+
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    // Do NOT retry client errors or auth errors
+    if (msg.includes("400") || msg.includes("401") || msg.includes("403") || msg.includes("invalid argument")) {
+      return false;
+    }
+    // Retry rate limits (429), server errors (5xx), network timeouts
+    if (
+      msg.includes("429") ||
+      msg.includes("500") ||
+      msg.includes("502") ||
+      msg.includes("503") ||
+      msg.includes("504") ||
+      msg.includes("timeout") ||
+      msg.includes("network") ||
+      msg.includes("fetch failed")
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function throwIfAborted(signal: AbortSignal | undefined): void {
@@ -80,6 +119,30 @@ async function awaitWithAbort<T>(
   });
 }
 
+async function executeProviderTurnWithRetry(
+  provider: BenchAgentProvider,
+  request: Parameters<BenchAgentProvider["turn"]>[0],
+  signal?: AbortSignal
+): Promise<AgentTurnResult> {
+  let attempts = 0;
+  while (true) {
+    throwIfAborted(signal);
+    try {
+      return await awaitWithAbort(provider.turn(request, { signal }), signal);
+    } catch (error) {
+      if (isAbort(error, signal)) throw error;
+      if (attempts < MAX_PROVIDER_RETRIES && isRetryableError(error)) {
+        attempts += 1;
+        // Bounded exponential backoff: 50ms, 150ms
+        const delayMs = attempts * 75;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
 export async function runBenchAgent(
   options: RunBenchAgentOptions
 ): Promise<BenchAgentRunResult> {
@@ -100,10 +163,15 @@ export async function runBenchAgent(
     0,
     Math.min(MAX_AGENT_STEPS, requestedStepLimit)
   );
+
   let steps = 0;
   let input: string | readonly AgentFunctionResult[] = goal;
   let previousInteractionId: string | undefined = initialInteractionId;
   let lastInteractionId: string | undefined = initialInteractionId;
+
+  // Idempotency cache: maps call.id -> executed result string
+  const executedCallResults = new Map<string, string>();
+
   try {
     throwIfAborted(signal);
 
@@ -112,17 +180,16 @@ export async function runBenchAgent(
       const turnTools = await awaitWithAbort(modelContext.getTools(), signal);
       throwIfAborted(signal);
       const tools = translateRegisteredTools(turnTools);
-      const turn = await awaitWithAbort(
-        provider.turn(
-          {
-            input,
-            tools,
-            ...(previousInteractionId === undefined
-              ? {}
-              : { previousInteractionId }),
-          },
-          { signal }
-        ),
+
+      const turn = await executeProviderTurnWithRetry(
+        provider,
+        {
+          input,
+          tools,
+          ...(previousInteractionId === undefined
+            ? {}
+            : { previousInteractionId }),
+        },
         signal
       );
       lastInteractionId = turn.interactionId;
@@ -146,6 +213,14 @@ export async function runBenchAgent(
           return { status: "step-limit", steps, interactionId: lastInteractionId };
         }
         steps += 1;
+
+        // Idempotency Protection: If provider repeated a call ID, return previous result
+        if (executedCallResults.has(call.id)) {
+          const cachedResult = executedCallResults.get(call.id)!;
+          results.push(functionResult(call, cachedResult));
+          continue;
+        }
+
         onEvent({ type: "tool-requested", call });
         throwIfAborted(signal);
 
@@ -223,6 +298,9 @@ export async function runBenchAgent(
           }
           const durationMs = Math.max(0, Date.now() - startedAt);
           onEvent({ type: "tool-completed", call, result, durationMs });
+
+          // Record in idempotency cache
+          executedCallResults.set(call.id, result);
           results.push(functionResult(call, result));
         } catch (error) {
           if (isAbort(error, signal)) throw error;
