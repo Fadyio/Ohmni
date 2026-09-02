@@ -26,4 +26,6 @@ export interface DeviceAdapter {
     signal?: AbortSignal
   ): Promise<CapabilityResult<T>>;
   subscribe(listener: (event: DeviceEvent) => void): () => void;
+  setInterventionPoint?(point: string, value: string): void;
+  getInterventionPoint?(point: string): string | undefined;
 }
