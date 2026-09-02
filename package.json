@@ -13,6 +13,7 @@
     "record:motion": "bun run scripts/record-motion.ts",
     "test:agent:live": "bun run scripts/test-agent-live.ts",
     "test:agent:supervised-ui": "bun run scripts/test-agent-supervised-ui.ts",
+    "test:agent:vercel": "bun run scripts/test-agent-vercel.ts",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit",
     "verify": "bun test && bun run typecheck && bun run build",
