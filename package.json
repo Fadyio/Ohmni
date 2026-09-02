@@ -1,0 +1,16 @@
+{
+  "name": "ohmni",
+  "version": "0.1.0",
+  "description": "Agent-Native Hardware Diagnostic Workbench",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "@types/node": "^22.13.0",
+    "typescript": "^5.7.3"
+  }
+}
