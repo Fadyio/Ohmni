@@ -53,6 +53,7 @@ describe("VirtualDeviceAdapter - Domain Foundation & Deterministic Physics", () 
       expect(descriptor.capabilities.map((c) => c.name)).toEqual([
         "read_device_info",
         "read_reset_history",
+        "read_system_health",
         "measure_supply_voltage",
         "run_relay_stress_test",
       ]);
@@ -89,6 +90,17 @@ describe("VirtualDeviceAdapter - Domain Foundation & Deterministic Physics", () 
       expect(result.data.unit).toBe("V");
     });
 
+    it("reads system health metrics", async () => {
+      const result = await adapter.executeCapability<{
+        freeHeapBytes: number;
+        cpuTemperatureC: number;
+        i2cBusStatus: string;
+      }>("read_system_health");
+      expect(result.ok).toBe(true);
+      expect(result.data.freeHeapBytes).toBeGreaterThan(100_000);
+      expect(result.data.cpuTemperatureC).toBeGreaterThan(20);
+      expect(result.data.i2cBusStatus).toBe("ok");
+    });
     it("reads initial reset history containing initial power-on reset", async () => {
       const result = await adapter.executeCapability<ResetHistoryData>("read_reset_history");
       expect(result.ok).toBe(true);

@@ -75,6 +75,12 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
         readOnly: true,
       },
       {
+        name: "read_system_health",
+        description: "Read system metrics including free heap, CPU temperature, and uptime.",
+        safety: "green",
+        readOnly: true,
+      },
+      {
         name: "measure_supply_voltage",
         description: "Sample instantaneous voltage on the primary 3.3V rail.",
         safety: "green",
@@ -156,6 +162,8 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
         return this.handleReadDeviceInfo() as Promise<CapabilityResult<T>>;
       case "read_reset_history":
         return this.handleReadResetHistory() as Promise<CapabilityResult<T>>;
+      case "read_system_health":
+        return this.handleReadSystemHealth() as Promise<CapabilityResult<T>>;
       case "measure_supply_voltage":
         return this.handleMeasureSupplyVoltage() as Promise<CapabilityResult<T>>;
       case "run_relay_stress_test":
@@ -187,6 +195,20 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
       },
     };
   }
+  private async handleReadSystemHealth(): Promise<CapabilityResult> {
+    return {
+      ok: true,
+      data: {
+        freeHeapBytes: 245760,
+        totalHeapBytes: 327680,
+        cpuTemperatureC: 38.5,
+        uptimeMs: 124500,
+        i2cBusStatus: "ok",
+        taskWatchdogStatus: "ok",
+      },
+    };
+  }
+
 
   private async handleMeasureSupplyVoltage(): Promise<CapabilityResult> {
     const voltage = this.relayState === "closed"
