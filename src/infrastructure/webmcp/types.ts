@@ -46,7 +46,7 @@ export interface ModelContext extends EventTarget {
 
   executeTool(
     tool: RegisteredTool,
-    input?: Record<string, unknown>,
+    input?: string | Record<string, unknown>,
     options?: ModelContextExecuteToolOptions
   ): Promise<string>;
 }

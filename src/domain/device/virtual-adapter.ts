@@ -233,11 +233,34 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
     };
   }
 
+  private async delay(ms: number, signal?: AbortSignal): Promise<void> {
+    if (ms <= 0) return;
+    if (signal?.aborted) {
+      throw new Error("Capability execution aborted");
+    }
+    const { promise, resolve, reject } = Promise.withResolvers<void>();
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      cleanup();
+      reject(new Error("Capability execution aborted"));
+    };
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+    };
+    signal?.addEventListener("abort", onAbort);
+    return promise;
+  }
+
   private async handleRunRelayStressTest(
     params: Record<string, unknown>,
     signal?: AbortSignal
   ): Promise<CapabilityResult> {
     const cycles = typeof params.cycles === "number" ? params.cycles : 3;
+    const durationMs = typeof params.durationMs === "number" ? params.durationMs : 0;
     const now = Date.now();
     let minVoltage = this.nominalVoltage;
     let resetOccurred = false;
@@ -251,89 +274,98 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
       unit: "V",
     });
 
-    for (let i = 0; i < cycles; i++) {
-      if (signal?.aborted) {
-        this.relayState = "open";
+    try {
+      for (let i = 0; i < cycles; i++) {
+        if (signal?.aborted) {
+          throw new Error("Capability execution aborted");
+        }
+
+        // Close relay (energize coil)
+        this.relayState = "closed";
         this.emit({
           type: "relay_state",
           timestamp: Date.now(),
-          state: "open",
+          state: "closed",
           pin: 14,
         });
-        throw new Error("Capability execution aborted");
-      }
 
-      // Close relay (energize coil)
-      this.relayState = "closed";
+        if (durationMs > 0) {
+          await this.delay(durationMs, signal);
+        }
+
+        if (this.relayPowerSource === "3v3") {
+          // Deterministic Physics: Relay inrush current from 3.3V rail pulls voltage down to 2.72V
+          const sagVoltage = 2.72;
+          minVoltage = Math.min(minVoltage, sagVoltage);
+
+          this.emit({
+            type: "voltage_sample",
+            timestamp: Date.now(),
+            voltage: sagVoltage,
+            unit: "V",
+          });
+
+          // Brownout reset triggered
+          resetOccurred = true;
+          this.relayState = "open";
+
+          const resetEvent: ResetEvent = {
+            type: "reset",
+            timestamp: Date.now(),
+            reason: "BROWNOUT",
+            message: `Supply voltage sagged to ${sagVoltage.toFixed(2)}V (< ${this.brownoutThreshold.toFixed(2)}V threshold)`,
+          };
+
+          this.resetHistory.push({
+            timestamp: resetEvent.timestamp,
+            reason: resetEvent.reason,
+            message: resetEvent.message,
+          });
+
+          this.emit(resetEvent);
+          this.emit({
+            type: "relay_state",
+            timestamp: Date.now(),
+            state: "open",
+            pin: 14,
+          });
+
+          // Halt stress test immediately due to MCU reset
+          break;
+        } else {
+          // Deterministic Physics: Relay powered from isolated 5V rail; 3.3V rail stays stable at ~3.18V
+          const loadedVoltage = 3.18;
+          minVoltage = Math.min(minVoltage, loadedVoltage);
+
+          this.emit({
+            type: "voltage_sample",
+            timestamp: Date.now(),
+            voltage: loadedVoltage,
+            unit: "V",
+          });
+
+          // Open relay after cycle
+          this.relayState = "open";
+          this.emit({
+            type: "relay_state",
+            timestamp: Date.now(),
+            state: "open",
+            pin: 14,
+          });
+
+          cyclesCompleted++;
+        }
+      }
+    } catch (err) {
+      // Ensure relay is left in safe/open state on abort or error
+      this.relayState = "open";
       this.emit({
         type: "relay_state",
         timestamp: Date.now(),
-        state: "closed",
+        state: "open",
         pin: 14,
       });
-
-      if (this.relayPowerSource === "3v3") {
-        // Deterministic Physics: Relay inrush current from 3.3V rail pulls voltage down to 2.72V
-        const sagVoltage = 2.72;
-        minVoltage = Math.min(minVoltage, sagVoltage);
-
-        this.emit({
-          type: "voltage_sample",
-          timestamp: Date.now(),
-          voltage: sagVoltage,
-          unit: "V",
-        });
-
-        // Brownout reset triggered
-        resetOccurred = true;
-        this.relayState = "open";
-
-        const resetEvent: ResetEvent = {
-          type: "reset",
-          timestamp: Date.now(),
-          reason: "BROWNOUT",
-          message: `Supply voltage sagged to ${sagVoltage.toFixed(2)}V (< ${this.brownoutThreshold.toFixed(2)}V threshold)`,
-        };
-
-        this.resetHistory.push({
-          timestamp: resetEvent.timestamp,
-          reason: resetEvent.reason,
-          message: resetEvent.message,
-        });
-
-        this.emit(resetEvent);
-        this.emit({
-          type: "relay_state",
-          timestamp: Date.now(),
-          state: "open",
-          pin: 14,
-        });
-
-        // Halt stress test immediately due to MCU reset
-        break;
-      } else {
-        // Deterministic Physics: Relay powered from isolated 5V rail; 3.3V rail stays stable at ~3.18V
-        const loadedVoltage = 3.18;
-        minVoltage = Math.min(minVoltage, loadedVoltage);
-
-        this.emit({
-          type: "voltage_sample",
-          timestamp: Date.now(),
-          voltage: loadedVoltage,
-          unit: "V",
-        });
-
-        // Open relay after cycle
-        this.relayState = "open";
-        this.emit({
-          type: "relay_state",
-          timestamp: Date.now(),
-          state: "open",
-          pin: 14,
-        });
-
-        cyclesCompleted++;
-      }
+      throw err;
     }
 
     if (resetOccurred) {

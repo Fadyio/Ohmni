@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "bun test",
+    "test:chrome": "bun run scripts/test-chrome.ts",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit",
     "verify": "bun test && bun run typecheck && bun run build",

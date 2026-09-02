@@ -70,7 +70,7 @@ export class InMemoryModelContext extends EventTarget implements ModelContext {
 
   public async executeTool(
     tool: RegisteredTool,
-    input: Record<string, unknown> = {},
+    input: string | Record<string, unknown> = {},
     options?: ModelContextExecuteToolOptions
   ): Promise<string> {
     const entry = this.tools.get(tool.name);
@@ -82,7 +82,21 @@ export class InMemoryModelContext extends EventTarget implements ModelContext {
       throw new Error(`Tool execution aborted for '${tool.name}'`);
     }
 
-    const rawResult = await entry.tool.execute(input, { signal: options?.signal });
+    let parsedInput: Record<string, unknown> = {};
+    if (typeof input === "string") {
+      const trimmed = input.trim();
+      if (trimmed !== "") {
+        try {
+          parsedInput = JSON.parse(trimmed);
+        } catch {
+          throw new Error(`Invalid JSON input string for tool '${tool.name}': ${trimmed}`);
+        }
+      }
+    } else if (input && typeof input === "object") {
+      parsedInput = input;
+    }
+
+    const rawResult = await entry.tool.execute(parsedInput, { signal: options?.signal });
 
     if (typeof rawResult === "string") {
       return rawResult;

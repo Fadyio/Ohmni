@@ -2,10 +2,9 @@ name: Verify
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "milestone/**", "feature/**"]
   pull_request:
     branches: ["main"]
-
 jobs:
   verify:
     name: Verification Gate

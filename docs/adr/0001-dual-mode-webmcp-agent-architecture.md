@@ -20,10 +20,9 @@ We will implement a **Dual-Mode WebMCP Architecture** where `document.modelConte
 2. **Single Execution Path:** The in-app **Bench Agent** interacts with instruments strictly through standard WebMCP APIs:
    - Tool discovery: `const tools = await document.modelContext.getTools()` (`RegisteredTool[]`)
    - Tool location: `const tool = tools.find(t => t.name === "read_device_info")`
-   - Tool execution: `const serializedResult = await document.modelContext.executeTool(tool, inputObject, { signal })`
+   - Tool execution: `const serializedResult = await document.modelContext.executeTool(tool, JSON.stringify(inputObject), { signal })` (also supporting object input for dual-mode ergonomics)
 3. **No Private Internal Bypasses:** The Bench Agent is prohibited from calling internal `DeviceAdapter` methods directly for diagnostic actions.
-4. **External Agent Parity:** External WebMCP browser agents discover and invoke the exact same `document.modelContext` tool surface.
-
+4. **External Agent Parity:** External WebMCP browser agents discover and invoke the exact same `document.modelContext` tool surface using JSON string or structured input.
 ```text
                      DEVICE ADAPTER
                            │

@@ -61,11 +61,14 @@ describe("WebMCP Tool Surface — Protocol & Security Regression Tests", () => {
       expect(toolNames).toContain("measure_supply_voltage");
       expect(toolNames).toContain("run_relay_stress_test");
 
-      // 4. Locate and execute read_reset_history via WebMCP executeTool()
+      // 4. Locate and execute read_reset_history via WebMCP executeTool() with JSON string (Chrome standard)
       const resetHistoryTool = registeredTools.find((t) => t.name === "read_reset_history");
       expect(resetHistoryTool).toBeDefined();
 
-      const resetHistoryRaw = await modelContext.executeTool(resetHistoryTool as RegisteredTool, {});
+      const resetHistoryRaw = await modelContext.executeTool(
+        resetHistoryTool as RegisteredTool,
+        "{}"
+      );
       const resetHistory = JSON.parse(resetHistoryRaw) as {
         resets: Array<{ reason: string }>;
         count: number;
@@ -74,13 +77,20 @@ describe("WebMCP Tool Surface — Protocol & Security Regression Tests", () => {
       expect(resetHistory.count).toBeGreaterThanOrEqual(1);
       expect(resetHistory.resets[0].reason).toBe("POWER_ON");
 
-      // 5. Locate and execute run_relay_stress_test through WebMCP in default 3V3 state
+      // Also verify object input form works for backwards/dual-mode compatibility
+      const resetHistoryRawObj = await modelContext.executeTool(
+        resetHistoryTool as RegisteredTool,
+        {}
+      );
+      expect(JSON.parse(resetHistoryRawObj).count).toBeGreaterThanOrEqual(1);
+
+      // 5. Locate and execute run_relay_stress_test through WebMCP with JSON string
       const stressTestTool = registeredTools.find((t) => t.name === "run_relay_stress_test");
       expect(stressTestTool).toBeDefined();
 
       const stressResultRaw = await modelContext.executeTool(
         stressTestTool as RegisteredTool,
-        { cycles: 3, duration_ms: 50 }
+        JSON.stringify({ cycles: 3, duration_ms: 50 })
       );
       const stressResult = JSON.parse(stressResultRaw) as {
         success: boolean;
@@ -96,8 +106,6 @@ describe("WebMCP Tool Surface — Protocol & Security Regression Tests", () => {
       expect(stressResult.resetOccurred).toBe(true);
       expect(stressResult.resetReason).toBe("BROWNOUT");
       expect(stressResult.minVoltage).toBeLessThan(2.80);
-
-      // 6. Disconnect device & unregister tools
       await adapter.disconnect();
       registrar.unregisterDevice(adapter);
 
@@ -168,7 +176,7 @@ describe("WebMCP Tool Surface — Protocol & Security Regression Tests", () => {
   });
 
   describe("Execution Abort Propagation (Task N)", () => {
-    it("propagates execution AbortSignal and restores hardware to safe state", async () => {
+    it("propagates pre-aborted execution AbortSignal and restores hardware to safe state", async () => {
       await adapter.connect();
       await registrar.registerDevice(adapter);
 
@@ -181,12 +189,51 @@ describe("WebMCP Tool Surface — Protocol & Security Regression Tests", () => {
 
       const promise = modelContext.executeTool(
         stressTool as RegisteredTool,
-        { cycles: 10, duration_ms: 100 },
+        JSON.stringify({ cycles: 10, duration_ms: 100 }),
         { signal: executionController.signal }
       );
 
       await expect(promise).rejects.toThrow(/aborted/i);
       expect(adapter.getRelayState()).toBe("open");
+    });
+
+    it("cancels mid-flight execution when AbortSignal triggers during async operation", async () => {
+      adapter.setInterventionPoint("JP1", "5V_EXT"); // 5V rail prevents instant brownout Sag, allowing multi-cycle delay
+      await adapter.connect();
+      await registrar.registerDevice(adapter);
+
+      const tools = await modelContext.getTools();
+      const stressTool = tools.find((t) => t.name === "run_relay_stress_test");
+      expect(stressTool).toBeDefined();
+
+      const executionController = new AbortController();
+      const promise = modelContext.executeTool(
+        stressTool as RegisteredTool,
+        JSON.stringify({ cycles: 5, duration_ms: 100 }),
+        { signal: executionController.signal }
+      );
+
+      // Trigger abort while running
+      setTimeout(() => executionController.abort(), 20);
+
+      await expect(promise).rejects.toThrow(/aborted/i);
+      expect(adapter.getRelayState()).toBe("open");
+    });
+
+    it("rejects invalid JSON string input with informative error", async () => {
+      await adapter.connect();
+      await registrar.registerDevice(adapter);
+
+      const tools = await modelContext.getTools();
+      const infoTool = tools.find((t) => t.name === "read_device_info");
+      expect(infoTool).toBeDefined();
+
+      const promise = modelContext.executeTool(
+        infoTool as RegisteredTool,
+        "{ invalid-json"
+      );
+
+      await expect(promise).rejects.toThrow(/Invalid JSON input string/i);
     });
   });
 
