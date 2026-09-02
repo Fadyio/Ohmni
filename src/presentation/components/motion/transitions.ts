@@ -3,7 +3,7 @@
  * Precise technical instrument motion. Every animation communicates an observable state change.
  */
 
-import type { Variants, Transition } from "framer-motion";
+import type { Variants, Transition } from "motion/react";
 
 // Standard Motion Durations (in seconds)
 export const MOTION_DURATIONS = {

@@ -1,329 +1,253 @@
 /**
  * Event Timeline & WebMCP Tool Activity Component.
- * Displays chronological semantic events with relative timestamps (+ms)
- * and explicit visual connection between agent WebMCP tool calls and physical telemetry.
+ * Collapsible bottom strip that automatically expands during active experiments
+ * and provides chronological semantic event tracking with relative timestamps (+ms).
  */
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import {
+  Activity,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import type { TimelineEventItem, WebMCPCallInfo } from "../../hooks/useExperimentTimeline";
 
 interface EventTimelineProps {
   readonly events: readonly TimelineEventItem[];
   readonly lastCallInfo: WebMCPCallInfo | null;
   readonly highlightedExperimentId?: string | null;
+  readonly isRunning?: boolean;
 }
 
 export const EventTimeline: React.FC<EventTimelineProps> = ({
   events,
   lastCallInfo,
   highlightedExperimentId,
+  isRunning = false,
 }) => {
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
+
+  // Auto-expand during an active experiment
+  useEffect(() => {
+    if (isRunning) {
+      setIsExpanded(true);
+    }
+  }, [isRunning]);
+
+  const eventCount = events.length;
+
   return (
     <div
       style={{
-        height: "180px",
-        minHeight: "180px",
         background: "var(--ohmni-surface)",
         borderTop: "1px solid var(--ohmni-border)",
-        display: "grid",
-        gridTemplateColumns: "1fr 340px",
+        display: "flex",
+        flexDirection: "column",
+        height: isExpanded ? "160px" : "42px",
+        minHeight: isExpanded ? "160px" : "42px",
+        transition: "height 0.22s var(--ease-workbench)",
         overflow: "hidden",
       }}
     >
-      {/* Left: Chronological Semantic Event Stream */}
+      {/* Strip Header / Toggle Bar */}
       <div
+        onClick={() => setIsExpanded(!isExpanded)}
         style={{
-          borderRight: "1px solid var(--ohmni-border)",
           display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 1.25rem",
+          height: "42px",
+          minHeight: "42px",
+          cursor: "pointer",
+          userSelect: "none",
+          background: isExpanded ? "var(--ohmni-surface-raised)" : "var(--ohmni-surface)",
+          borderBottom: isExpanded ? "1px solid var(--ohmni-border-subtle)" : "none",
         }}
       >
-        {/* Timeline Header */}
-        <div
-          style={{
-            padding: "8px 16px",
-            background: "var(--ohmni-surface-raised)",
-            borderBottom: "1px solid var(--ohmni-border-subtle)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span
-              className="label-technical"
-              style={{
-                color: "var(--ohmni-text-muted)",
-                letterSpacing: "0.08em",
-              }}
-            >
-              EVENT STREAM
-            </span>
-            {highlightedExperimentId && (
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: "0.5625rem",
-                  padding: "1px 5px",
-                  borderRadius: "var(--radius-sm)",
-                  background: "rgba(56, 189, 248, 0.12)",
-                  color: "var(--ohmni-accent)",
-                  border: "1px solid rgba(56, 189, 248, 0.3)",
-                }}
-              >
-                FOCUS: {highlightedExperimentId.slice(0, 12)}...
-              </span>
-            )}
-          </div>
-
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <Activity size={14} color="var(--ohmni-brand-hover)" />
+          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--ohmni-text-primary)" }}>
+            EXPERIMENT TIMELINE
+          </span>
           <span
             className="font-mono"
             style={{
-              fontSize: "0.6875rem",
-              color: "var(--ohmni-text-muted)",
+              fontSize: "11px",
+              padding: "2px 7px",
+              borderRadius: "var(--radius-full)",
+              background: eventCount > 0 ? "rgba(53, 198, 244, 0.12)" : "rgba(102, 112, 133, 0.15)",
+              color: eventCount > 0 ? "var(--ohmni-signal)" : "var(--ohmni-text-muted)",
+              fontWeight: 600,
             }}
           >
-            {events.length} {events.length === 1 ? "EVENT" : "EVENTS"}
+            {eventCount} {eventCount === 1 ? "event" : "events"}
           </span>
+
+          {isRunning && (
+            <span
+              style={{
+                fontSize: "11px",
+                color: "var(--ohmni-signal)",
+                fontWeight: 600,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              <span
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: "var(--ohmni-signal)",
+                  boxShadow: "0 0 6px var(--ohmni-signal)",
+                }}
+              />
+              RECORDING TELEMETRY...
+            </span>
+          )}
         </div>
 
-        {/* Scrollable Event List */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span className="metadata-text">
+            {isExpanded ? "Click to collapse" : "Click to view event stream"}
+          </span>
+          {isExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+        </div>
+      </div>
+
+      {/* Expanded Content Area */}
+      {isExpanded && (
         <div
           style={{
             flex: 1,
-            overflowY: "auto",
-            padding: "8px 16px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "6px",
+            display: "grid",
+            gridTemplateColumns: "1fr 300px",
+            overflow: "hidden",
+            minHeight: 0,
           }}
         >
-          {events.length === 0 ? (
-            <div
-              style={{
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--ohmni-text-muted)",
-                fontSize: "0.75rem",
-              }}
-            >
-              No experiment events recorded. Start an actuation experiment to stream telemetry.
-            </div>
-          ) : (
-            events.map((evt) => {
-              const isFault = evt.isFault || evt.type === "reset" || evt.type === "brownout";
-              const isRelay = evt.type === "relay";
-              const timeFormatted = new Date(evt.timestamp).toISOString().substring(11, 23);
-
-              return (
-                <div
-                  key={evt.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "4px 8px",
-                    background: isFault
-                      ? "rgba(239, 68, 68, 0.08)"
-                      : "var(--ohmni-surface-raised)",
-                    border: `1px solid ${
-                      isFault
-                        ? "rgba(239, 68, 68, 0.3)"
-                        : isRelay
-                        ? "rgba(245, 158, 11, 0.2)"
-                        : "var(--ohmni-border-subtle)"
-                    }`,
-                    borderRadius: "var(--radius-sm)",
-                    fontSize: "0.75rem",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {/* Events Stream List */}
+          <div
+            style={{
+              overflowY: "auto",
+              padding: "8px 1.25rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+            }}
+          >
+            {events.length === 0 ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "100%",
+                  color: "var(--ohmni-text-muted)",
+                  fontSize: "12px",
+                }}
+              >
+                No telemetry events recorded yet. Run a diagnostic experiment to acquire events.
+              </div>
+            ) : (
+              events.map((evt) => {
+                const isFault = evt.isFault || evt.type === "reset" || evt.type === "brownout";
+                const isRelay = evt.type === "relay";
+                return (
+                  <div
+                    key={evt.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "4px 8px",
+                      borderRadius: "var(--radius-sm)",
+                      background: isFault
+                        ? "rgba(255, 93, 104, 0.08)"
+                        : "var(--ohmni-surface-raised)",
+                      border: `1px solid ${
+                        isFault ? "rgba(255, 93, 104, 0.25)" : "var(--ohmni-border-subtle)"
+                      }`,
+                      fontSize: "12px",
+                    }}
+                  >
                     <span
                       className="font-mono"
                       style={{
-                        fontSize: "0.6875rem",
+                        fontSize: "11px",
                         color: "var(--ohmni-text-muted)",
-                        minWidth: "75px",
-                      }}
-                    >
-                      {timeFormatted}
-                    </span>
-
-                    <span
-                      className="font-mono"
-                      style={{
-                        fontSize: "0.6875rem",
-                        fontWeight: 600,
-                        color: isFault ? "var(--ohmni-fault)" : "var(--ohmni-accent)",
                         minWidth: "60px",
                       }}
                     >
-                      +{evt.relativeMs} ms
+                      +{evt.relativeMs.toFixed(0)} ms
                     </span>
 
                     <span
                       style={{
-                        fontWeight: isFault ? 600 : 500,
-                        color: isFault ? "var(--ohmni-fault)" : "var(--ohmni-text-primary)",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: isFault
+                          ? "var(--ohmni-fault)"
+                          : isRelay
+                          ? "var(--ohmni-warning)"
+                          : "var(--ohmni-signal)",
+                        minWidth: "90px",
                       }}
                     >
                       {evt.title}
                     </span>
-                  </div>
 
-                  {evt.details && (
-                    <span
-                      className="font-mono"
-                      style={{
-                        fontSize: "0.6875rem",
-                        color: isFault ? "var(--ohmni-fault-dim)" : "var(--ohmni-text-muted)",
-                      }}
-                    >
-                      {evt.details}
+                    <span style={{ color: "var(--ohmni-text-secondary)", flex: 1 }}>
+                      {evt.details || ""}
                     </span>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
 
-      {/* Right: WebMCP Tool Invocation Card */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            padding: "8px 14px",
-            background: "var(--ohmni-surface-raised)",
-            borderBottom: "1px solid var(--ohmni-border-subtle)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span className="label-technical">WEBMCP TOOL INVOCATION</span>
-          <span
-            className="font-mono"
+          {/* Right: Last WebMCP Tool Invocation Card */}
+          <div
             style={{
-              fontSize: "0.625rem",
-              color: lastCallInfo ? "var(--ohmni-accent)" : "var(--ohmni-text-disabled)",
+              borderLeft: "1px solid var(--ohmni-border)",
+              padding: "8px 12px",
+              background: "var(--ohmni-surface-raised)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+              overflowY: "auto",
             }}
           >
-            {lastCallInfo ? "CAPTURED" : "IDLE"}
-          </span>
-        </div>
+            <div className="metadata-text" style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              ACTIVE INSTRUMENT CALL
+            </div>
 
-        <div style={{ flex: 1, padding: "10px 14px", overflowY: "auto" }}>
-          {lastCallInfo ? (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-                background: "var(--ohmni-surface-raised)",
-                border: "1px solid var(--ohmni-border)",
-                borderRadius: "var(--radius-sm)",
-                padding: "10px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span
+            {lastCallInfo ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <div
                   className="font-mono"
                   style={{
-                    fontSize: "0.75rem",
+                    fontSize: "12px",
                     fontWeight: 700,
-                    color: "var(--ohmni-warning)",
+                    color: "var(--ohmni-brand-hover)",
                   }}
                 >
                   {lastCallInfo.toolName}
-                </span>
-                <span
-                  className="font-mono"
-                  style={{
-                    fontSize: "0.625rem",
-                    padding: "2px 5px",
-                    borderRadius: "var(--radius-sm)",
-                    background: "rgba(16, 185, 129, 0.12)",
-                    color: "var(--ohmni-success)",
-                    border: "1px solid rgba(16, 185, 129, 0.3)",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {lastCallInfo.status}
-                </span>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
-                <div>
-                  <div className="label-technical" style={{ fontSize: "0.5625rem" }}>
-                    EXPERIMENT ID
-                  </div>
-                  <div
-                    className="font-mono"
-                    style={{ fontSize: "0.6875rem", color: "var(--ohmni-text-secondary)" }}
-                    title={lastCallInfo.experimentId}
-                  >
-                    {lastCallInfo.experimentId.slice(0, 14)}...
-                  </div>
                 </div>
-
-                <div>
-                  <div className="label-technical" style={{ fontSize: "0.5625rem" }}>
-                    DURATION
-                  </div>
-                  <div
-                    className="font-mono"
-                    style={{ fontSize: "0.6875rem", color: "var(--ohmni-text-secondary)" }}
-                  >
-                    {lastCallInfo.durationMs} ms
-                  </div>
+                <div className="metadata-text">
+                  Status: <strong style={{ color: "var(--ohmni-text-primary)" }}>{lastCallInfo.status}</strong>
                 </div>
               </div>
-
-              {/* Explicit Architecture Pipeline Connection */}
-              <div
-                style={{
-                  fontSize: "0.625rem",
-                  color: "var(--ohmni-text-muted)",
-                  background: "var(--ohmni-surface)",
-                  padding: "4px 6px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px dashed var(--ohmni-border-subtle)",
-                }}
-              >
-                agent/tool call → physical actuation → telemetry event bus
+            ) : (
+              <div className="metadata-text" style={{ fontStyle: "italic" }}>
+                No active WebMCP tool call.
               </div>
-            </div>
-          ) : (
-            <div
-              style={{
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--ohmni-text-muted)",
-                fontSize: "0.75rem",
-                textAlign: "center",
-              }}
-            >
-              <div>No tool execution recorded</div>
-              <div style={{ fontSize: "0.6875rem", color: "var(--ohmni-text-disabled)", marginTop: "2px" }}>
-                Invoking a WebMCP tool routes through ExperimentRunner and correlates live traces.
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

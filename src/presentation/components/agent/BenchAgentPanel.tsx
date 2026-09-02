@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, Play, ShieldAlert, Square, X } from "lucide-react";
+import { Check, Play, ShieldAlert, Square, X, Bot, AlertTriangle, Activity, Sparkles, Terminal } from "lucide-react";
 import type {
   BenchAgentActivity,
   BenchAgentActivityStatus,
@@ -9,6 +9,7 @@ import { useBenchAgent } from "@/presentation/hooks/useBenchAgent";
 
 export interface BenchAgentPanelProps {
   readonly isConnected: boolean;
+  readonly onTargetRelay?: (targeted: boolean) => void;
 }
 
 const statusLabels: Record<BenchAgentState["status"], string> = {
@@ -17,13 +18,13 @@ const statusLabels: Record<BenchAgentState["status"], string> = {
   approval: "WAITING FOR HUMAN",
   completed: "COMPLETED",
   stopped: "STOPPED",
-  unavailable: "BENCH AGENT UNAVAILABLE",
+  unavailable: "PROVIDER UNAVAILABLE",
   failed: "FAILED",
   "step-limit": "STEP LIMIT",
 };
 
 const activityLabels: Record<BenchAgentActivityStatus, string> = {
-  requested: "REQUESTED",
+  requested: "EXECUTING",
   "waiting-approval": "AWAITING APPROVAL",
   completed: "COMPLETED",
   unavailable: "UNAVAILABLE",
@@ -31,136 +32,124 @@ const activityLabels: Record<BenchAgentActivityStatus, string> = {
   failed: "FAILED",
 };
 
-const activityColors: Record<BenchAgentActivityStatus, string> = {
-  requested: "var(--ohmni-accent)",
-  "waiting-approval": "var(--ohmni-warning)",
-  completed: "var(--ohmni-success)",
-  unavailable: "var(--ohmni-text-muted)",
-  denied: "var(--ohmni-warning)",
-  failed: "var(--ohmni-fault)",
-};
+function getToolTaxonomy(name: string): { label: "OBSERVE" | "REASON" | "PHYSICAL TEST"; color: string; bg: string } {
+  if (name === "run_relay_stress_test") {
+    return { label: "PHYSICAL TEST", color: "var(--ohmni-warning)", bg: "rgba(244, 184, 96, 0.12)" };
+  }
+  if (name.includes("hypothesis") || name.includes("evidence")) {
+    return { label: "REASON", color: "var(--ohmni-brand-hover)", bg: "rgba(79, 107, 255, 0.12)" };
+  }
+  return { label: "OBSERVE", color: "var(--ohmni-signal)", bg: "rgba(53, 198, 244, 0.12)" };
+}
 
 function formatArguments(value: Record<string, unknown>): string {
   return JSON.stringify(value, null, 2) ?? "{}";
 }
 
 function ActivityRow({ activity }: { readonly activity: BenchAgentActivity }) {
-  const detail = activity.result ?? activity.message;
+  const taxonomy = getToolTaxonomy(activity.call.name);
+  const isComplete = activity.status === "completed";
+  const isWaiting = activity.status === "waiting-approval";
+
   return (
     <li
       data-testid="bench-agent-activity-row"
       style={{
-        display: "grid",
-        gridTemplateColumns: "14px minmax(0, 1fr)",
-        gap: "0.5rem",
-        padding: "0.5rem 0",
-        borderBottom: "1px solid var(--ohmni-border-subtle)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "4px",
+        padding: "8px 10px",
+        background: isWaiting
+          ? "rgba(244, 184, 96, 0.08)"
+          : "var(--ohmni-surface-raised)",
+        border: `1px solid ${
+          isWaiting ? "rgba(244, 184, 96, 0.3)" : "var(--ohmni-border-subtle)"
+        }`,
+        borderRadius: "var(--radius-md)",
+        marginBottom: "6px",
       }}
     >
-      <span
-        aria-hidden="true"
-        style={{
-          width: "7px",
-          height: "7px",
-          marginTop: "5px",
-          borderRadius: "var(--radius-full)",
-          background: activityColors[activity.status],
-          boxShadow: `0 0 7px ${activityColors[activity.status]}`,
-        }}
-      />
-      <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-            gap: "0.5rem",
-          }}
-        >
-          <strong
-            className="font-mono"
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <span
             style={{
-              minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              color: "var(--ohmni-text-primary)",
-              fontSize: "0.6875rem",
+              fontSize: "9px",
+              fontWeight: 700,
+              padding: "1px 6px",
+              borderRadius: "var(--radius-xs)",
+              background: taxonomy.bg,
+              color: taxonomy.color,
             }}
-            title={activity.call.name}
           >
-            {activity.call.name}
-          </strong>
+            {taxonomy.label}
+          </span>
           <span
             className="font-mono"
             style={{
-              flex: "none",
-              color: activityColors[activity.status],
-              fontSize: "0.53125rem",
-              fontWeight: 700,
-              letterSpacing: "0.04em",
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "var(--ohmni-text-primary)",
             }}
           >
-            {activity.durationMs === undefined
-              ? activityLabels[activity.status]
-              : `${activityLabels[activity.status]} · ${activity.durationMs}ms`}
+            {activity.call.name}
           </span>
         </div>
-        <pre
+
+        <span
+          className="font-mono"
           style={{
-            marginTop: "0.25rem",
-            color: "var(--ohmni-text-muted)",
-            fontFamily: "var(--font-mono)",
-            fontSize: "0.59375rem",
-            lineHeight: 1.35,
-            whiteSpace: "pre-wrap",
-            overflowWrap: "anywhere",
+            fontSize: "10px",
+            fontWeight: 600,
+            color: isComplete
+              ? "var(--ohmni-success)"
+              : isWaiting
+              ? "var(--ohmni-warning)"
+              : "var(--ohmni-text-muted)",
           }}
         >
-          {formatArguments(activity.call.arguments)}
-        </pre>
-        {detail && (
-          <div
-            className="font-mono"
-            style={{
-              marginTop: "0.25rem",
-              paddingLeft: "0.5rem",
-              borderLeft: `2px solid ${activityColors[activity.status]}`,
-              color:
-                activity.status === "failed"
-                  ? "var(--ohmni-fault)"
-                  : "var(--ohmni-text-secondary)",
-              fontSize: "0.59375rem",
-              lineHeight: 1.35,
-              whiteSpace: "pre-wrap",
-              overflowWrap: "anywhere",
-            }}
-          >
-            {detail}
-          </div>
-        )}
+          {activityLabels[activity.status]}
+        </span>
       </div>
+
+      {activity.result && (
+        <div
+          className="font-mono metadata-text"
+          style={{
+            color: "var(--ohmni-text-secondary)",
+            fontSize: "11px",
+            lineHeight: 1.3,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {typeof activity.result === "string"
+            ? activity.result
+            : JSON.stringify(activity.result)}
+        </div>
+      )}
     </li>
   );
 }
 
-export const BenchAgentPanel: React.FC<BenchAgentPanelProps> = ({ isConnected }) => {
+export const BenchAgentPanel: React.FC<BenchAgentPanelProps> = ({ isConnected, onTargetRelay }) => {
   const { state, setGoal, start, stop, approve, deny } = useBenchAgent(isConnected);
   const active = state.status === "investigating" || state.status === "approval";
   const canStart =
     state.providerAvailable &&
     state.goal.trim().length > 0 &&
     !active;
+
   const statusColor =
     state.status === "approval"
       ? "var(--ohmni-warning)"
       : state.status === "failed"
-        ? "var(--ohmni-fault)"
-        : state.status === "completed"
-          ? "var(--ohmni-success)"
-          : state.status === "investigating"
-            ? "var(--ohmni-accent)"
-            : "var(--ohmni-text-muted)";
+      ? "var(--ohmni-fault)"
+      : state.status === "completed"
+      ? "var(--ohmni-success)"
+      : state.status === "investigating"
+      ? "var(--ohmni-brand-hover)"
+      : "var(--ohmni-text-muted)";
 
   return (
     <section
@@ -173,85 +162,106 @@ export const BenchAgentPanel: React.FC<BenchAgentPanelProps> = ({ isConnected })
         flexDirection: "column",
         background: "var(--ohmni-surface)",
         borderLeft: "1px solid var(--ohmni-border)",
-        borderBottom: "1px solid var(--ohmni-border)",
         overflow: "hidden",
       }}
     >
+      {/* Panel Header */}
       <header
         style={{
           flex: "none",
-          padding: "0.625rem 0.75rem",
+          padding: "10px 14px",
           background: "var(--ohmni-surface-raised)",
           borderBottom: "1px solid var(--ohmni-border)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
-          <div>
-            <div className="label-technical" style={{ color: "var(--ohmni-accent)", fontSize: "0.5625rem" }}>
-              OPERATE
-            </div>
-            <h2
-              id="bench-agent-title"
-              style={{
-                margin: 0,
-                color: "var(--ohmni-text-primary)",
-                fontSize: "0.8125rem",
-                lineHeight: 1.2,
-                letterSpacing: "0.03em",
-              }}
-            >
-              BENCH AGENT
-            </h2>
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <div
-            data-testid="bench-agent-status"
-            role="status"
-            aria-live="polite"
-            className="font-mono"
             style={{
-              display: "inline-flex",
+              width: "24px",
+              height: "24px",
+              borderRadius: "var(--radius-sm)",
+              background: "rgba(168, 85, 247, 0.15)",
+              display: "flex",
               alignItems: "center",
-              gap: "0.375rem",
-              color: statusColor,
-              fontSize: "0.5625rem",
-              fontWeight: 700,
-              letterSpacing: "0.05em",
-              textAlign: "right",
+              justifyContent: "center",
+              color: "#C084FC",
             }}
           >
-            <span
-              aria-hidden="true"
-              style={{
-                width: "6px",
-                height: "6px",
-                borderRadius: "var(--radius-full)",
-                background: statusColor,
-              }}
-            />
-            {statusLabels[state.status]}
+            <Bot size={14} />
           </div>
+          <h2
+            id="bench-agent-title"
+            style={{
+              margin: 0,
+              color: "var(--ohmni-text-primary)",
+              fontSize: "13px",
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+            }}
+          >
+            BENCH AGENT
+          </h2>
+        </div>
+
+        <div
+          data-testid="bench-agent-status"
+          role="status"
+          aria-live="polite"
+          className="font-mono"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "5px",
+            color: statusColor,
+            fontSize: "11px",
+            fontWeight: 700,
+            padding: "2px 8px",
+            borderRadius: "var(--radius-full)",
+            background: "var(--ohmni-surface)",
+            border: "1px solid var(--ohmni-border-subtle)",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: "6px",
+              height: "6px",
+              borderRadius: "50%",
+              background: statusColor,
+            }}
+          />
+          {statusLabels[state.status]}
         </div>
       </header>
 
+      {/* Main Content Area */}
       <div
         style={{
           minHeight: 0,
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          gap: "0.625rem",
-          padding: "0.625rem 0.75rem 0.75rem",
+          gap: "10px",
+          padding: "12px 14px",
           overflowY: "auto",
         }}
       >
+        {/* Diagnostic Goal Input Card */}
         <div style={{ flex: "none" }}>
-          <label
-            htmlFor="bench-agent-goal"
-            className="label-technical"
-            style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.5625rem" }}
-          >
-            GOAL
-          </label>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+            <label
+              htmlFor="bench-agent-goal"
+              className="metadata-text"
+              style={{ fontWeight: 600, color: "var(--ohmni-text-secondary)" }}
+            >
+              DIAGNOSTIC GOAL
+            </label>
+            <span className="metadata-text">Autonomous Investigation</span>
+          </div>
+
           <textarea
             id="bench-agent-goal"
             data-testid="bench-agent-goal-input"
@@ -265,46 +275,36 @@ export const BenchAgentPanel: React.FC<BenchAgentPanelProps> = ({ isConnected })
             }}
             disabled={active || state.status === "unavailable"}
             rows={2}
-            placeholder="Describe the diagnostic objective…"
+            placeholder="Describe the hardware diagnostic objective…"
             style={{
               width: "100%",
               resize: "none",
               border: "1px solid var(--ohmni-border)",
-              borderRadius: "var(--radius-sm)",
+              borderRadius: "var(--radius-md)",
               background: "var(--ohmni-bg)",
               color: "var(--ohmni-text-primary)",
-              padding: "0.4375rem 0.5rem",
+              padding: "8px 10px",
               fontFamily: "var(--font-sans)",
-              fontSize: "0.6875rem",
-              lineHeight: 1.35,
+              fontSize: "12px",
+              lineHeight: 1.4,
             }}
           />
-          <div style={{ display: "flex", gap: "0.375rem", marginTop: "0.375rem" }}>
+
+          <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
             {!active ? (
               <button
                 type="button"
                 data-testid="bench-agent-start"
                 onClick={start}
                 disabled={!canStart}
+                className="btn-primary"
                 style={{
                   flex: 1,
-                  minHeight: "28px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.375rem",
-                  border: "1px solid var(--ohmni-accent-dim)",
-                  borderRadius: "var(--radius-sm)",
-                  background: canStart ? "var(--ohmni-accent-glow)" : "transparent",
-                  color: canStart ? "var(--ohmni-accent)" : "var(--ohmni-text-disabled)",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "0.59375rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.04em",
-                  cursor: canStart ? "pointer" : "not-allowed",
+                  padding: "8px 12px",
+                  fontSize: "12px",
                 }}
               >
-                <Play size={11} aria-hidden="true" />
+                <Play size={13} fill="currentColor" />
                 START AGENT
               </button>
             ) : (
@@ -312,173 +312,160 @@ export const BenchAgentPanel: React.FC<BenchAgentPanelProps> = ({ isConnected })
                 type="button"
                 data-testid="bench-agent-stop"
                 onClick={stop}
+                className="btn-secondary"
                 style={{
                   flex: 1,
-                  minHeight: "28px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.375rem",
-                  border: "1px solid var(--ohmni-fault-dim)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--ohmni-fault-glow)",
+                  padding: "8px 12px",
+                  fontSize: "12px",
                   color: "var(--ohmni-fault)",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "0.59375rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.04em",
-                  cursor: "pointer",
+                  borderColor: "rgba(255, 93, 104, 0.4)",
+                  background: "rgba(255, 93, 104, 0.1)",
                 }}
               >
-                <Square size={10} aria-hidden="true" />
+                <Square size={13} fill="currentColor" />
                 STOP AGENT
               </button>
             )}
           </div>
         </div>
 
+        {/* Status: Unavailable */}
         {state.status === "unavailable" && (
           <div
             role="alert"
             style={{
-              padding: "0.625rem",
-              border: "1px solid var(--ohmni-warning-dim)",
+              padding: "10px",
+              border: "1px solid var(--ohmni-warning)",
               borderRadius: "var(--radius-md)",
-              background: "var(--ohmni-warning-glow)",
+              background: "rgba(244, 184, 96, 0.1)",
             }}
           >
-            <div
-              className="font-mono"
-              style={{ color: "var(--ohmni-warning)", fontSize: "0.625rem", fontWeight: 700 }}
-            >
-              BENCH AGENT UNAVAILABLE
+            <div className="font-mono" style={{ color: "var(--ohmni-warning)", fontSize: "11px", fontWeight: 700 }}>
+              BENCH AGENT DEMO PROVIDER
             </div>
-            <p style={{ marginTop: "0.25rem", color: "var(--ohmni-text-secondary)", fontSize: "0.65625rem" }}>
-              Gemini API key is not configured.
+            <p style={{ marginTop: "4px", color: "var(--ohmni-text-secondary)", fontSize: "12px" }}>
+              Live Gemini API key not configured. Using deterministic validation agent.
             </p>
           </div>
         )}
 
+        {/* Status: Failed */}
         {state.status === "failed" && (
           <div
             role="alert"
             style={{
-              padding: "0.5rem 0.625rem",
-              borderLeft: "2px solid var(--ohmni-fault)",
-              background: "var(--ohmni-fault-glow)",
+              padding: "10px",
+              borderLeft: "3px solid var(--ohmni-fault)",
+              background: "rgba(255, 93, 104, 0.1)",
               color: "var(--ohmni-fault)",
-              fontSize: "0.65625rem",
+              fontSize: "12px",
             }}
           >
             {state.message}
           </div>
         )}
 
+        {/* High-Context Human-in-the-Loop Approval Experience */}
         {state.status === "approval" && (
           <div
             data-testid="bench-agent-approval"
             role="alert"
             style={{
               flex: "none",
-              padding: "0.625rem",
+              padding: "14px",
               border: "1px solid var(--ohmni-warning)",
-              borderRadius: "var(--radius-md)",
-              background: "var(--ohmni-warning-glow)",
-              boxShadow: "0 0 14px var(--ohmni-warning-glow)",
+              borderRadius: "var(--radius-lg)",
+              background: "rgba(244, 184, 96, 0.08)",
+              boxShadow: "0 0 24px rgba(244, 184, 96, 0.15)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", color: "var(--ohmni-warning)" }}>
-              <ShieldAlert size={14} aria-hidden="true" />
-              <strong className="font-mono" style={{ fontSize: "0.625rem", letterSpacing: "0.04em" }}>
-                WAITING FOR HUMAN
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--ohmni-warning)" }}>
+              <ShieldAlert size={16} />
+              <strong style={{ fontSize: "13px", letterSpacing: "0.03em" }}>
+                CONTROLLED TEST REQUEST
               </strong>
             </div>
-            <div className="label-technical" style={{ marginTop: "0.5rem", fontSize: "0.53125rem" }}>
-              TOOL
+
+            <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--ohmni-text-primary)" }}>
+              Relay stress test
             </div>
-            <div className="font-mono" style={{ color: "var(--ohmni-text-primary)", fontSize: "0.6875rem", fontWeight: 700 }}>
-              {state.approval.tool.name}
+
+            <div className="metadata-text" style={{ color: "var(--ohmni-text-secondary)", lineHeight: 1.4 }}>
+              <strong>Why?</strong> The controller reports brownout resets. This experiment tests whether energizing the relay coil causes a measurable supply voltage collapse.
             </div>
-            <div className="label-technical" style={{ marginTop: "0.375rem", fontSize: "0.53125rem" }}>
-              ARGUMENTS
-            </div>
-            <pre
+
+            <div
               style={{
-                maxHeight: "92px",
-                overflow: "auto",
-                marginTop: "0.1875rem",
-                padding: "0.375rem",
+                background: "var(--ohmni-surface)",
+                padding: "8px 10px",
                 borderRadius: "var(--radius-sm)",
-                background: "var(--ohmni-bg)",
+                border: "1px solid var(--ohmni-border-subtle)",
+                fontSize: "11px",
                 color: "var(--ohmni-text-secondary)",
-                fontFamily: "var(--font-mono)",
-                fontSize: "0.59375rem",
-                lineHeight: 1.35,
-                whiteSpace: "pre-wrap",
-                overflowWrap: "anywhere",
               }}
             >
-              {formatArguments(state.approval.call.arguments)}
-            </pre>
-            <div style={{ display: "grid", gridTemplateColumns: "0.72fr 1.28fr", gap: "0.375rem", marginTop: "0.5rem" }}>
+              <div style={{ fontWeight: 600, color: "var(--ohmni-text-primary)", marginBottom: "3px" }}>
+                What will happen:
+              </div>
+              <div>• Relay coil energizes for 500 ms</div>
+              <div>• Maximum 3 cycles requested</div>
+              <div>• Supply rail telemetry acquired in real-time</div>
+              <div>• Test halts immediately if reset occurs</div>
+            </div>
+
+            <div className="font-mono metadata-text" style={{ fontSize: "11px", color: "var(--ohmni-text-muted)" }}>
+              Instrument: <strong style={{ color: "var(--ohmni-brand-hover)" }}>{state.approval.tool.name}</strong>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "8px", marginTop: "4px" }}>
               <button
                 type="button"
                 data-testid="bench-agent-deny"
                 onClick={deny}
+                className="btn-secondary"
                 style={{
-                  minHeight: "30px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.25rem",
-                  border: "1px solid var(--ohmni-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--ohmni-surface-raised)",
-                  color: "var(--ohmni-text-secondary)",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "0.5625rem",
-                  fontWeight: 700,
-                  cursor: "pointer",
+                  padding: "8px",
+                  fontSize: "12px",
+                  fontWeight: 600,
                 }}
               >
-                <X size={11} aria-hidden="true" />
-                DENY
+                <X size={14} />
+                Deny
               </button>
+
               <button
                 type="button"
                 data-testid="bench-agent-approve"
                 onClick={approve}
+                className="btn-primary"
                 style={{
-                  minHeight: "30px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.25rem",
-                  border: "1px solid var(--ohmni-warning)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--ohmni-warning-glow)",
-                  color: "var(--ohmni-warning)",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "0.5625rem",
+                  padding: "8px",
+                  fontSize: "12px",
                   fontWeight: 700,
-                  cursor: "pointer",
+                  background: "var(--ohmni-warning-dim)",
+                  borderColor: "var(--ohmni-warning)",
+                  color: "#FFFFFF",
                 }}
               >
-                <Check size={11} aria-hidden="true" />
-                APPROVE VIRTUAL TEST
+                <Check size={14} />
+                Approve Test
               </button>
             </div>
           </div>
         )}
 
+        {/* Activity Items List */}
         {state.activity.length > 0 && (
-          <div style={{ flex: "none" }}>
-            <div className="label-technical" style={{ fontSize: "0.5625rem" }}>
-              ACTUAL TOOL CALLS · {state.activity.length}
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <div className="metadata-text" style={{ marginBottom: "6px", fontWeight: 600, letterSpacing: "0.04em" }}>
+              INVESTIGATION ACTIVITY • {state.activity.length}
             </div>
             <ol
               aria-label="Chronological agent tool activity"
-              style={{ listStyle: "none", margin: "0.125rem 0 0", padding: 0 }}
+              style={{ listStyle: "none", margin: 0, padding: 0 }}
             >
               {state.activity.map((activity, index) => (
                 <ActivityRow key={`${activity.call.id}-${index}`} activity={activity} />
@@ -487,28 +474,29 @@ export const BenchAgentPanel: React.FC<BenchAgentPanelProps> = ({ isConnected })
           </div>
         )}
 
+        {/* Final Assessment Card */}
         {state.status === "completed" && (
           <div
             data-testid="bench-agent-assessment"
             style={{
               flex: "none",
-              padding: "0.625rem",
+              padding: "12px",
               border: "1px solid var(--ohmni-border)",
-              borderRadius: "var(--radius-md)",
+              borderRadius: "var(--radius-lg)",
               background: "var(--ohmni-surface-raised)",
             }}
           >
-            <div className="label-technical" style={{ color: "var(--ohmni-success)", fontSize: "0.5625rem" }}>
-              CURRENT ASSESSMENT
+            <div className="metadata-text" style={{ color: "var(--ohmni-success)", fontWeight: 700, display: "flex", alignItems: "center", gap: "5px" }}>
+              <Sparkles size={12} />
+              DIAGNOSTIC ASSESSMENT
             </div>
             <p
               style={{
-                marginTop: "0.375rem",
+                marginTop: "6px",
                 color: "var(--ohmni-text-primary)",
-                fontSize: "0.6875rem",
-                lineHeight: 1.45,
+                fontSize: "13px",
+                lineHeight: 1.5,
                 whiteSpace: "pre-wrap",
-                overflowWrap: "anywhere",
               }}
             >
               {state.assessment}
@@ -519,16 +507,16 @@ export const BenchAgentPanel: React.FC<BenchAgentPanelProps> = ({ isConnected })
         {state.status === "step-limit" && (
           <div
             role="status"
-            className="font-mono"
-            style={{ color: "var(--ohmni-warning)", fontSize: "0.625rem" }}
+            className="font-mono metadata-text"
+            style={{ color: "var(--ohmni-warning)" }}
           >
             Agent stopped at the {state.steps}-step safety limit.
           </div>
         )}
 
         {state.status === "stopped" && (
-          <div role="status" className="font-mono" style={{ color: "var(--ohmni-text-muted)", fontSize: "0.625rem" }}>
-            Agent stopped. Investigation records were preserved.
+          <div role="status" className="font-mono metadata-text" style={{ color: "var(--ohmni-text-muted)" }}>
+            Agent stopped. Investigation records preserved.
           </div>
         )}
       </div>

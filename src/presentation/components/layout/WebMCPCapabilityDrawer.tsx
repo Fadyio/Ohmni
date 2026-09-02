@@ -1,16 +1,27 @@
 /**
- * WebMCP Capability Drawer / Staggered Tool Discovery List.
- * Shows the dynamic tool surface materialized into document.modelContext.
+ * WebMCP Capability Inspector Modal / Flyout.
+ * Secondary debug & protocol inspection view.
+ * Categorizes the dynamic tool surface with truthful product taxonomy:
+ * - OBSERVE: Read-only physical sensors & telemetry.
+ * - REASON: Agent evidence extraction & hypothesis synthesis.
+ * - PHYSICAL TEST: Controlled hardware stress actuation (requires human approval).
  */
 
-import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import type { WebMCPToolInfo } from "../../hooks/useWebMCPTools";
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
-  toolContainerVariants,
-  toolItemVariants,
-  microTransition,
-} from "../motion/transitions";
+  Radio,
+  X,
+  Search,
+  Cpu,
+  Zap,
+  Lightbulb,
+  ShieldAlert,
+  Layers,
+  Terminal,
+  FileCode,
+} from "lucide-react";
+import type { WebMCPToolInfo } from "../../hooks/useWebMCPTools";
 
 interface WebMCPCapabilityDrawerProps {
   readonly isOpen: boolean;
@@ -27,223 +38,317 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
   isNative,
   onClose,
 }) => {
+  const [filterCategory, setFilterCategory] = useState<"all" | "observe" | "reason" | "actuation">("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  const getToolCategory = (toolName: string): "observe" | "reason" | "actuation" => {
+    if (toolName === "run_relay_stress_test") return "actuation";
+    if (
+      toolName.includes("hypothesis") ||
+      toolName.includes("evidence")
+    ) {
+      return "reason";
+    }
+    return "observe";
+  };
+
+  const getCategoryBadge = (category: "observe" | "reason" | "actuation") => {
+    switch (category) {
+      case "observe":
+        return {
+          label: "OBSERVE",
+          color: "var(--ohmni-signal)",
+          bg: "rgba(53, 198, 244, 0.12)",
+          border: "rgba(53, 198, 244, 0.25)",
+        };
+      case "reason":
+        return {
+          label: "REASON",
+          color: "var(--ohmni-brand-hover)",
+          bg: "rgba(79, 107, 255, 0.12)",
+          border: "rgba(79, 107, 255, 0.25)",
+        };
+      case "actuation":
+        return {
+          label: "PHYSICAL TEST",
+          color: "var(--ohmni-warning)",
+          bg: "rgba(244, 184, 96, 0.12)",
+          border: "rgba(244, 184, 96, 0.25)",
+        };
+    }
+  };
+
+  const filteredTools = tools.filter((t) => {
+    const category = getToolCategory(t.name);
+    if (filterCategory !== "all" && category !== filterCategory) return false;
+    if (searchQuery.trim() !== "") {
+      const q = searchQuery.toLowerCase();
+      return t.name.toLowerCase().includes(q) || (t.description || "").toLowerCase().includes(q);
+    }
+    return true;
+  });
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, y: -6, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -4, scale: 0.98 }}
-          transition={microTransition}
+        <div
           style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            right: "0",
-            width: "360px",
-            background: "var(--ohmni-surface-overlay)",
-            border: "1px solid var(--ohmni-border)",
-            borderRadius: "var(--radius-md)",
-            boxShadow: "0 12px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--ohmni-border-subtle)",
-            zIndex: 100,
-            overflow: "hidden",
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(11, 14, 20, 0.75)",
+            backdropFilter: "blur(8px)",
           }}
+          onClick={onClose}
         >
-          {/* Header */}
-          <div
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 8 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            onClick={(e) => e.stopPropagation()}
             style={{
-              padding: "10px 14px",
+              width: "90%",
+              maxWidth: "680px",
+              maxHeight: "80vh",
               background: "var(--ohmni-surface-raised)",
-              borderBottom: "1px solid var(--ohmni-border)",
+              border: "1px solid var(--ohmni-border)",
+              borderRadius: "var(--radius-xl)",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
+              flexDirection: "column",
+              boxShadow: "0 24px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(148, 163, 184, 0.1)",
+              overflow: "hidden",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span
-                style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "50%",
-                  background: tools.length > 0 ? "var(--ohmni-accent)" : "var(--ohmni-text-muted)",
-                }}
-              />
-              <span className="label-technical" style={{ color: "var(--ohmni-text-primary)" }}>
-                Active Agent Tool Surface
-              </span>
-            </div>
-            <span
-              className="font-mono"
+            {/* Header */}
+            <div
               style={{
-                fontSize: "0.6875rem",
-                padding: "2px 6px",
-                borderRadius: "var(--radius-sm)",
-                background: isNative ? "rgba(16, 185, 129, 0.15)" : "rgba(56, 189, 248, 0.15)",
-                color: isNative ? "var(--ohmni-success)" : "var(--ohmni-accent)",
-                border: `1px solid ${isNative ? "rgba(16, 185, 129, 0.3)" : "rgba(56, 189, 248, 0.3)"}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "1rem 1.25rem",
+                borderBottom: "1px solid var(--ohmni-border-subtle)",
+                background: "var(--ohmni-surface)",
               }}
             >
-              {isNative ? "NATIVE WEBMCP" : "COMPATIBILITY MODE"}
-            </span>
-          </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "var(--radius-md)",
+                    background: "rgba(79, 107, 255, 0.15)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--ohmni-brand-hover)",
+                  }}
+                >
+                  <Radio size={16} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--ohmni-text-primary)" }}>
+                    WebMCP Agent Instrument Inspector
+                  </div>
+                  <div className="metadata-text">
+                    {tools.length} Dynamic Tools Materialized into <code className="font-mono">document.modelContext</code>
+                  </div>
+                </div>
+              </div>
 
-          {/* Discovery Banner or Empty State */}
-          <div style={{ padding: "12px 14px" }}>
-            {isDiscovering && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+              <button
+                onClick={onClose}
+                className="btn-secondary"
+                style={{ padding: "6px", borderRadius: "var(--radius-full)" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "10px 1.25rem",
+                borderBottom: "1px solid var(--ohmni-border-subtle)",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              {/* Category Pills */}
+              <div style={{ display: "flex", gap: "6px" }}>
+                {[
+                  { key: "all", label: `All (${tools.length})` },
+                  { key: "observe", label: "Observe" },
+                  { key: "reason", label: "Reason" },
+                  { key: "actuation", label: "Physical Test" },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setFilterCategory(tab.key as any)}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "var(--radius-full)",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      border: "1px solid",
+                      background: filterCategory === tab.key ? "var(--ohmni-brand)" : "var(--ohmni-surface)",
+                      color: filterCategory === tab.key ? "#FFFFFF" : "var(--ohmni-text-secondary)",
+                      borderColor: filterCategory === tab.key ? "var(--ohmni-brand)" : "var(--ohmni-border-subtle)",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search input */}
+              <div
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
-                  padding: "8px 10px",
-                  marginBottom: "8px",
-                  background: "rgba(56, 189, 248, 0.08)",
-                  border: "1px dashed var(--ohmni-accent-dim)",
+                  gap: "6px",
+                  background: "var(--ohmni-surface)",
+                  border: "1px solid var(--ohmni-border-subtle)",
                   borderRadius: "var(--radius-sm)",
-                  color: "var(--ohmni-accent)",
-                  fontSize: "0.75rem",
+                  padding: "4px 8px",
+                  maxWidth: "200px",
                 }}
               >
-                <span
+                <Search size={13} color="var(--ohmni-text-muted)" />
+                <input
+                  type="text"
+                  placeholder="Filter tools..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
-                    display: "inline-block",
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    border: "2px solid var(--ohmni-accent)",
-                    borderTopColor: "transparent",
-                    animation: "spin 0.8s linear infinite",
+                    background: "transparent",
+                    border: "none",
+                    outline: "none",
+                    color: "var(--ohmni-text-primary)",
+                    fontSize: "12px",
+                    width: "100%",
                   }}
                 />
-                <span className="font-mono">DISCOVERING HARDWARE CAPABILITIES...</span>
-              </motion.div>
-            )}
-
-            {tools.length === 0 && !isDiscovering ? (
-              <div
-                style={{
-                  padding: "16px",
-                  textAlign: "center",
-                  color: "var(--ohmni-text-muted)",
-                  fontSize: "0.75rem",
-                }}
-              >
-                <div style={{ marginBottom: "4px" }}>0 device instruments available</div>
-                <div style={{ fontSize: "0.6875rem", color: "var(--ohmni-text-disabled)" }}>
-                  Connect a target hardware device to materialize WebMCP tools into the agent context.
-                </div>
               </div>
-            ) : (
-              <motion.div
-                variants={toolContainerVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                style={{ display: "flex", flexDirection: "column", gap: "6px" }}
-              >
-                {tools.map((tool) => {
-                  const isActuation = !tool.readOnly;
+            </div>
+
+            {/* Tool List Content */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "1rem 1.25rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+              }}
+            >
+              {filteredTools.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "2rem",
+                    color: "var(--ohmni-text-muted)",
+                    fontSize: "13px",
+                  }}
+                >
+                  No instruments matching filter criteria.
+                </div>
+              ) : (
+                filteredTools.map((tool) => {
+                  const category = getToolCategory(tool.name);
+                  const badge = getCategoryBadge(category);
                   return (
-                    <motion.div
+                    <div
                       key={tool.name}
-                      variants={toolItemVariants}
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: "8px 10px",
                         background: "var(--ohmni-surface)",
-                        border: `1px solid ${isActuation ? "rgba(245, 158, 11, 0.25)" : "var(--ohmni-border-subtle)"}`,
-                        borderRadius: "var(--radius-sm)",
+                        border: "1px solid var(--ohmni-border-subtle)",
+                        borderRadius: "var(--radius-md)",
+                        padding: "10px 12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span
-                          style={{
-                            color: isActuation ? "var(--ohmni-warning)" : "var(--ohmni-accent)",
-                            fontWeight: 600,
-                            fontFamily: "var(--font-mono)",
-                            fontSize: "0.8125rem",
-                          }}
-                        >
-                          +
-                        </span>
-                        <div>
-                          <div
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span
                             className="font-mono"
                             style={{
-                              fontSize: "0.75rem",
-                              fontWeight: 500,
+                              fontSize: "13px",
+                              fontWeight: 700,
                               color: "var(--ohmni-text-primary)",
                             }}
                           >
                             {tool.name}
-                          </div>
-                          {tool.title && (
-                            <div style={{ fontSize: "0.6875rem", color: "var(--ohmni-text-muted)" }}>
-                              {tool.title}
-                            </div>
-                          )}
+                          </span>
                         </div>
+
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            letterSpacing: "0.04em",
+                            padding: "2px 8px",
+                            borderRadius: "var(--radius-xs)",
+                            background: badge.bg,
+                            color: badge.color,
+                            border: `1px solid ${badge.border}`,
+                          }}
+                        >
+                          {badge.label}
+                        </span>
                       </div>
 
-                      <span
-                        className="font-mono"
+                      <p
                         style={{
-                          fontSize: "0.625rem",
-                          letterSpacing: "0.04em",
-                          padding: "2px 5px",
-                          borderRadius: "var(--radius-sm)",
-                          background: isActuation
-                            ? "rgba(245, 158, 11, 0.12)"
-                            : "rgba(56, 189, 248, 0.1)",
-                          color: isActuation ? "var(--ohmni-warning)" : "var(--ohmni-accent)",
-                          border: `1px solid ${isActuation ? "rgba(245, 158, 11, 0.3)" : "rgba(56, 189, 248, 0.25)"}`,
-                          textTransform: "uppercase",
+                          fontSize: "12px",
+                          color: "var(--ohmni-text-secondary)",
+                          margin: 0,
+                          lineHeight: 1.4,
                         }}
                       >
-                        {isActuation ? "Actuation" : "Read-Only"}
-                      </span>
-                    </motion.div>
+                        {tool.description || "Hardware diagnostic instrument"}
+                      </p>
+                    </div>
                   );
-                })}
-              </motion.div>
-            )}
-          </div>
+                })
+              )}
+            </div>
 
-          {/* Footer note */}
-          <div
-            style={{
-              padding: "8px 14px",
-              background: "var(--ohmni-surface-raised)",
-              borderTop: "1px solid var(--ohmni-border-subtle)",
-              fontSize: "0.6875rem",
-              color: "var(--ohmni-text-muted)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <span>Live WebMCP Registry</span>
-            <button
-              onClick={onClose}
+            {/* Footer */}
+            <div
               style={{
-                background: "transparent",
-                border: "none",
-                color: "var(--ohmni-text-secondary)",
-                cursor: "pointer",
-                fontSize: "0.6875rem",
-                padding: "2px 6px",
-                borderRadius: "var(--radius-sm)",
+                padding: "8px 1.25rem",
+                borderTop: "1px solid var(--ohmni-border-subtle)",
+                background: "var(--ohmni-surface)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
               }}
             >
-              Close
-            </button>
-          </div>
-        </motion.div>
+              <span className="metadata-text">
+                Protocol: W3C Model Context Protocol • Runtime: Chromium Native
+              </span>
+              <button
+                onClick={onClose}
+                className="btn-secondary"
+                style={{ padding: "4px 12px", fontSize: "12px" }}
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );

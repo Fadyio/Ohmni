@@ -1,9 +1,11 @@
 /**
  * Main Workbench Layout Component.
- * Implements the 3-column + header + bottom timeline instrument layout.
+ * Implements professional resizable 3-column + header + bottom timeline layout
+ * using react-resizable-panels (Group, Panel, Separator).
  */
 
 import React from "react";
+import { Group, Panel, Separator } from "react-resizable-panels";
 
 interface WorkbenchLayoutProps {
   readonly topBar: React.ReactNode;
@@ -36,36 +38,62 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
       {/* 1. Top Navigation & Status Bar */}
       {topBar}
 
-      {/* 2. Middle Body: Left Device (260px) | Center Instruments (1fr) | Right Investigation (300px) */}
+      {/* 2. Middle Body: Resizable 3 Panels */}
       <div
         style={{
           flex: 1,
-          display: "grid",
-          gridTemplateColumns: "260px 1fr 320px",
           minHeight: 0,
           overflow: "hidden",
+          display: "flex",
         }}
       >
-        {/* Left Inspector Column */}
-        {leftPanel}
+        <Group orientation="horizontal">
+          {/* Left Device Inspector Panel */}
+          <Panel defaultSize="22%" minSize="16%" maxSize="32%">
+            {leftPanel}
+          </Panel>
 
-        {/* Center Dominant Hero Column */}
-        <main
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-            padding: "0.875rem",
-            overflowY: "auto",
-            minWidth: 0,
-            background: "var(--ohmni-bg)",
-          }}
-        >
-          {centerPanel}
-        </main>
+          {/* Left Resize Handle */}
+          <Separator
+            className="resize-handle"
+            style={{
+              width: "3px",
+              cursor: "col-resize",
+            }}
+          />
 
-        {/* Right Investigation Workspace Column */}
-        {rightPanel}
+          {/* Center Dominant Hero Live Lab Column */}
+          <Panel defaultSize="48%" minSize="34%">
+            <main
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                padding: "0.875rem",
+                overflowY: "auto",
+                height: "100%",
+                background: "var(--ohmni-bg)",
+                minWidth: 0,
+              }}
+            >
+              {centerPanel}
+            </main>
+          </Panel>
+
+          {/* Right Resize Handle */}
+          <Separator
+            className="resize-handle"
+            style={{
+              width: "3px",
+              cursor: "col-resize",
+            }}
+          />
+
+          {/* Right Agent & Investigation Column */}
+          <Panel defaultSize="30%" minSize="24%" maxSize="44%">
+            {rightPanel}
+          </Panel>
+        </Group>
       </div>
 
       {/* 3. Bottom Event Timeline */}

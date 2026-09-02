@@ -60,6 +60,7 @@ export function useDeviceState(adapter?: DeviceAdapter): DeviceStateHandle {
     };
 
     updateFromAdapter();
+    const pollInterval = setInterval(updateFromAdapter, 100);
 
     const unsubscribe = adapter.subscribe((event: DeviceEvent) => {
       if (event.type === "reset") {
@@ -93,6 +94,7 @@ export function useDeviceState(adapter?: DeviceAdapter): DeviceStateHandle {
     });
 
     return () => {
+      clearInterval(pollInterval);
       unsubscribe();
       if (resetTimerRef.current !== null) {
         clearTimeout(resetTimerRef.current);

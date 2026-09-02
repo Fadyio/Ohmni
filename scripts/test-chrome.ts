@@ -569,10 +569,13 @@ async function runChromeTests(): Promise<void> {
             throw new Error(`Bench Agent UI failed to mount: ${JSON.stringify(res)}`);
           }
 
-          const idlePath = join(screenshotDir, "agent-idle.png");
+          const introPath = join(screenshotDir, "01-intro.png");
+          const idlePath = join(screenshotDir, "idle.png");
+          const agentIdlePath = join(screenshotDir, "agent-idle.png");
+          await cdpClient!.captureScreenshot(introPath);
           await cdpClient!.captureScreenshot(idlePath);
-          console.info(`[Screenshot] Saved idle state: ${idlePath}`);
-
+          await cdpClient!.captureScreenshot(agentIdlePath);
+          console.info(`[Screenshot] Saved 01-intro.png, idle.png, agent-idle.png`);
           return `document.modelContext active (isNative: ${res.isNative}), Bench Agent supervisor & canvas mounted`;
         },
       },
@@ -610,6 +613,11 @@ async function runChromeTests(): Promise<void> {
               throw new Error(`Missing expected WebMCP tool: ${exp}`);
             }
           }
+          const connectedPath = join(screenshotDir, "02-connected.png");
+          const connectedLegacyPath = join(screenshotDir, "connected.png");
+          await cdpClient!.captureScreenshot(connectedPath);
+          await cdpClient!.captureScreenshot(connectedLegacyPath);
+          console.info(`[Screenshot] Saved 02-connected.png, connected.png`);
 
           return `Bench Agent discovered all ${res.count} native WebMCP instruments: [${res.toolNames.join(", ")}]`;
         },
@@ -671,10 +679,11 @@ async function runChromeTests(): Promise<void> {
             throw new Error(`Bench Agent failed: ${JSON.stringify(dump)}`);
           }
 
+          const observingPath = join(screenshotDir, "03-agent-observing.png");
           const investigatingPath = join(screenshotDir, "agent-investigating.png");
+          await cdpClient!.captureScreenshot(observingPath);
           await cdpClient!.captureScreenshot(investigatingPath);
-          console.info(`[Screenshot] Saved investigating state: ${investigatingPath}`);
-
+          console.info(`[Screenshot] Saved 03-agent-observing.png, agent-investigating.png`);
           return `Green tool read_reset_history executed autonomously`;
         },
       },
@@ -711,10 +720,11 @@ async function runChromeTests(): Promise<void> {
             throw new Error(`Amber tool did not pause for human approval: visible=${approvalVisible}, text=${toolName}`);
           }
 
+          const approvalPath04 = join(screenshotDir, "04-approval.png");
           const approvalPath = join(screenshotDir, "agent-approval-request.png");
+          await cdpClient!.captureScreenshot(approvalPath04);
           await cdpClient!.captureScreenshot(approvalPath);
-          console.info(`[Screenshot] Saved approval request state: ${approvalPath}`);
-
+          console.info(`[Screenshot] Saved 04-approval.png, agent-approval-request.png`);
           return `Amber tool run_relay_stress_test paused with explicit human approval dialog`;
         },
       },
@@ -725,6 +735,9 @@ async function runChromeTests(): Promise<void> {
             const approveBtn = document.querySelector("[data-testid='bench-agent-approve']");
             approveBtn?.click();
           })()`);
+          const expRunningPath = join(screenshotDir, "05-experiment-running.png");
+          await cdpClient!.captureScreenshot(expRunningPath);
+          console.info(`[Screenshot] Saved 05-experiment-running.png`);
 
           const { promise: waitEvidencePromise, resolve: waitEvidenceResolve } = Promise.withResolvers<void>();
           setTimeout(waitEvidenceResolve, 1500);
@@ -739,6 +752,26 @@ async function runChromeTests(): Promise<void> {
           if (res.evidenceCount < 2 || !res.hasResetEvent || !res.hasMeasurement) {
             throw new Error(`Relay stress test approval execution failed to generate factual evidence: ${JSON.stringify(res)}`);
           }
+          const brownoutPath06 = join(screenshotDir, "06-brownout.png");
+          const brownoutLegacyPath = join(screenshotDir, "brownout-fault.png");
+          await cdpClient!.captureScreenshot(brownoutPath06);
+          await cdpClient!.captureScreenshot(brownoutLegacyPath);
+          console.info(`[Screenshot] Saved 06-brownout.png, brownout-fault.png`);
+
+          // Switch to evidence tab to capture evidence state
+          await cdpClient!.evaluate(`(() => {
+            const buttons = Array.from(document.querySelectorAll("button"));
+            const evBtn = buttons.find(b => b.innerText.includes("Evidence"));
+            evBtn?.click();
+          })()`);
+          const { promise: evP, resolve: evR } = Promise.withResolvers<void>();
+          setTimeout(evR, 200);
+          await evP;
+          const evidencePath07 = join(screenshotDir, "07-evidence.png");
+          const evidenceLegacyPath = join(screenshotDir, "evidence.png");
+          await cdpClient!.captureScreenshot(evidencePath07);
+          await cdpClient!.captureScreenshot(evidenceLegacyPath);
+          console.info(`[Screenshot] Saved 07-evidence.png, evidence.png`);
 
           return `Approval resumed execution, generated ${res.evidenceCount} factual evidence records from hardware test`;
         },
@@ -803,10 +836,23 @@ async function runChromeTests(): Promise<void> {
             throw new Error(`Agent falsely claimed repair was verified: ${res.assessmentText}`);
           }
 
-          const hypoPath = join(screenshotDir, "agent-hypothesis.png");
-          await cdpClient!.captureScreenshot(hypoPath);
-          console.info(`[Screenshot] Saved agent-hypothesis state: ${hypoPath}`);
+          // Switch to hypotheses tab to capture hypothesis state
+          await cdpClient!.evaluate(`(() => {
+            const buttons = Array.from(document.querySelectorAll("button"));
+            const hypBtn = buttons.find(b => b.innerText.includes("Hypotheses"));
+            hypBtn?.click();
+          })()`);
+          const { promise: hypP, resolve: hypR } = Promise.withResolvers<void>();
+          setTimeout(hypR, 200);
+          await hypP;
 
+          const hypoPath08 = join(screenshotDir, "08-hypothesis.png");
+          const hypothesesLegacyPath = join(screenshotDir, "hypotheses.png");
+          const hypoPath = join(screenshotDir, "agent-hypothesis.png");
+          await cdpClient!.captureScreenshot(hypoPath08);
+          await cdpClient!.captureScreenshot(hypothesesLegacyPath);
+          await cdpClient!.captureScreenshot(hypoPath);
+          console.info(`[Screenshot] Saved 08-hypothesis.png, hypotheses.png, agent-hypothesis.png`);
           return `Hypothesis H-001 created & elevated to HIGH with ${res.storedHypothesis.supportingEvidenceIds.length} citations [${res.storedHypothesis.supportingEvidenceIds.join(", ")}]; No verified repair claimed`;
         },
       },

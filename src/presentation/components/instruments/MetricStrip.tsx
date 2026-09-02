@@ -1,11 +1,13 @@
 /**
  * Live Metric Strip Component.
- * Displays high-precision numerical telemetry metrics: Baseline, Minimum, Sag Drop, and Reset Cause.
+ * High-precision integrated instrument readouts:
+ * Baseline, Minimum Voltage, Voltage Sag Drop, and Reset Status.
  */
 
 import React from "react";
 import type { VoltageSummary } from "@/domain/experiment/types";
 import type { ResetReason } from "@/domain/device/events";
+import { Zap, TrendingDown, ArrowDownRight, AlertTriangle, CheckCircle } from "lucide-react";
 
 interface MetricStripProps {
   readonly baselineVoltage: number;
@@ -24,37 +26,49 @@ export const MetricStrip: React.FC<MetricStripProps> = ({
 }) => {
   const hasSummary = Boolean(voltageSummary);
   const baseline = voltageSummary?.baseline_v ?? baselineVoltage;
-  const minimum = voltageSummary ? `${voltageSummary.minimum_v.toFixed(2)} V` : isRunning && liveVoltage !== undefined ? `${liveVoltage.toFixed(2)} V` : "—";
-  const drop = voltageSummary ? `−${Math.abs(voltageSummary.drop_v).toFixed(2)} V` : "—";
-  const resetText = resetReason ?? (hasSummary ? "NONE" : "—");
+  const minimum = voltageSummary
+    ? `${voltageSummary.minimum_v.toFixed(2)} V`
+    : isRunning && liveVoltage !== undefined
+    ? `${liveVoltage.toFixed(2)} V`
+    : `${baselineVoltage.toFixed(2)} V`;
+  const drop = voltageSummary ? `−${Math.abs(voltageSummary.drop_v).toFixed(2)} V` : "0.00 V";
+  const resetText = resetReason ?? (hasSummary ? "NOMINAL" : "NONE");
 
   const isFaultSag = voltageSummary ? voltageSummary.minimum_v < 2.80 : false;
+  const isBrownout = resetReason === "BROWNOUT";
 
   return (
     <div
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(4, 1fr)",
-        gap: "10px",
+        background: "var(--ohmni-surface-raised)",
+        border: "1px solid var(--ohmni-border)",
+        borderRadius: "var(--radius-lg)",
+        padding: "8px 12px",
+        gap: "12px",
       }}
     >
       {/* Baseline Voltage */}
       <div
         style={{
-          padding: "10px 14px",
-          background: "var(--ohmni-surface-raised)",
-          border: "1px solid var(--ohmni-border)",
-          borderRadius: "var(--radius-sm)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "2px",
+          paddingRight: "12px",
+          borderRight: "1px solid var(--ohmni-border-subtle)",
         }}
       >
-        <div className="label-technical">BASELINE</div>
+        <div className="metadata-text" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <Zap size={11} color="var(--ohmni-signal)" />
+          BASELINE
+        </div>
         <div
           className="font-mono"
           style={{
-            fontSize: "1.125rem",
+            fontSize: "17px",
             fontWeight: 700,
             color: "var(--ohmni-text-primary)",
-            marginTop: "2px",
           }}
         >
           {baseline.toFixed(2)} V
@@ -64,66 +78,81 @@ export const MetricStrip: React.FC<MetricStripProps> = ({
       {/* Minimum Voltage */}
       <div
         style={{
-          padding: "10px 14px",
-          background: "var(--ohmni-surface-raised)",
-          border: `1px solid ${isFaultSag ? "rgba(239, 68, 68, 0.4)" : "var(--ohmni-border)"}`,
-          borderRadius: "var(--radius-sm)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "2px",
+          paddingRight: "12px",
+          borderRight: "1px solid var(--ohmni-border-subtle)",
         }}
       >
-        <div className="label-technical">MINIMUM</div>
+        <div className="metadata-text" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <TrendingDown size={11} color={isFaultSag ? "var(--ohmni-fault)" : "var(--ohmni-signal)"} />
+          MINIMUM
+        </div>
         <div
           className="font-mono"
           style={{
-            fontSize: "1.125rem",
+            fontSize: "17px",
             fontWeight: 700,
-            color: isFaultSag ? "var(--ohmni-fault)" : "var(--ohmni-text-primary)",
-            marginTop: "2px",
+            color: isFaultSag ? "var(--ohmni-fault)" : "var(--ohmni-signal)",
           }}
         >
-          {minimum}
+          {minimum} {isFaultSag && <span style={{ fontSize: "11px", fontWeight: 600 }}>↓ SAG</span>}
         </div>
       </div>
 
       {/* Voltage Sag Drop */}
       <div
         style={{
-          padding: "10px 14px",
-          background: "var(--ohmni-surface-raised)",
-          border: `1px solid ${isFaultSag ? "rgba(239, 68, 68, 0.4)" : "var(--ohmni-border)"}`,
-          borderRadius: "var(--radius-sm)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "2px",
+          paddingRight: "12px",
+          borderRight: "1px solid var(--ohmni-border-subtle)",
         }}
       >
-        <div className="label-technical">DROP</div>
+        <div className="metadata-text" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <ArrowDownRight size={11} color={isFaultSag ? "var(--ohmni-fault)" : "var(--ohmni-text-muted)"} />
+          COLLAPSE
+        </div>
         <div
           className="font-mono"
           style={{
-            fontSize: "1.125rem",
+            fontSize: "17px",
             fontWeight: 700,
             color: isFaultSag ? "var(--ohmni-fault)" : "var(--ohmni-text-primary)",
-            marginTop: "2px",
           }}
         >
           {drop}
         </div>
       </div>
 
-      {/* Reset Cause */}
+      {/* Reset Cause Status */}
       <div
         style={{
-          padding: "10px 14px",
-          background: "var(--ohmni-surface-raised)",
-          border: `1px solid ${resetReason ? "rgba(239, 68, 68, 0.4)" : "var(--ohmni-border)"}`,
-          borderRadius: "var(--radius-sm)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "2px",
         }}
       >
-        <div className="label-technical">RESET CAUSE</div>
+        <div className="metadata-text" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          {isBrownout ? (
+            <AlertTriangle size={11} color="var(--ohmni-fault)" />
+          ) : (
+            <CheckCircle size={11} color="var(--ohmni-success)" />
+          )}
+          RESET STATE
+        </div>
         <div
           className="font-mono"
           style={{
-            fontSize: "1.125rem",
+            fontSize: "15px",
             fontWeight: 700,
-            color: resetReason ? "var(--ohmni-fault)" : "var(--ohmni-text-secondary)",
-            marginTop: "2px",
+            color: isBrownout
+              ? "var(--ohmni-fault)"
+              : hasSummary
+              ? "var(--ohmni-success)"
+              : "var(--ohmni-text-muted)",
           }}
         >
           {resetText}

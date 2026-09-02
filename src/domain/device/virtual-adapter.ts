@@ -261,51 +261,67 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
   ): Promise<CapabilityResult> {
     const cycles = typeof params.cycles === "number" ? params.cycles : 3;
     const durationMs = typeof params.durationMs === "number" ? params.durationMs : 0;
-    const now = Date.now();
+    const startTime = Date.now();
     let minVoltage = this.nominalVoltage;
     let resetOccurred = false;
     let cyclesCompleted = 0;
 
-    // Emit baseline voltage before actuation
-    this.emit({
-      type: "voltage_sample",
-      timestamp: now,
-      voltage: 3.31,
-      unit: "V",
-    });
+    // 1. High-Fidelity Pre-Trigger Phase (10 deterministic samples around 3.31V)
+    const preTriggerVoltages = [
+      3.310, 3.312, 3.308, 3.311, 3.309,
+      3.312, 3.308, 3.310, 3.311, 3.310
+    ];
+    for (let i = 0; i < preTriggerVoltages.length; i++) {
+      if (signal?.aborted) throw new Error("Capability execution aborted");
+      this.emit({
+        type: "voltage_sample",
+        timestamp: startTime + i * 2,
+        voltage: preTriggerVoltages[i],
+        unit: "V",
+      });
+    }
 
     try {
-      for (let i = 0; i < cycles; i++) {
+      for (let cycle = 0; cycle < cycles; cycle++) {
         if (signal?.aborted) {
           throw new Error("Capability execution aborted");
         }
 
         // Close relay (energize coil)
         this.relayState = "closed";
+        const cycleStartTime = Date.now();
         this.emit({
           type: "relay_state",
-          timestamp: Date.now(),
+          timestamp: cycleStartTime,
           state: "closed",
           pin: 14,
         });
 
-        if (durationMs > 0) {
-          await this.delay(durationMs, signal);
-        }
-
         if (this.relayPowerSource === "3v3") {
           // Deterministic Physics: Relay inrush current from 3.3V rail pulls voltage down to 2.72V
-          const sagVoltage = 2.72;
-          minVoltage = Math.min(minVoltage, sagVoltage);
+          const sagCurve = [
+            3.305, 3.290, 3.265, 3.220, 3.160,
+            3.090, 3.010, 2.930, 2.855, 2.810,
+            2.780, 2.750, 2.730, 2.720, 2.720
+          ];
 
-          this.emit({
-            type: "voltage_sample",
-            timestamp: Date.now(),
-            voltage: sagVoltage,
-            unit: "V",
-          });
+          const stepDelay = durationMs > 0 ? (durationMs * 0.4) / sagCurve.length : 0;
+          for (let s = 0; s < sagCurve.length; s++) {
+            if (signal?.aborted) throw new Error("Capability execution aborted");
+            const sampleVoltage = sagCurve[s];
+            minVoltage = Math.min(minVoltage, sampleVoltage);
+            this.emit({
+              type: "voltage_sample",
+              timestamp: Date.now(),
+              voltage: sampleVoltage,
+              unit: "V",
+            });
+            if (stepDelay > 0) {
+              await this.delay(stepDelay, signal);
+            }
+          }
 
-          // Brownout reset triggered
+          // Brownout reset triggered once threshold crossed
           resetOccurred = true;
           this.relayState = "open";
 
@@ -313,7 +329,7 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
             type: "reset",
             timestamp: Date.now(),
             reason: "BROWNOUT",
-            message: `Supply voltage sagged to ${sagVoltage.toFixed(2)}V (< ${this.brownoutThreshold.toFixed(2)}V threshold)`,
+            message: `Supply voltage sagged to ${minVoltage.toFixed(2)}V (< ${this.brownoutThreshold.toFixed(2)}V threshold)`,
           };
 
           this.resetHistory.push({
@@ -330,19 +346,51 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
             pin: 14,
           });
 
+          // Post-reset recovery bounce curve (15 deterministic samples back to 3.31V)
+          const recoveryCurve = [
+            2.740, 2.810, 2.920, 3.050, 3.160,
+            3.240, 3.285, 3.305, 3.310, 3.312,
+            3.308, 3.310, 3.311, 3.310, 3.310
+          ];
+          const recoveryStepDelay = durationMs > 0 ? (durationMs * 0.4) / recoveryCurve.length : 0;
+          for (let r = 0; r < recoveryCurve.length; r++) {
+            if (signal?.aborted) throw new Error("Capability execution aborted");
+            this.emit({
+              type: "voltage_sample",
+              timestamp: Date.now(),
+              voltage: recoveryCurve[r],
+              unit: "V",
+            });
+            if (recoveryStepDelay > 0) {
+              await this.delay(recoveryStepDelay, signal);
+            }
+          }
+
           // Halt stress test immediately due to MCU reset
           break;
         } else {
           // Deterministic Physics: Relay powered from isolated 5V rail; 3.3V rail stays stable at ~3.18V
-          const loadedVoltage = 3.18;
-          minVoltage = Math.min(minVoltage, loadedVoltage);
+          const loadedCurve = [
+            3.295, 3.270, 3.240, 3.210, 3.190,
+            3.180, 3.180, 3.185, 3.200, 3.230,
+            3.265, 3.290, 3.305, 3.310, 3.310
+          ];
 
-          this.emit({
-            type: "voltage_sample",
-            timestamp: Date.now(),
-            voltage: loadedVoltage,
-            unit: "V",
-          });
+          const stepDelay = durationMs > 0 ? durationMs / loadedCurve.length : 0;
+          for (let s = 0; s < loadedCurve.length; s++) {
+            if (signal?.aborted) throw new Error("Capability execution aborted");
+            const sampleVoltage = loadedCurve[s];
+            minVoltage = Math.min(minVoltage, sampleVoltage);
+            this.emit({
+              type: "voltage_sample",
+              timestamp: Date.now(),
+              voltage: sampleVoltage,
+              unit: "V",
+            });
+            if (stepDelay > 0) {
+              await this.delay(stepDelay, signal);
+            }
+          }
 
           // Open relay after cycle
           this.relayState = "open";
