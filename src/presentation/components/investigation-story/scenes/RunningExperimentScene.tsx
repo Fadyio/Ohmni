@@ -45,11 +45,13 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
     let sweepProgress = 0;
 
     const render = () => {
+      if (typeof window !== "undefined") {
+        window.__scopeFrameCount = (window.__scopeFrameCount || 0) + 1;
+      }
       const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
       const width = rect.width;
       const height = rect.height;
-
+      const dpr = window.devicePixelRatio || 1;
       if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
         canvas.width = Math.floor(width * dpr);
         canvas.height = Math.floor(height * dpr);

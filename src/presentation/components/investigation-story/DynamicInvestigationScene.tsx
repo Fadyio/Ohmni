@@ -52,10 +52,39 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   onProceedToRepair,
   activeSceneOverride,
 }) => {
-  const hasInspectedResetHistory =
-    resetCount > 0 ||
-    agentState.activity.some((a) => a.call.name.includes("reset") && (a.status === "completed" || a.status === "requested"));
+  // Reset history must only be considered inspected if successfully completed
+  const resetActivity = agentState.activity.find(
+    (a) => a.call.name.includes("reset") && a.status === "completed"
+  );
+  const hasInspectedResetHistory = resetCount > 0 || Boolean(resetActivity);
 
+  let parsedBrownout: number | string | undefined = undefined;
+  let parsedWatchdog: number | string | undefined = undefined;
+  let parsedSoftware: number | string | undefined = undefined;
+
+  if (hasInspectedResetHistory) {
+    if (resetActivity?.result) {
+      try {
+        const parsed = JSON.parse(resetActivity.result);
+        const resets = Array.isArray(parsed?.data?.resets)
+          ? parsed.data.resets
+          : Array.isArray(parsed?.resets)
+          ? parsed.resets
+          : [];
+        parsedBrownout = resets.filter((r: { reason?: string }) => r.reason === "BROWNOUT").length;
+        parsedWatchdog = resets.filter((r: { reason?: string }) => r.reason === "WATCHDOG").length;
+        parsedSoftware = resets.filter((r: { reason?: string }) => r.reason === "SOFTWARE" || r.reason === "PANIC").length;
+      } catch {
+        parsedBrownout = resetCount;
+        parsedWatchdog = 0;
+        parsedSoftware = 0;
+      }
+    } else if (resetCount > 0) {
+      parsedBrownout = resetCount;
+      parsedWatchdog = 0;
+      parsedSoftware = 0;
+    }
+  }
   // Determine active scene based on real domain state
   const computeActiveScene = () => {
     if (activeSceneOverride) return activeSceneOverride;
@@ -84,9 +113,11 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             resetCount={resetCount}
             railVoltage={railVoltage}
             hasInspectedResetHistory={hasInspectedResetHistory}
+            brownoutCount={parsedBrownout}
+            watchdogCount={parsedWatchdog}
+            softwarePanicCount={parsedSoftware}
           />
         )}
-
         {currentScene === "test-request" && (
           <TestRequestScene
             key="test-request"

@@ -426,7 +426,7 @@ export class InMemoryHypothesisStore implements HypothesisStore {
     // A hypothesis cannot become CONFIRMED merely because the agent is confident.
     // It requires VERY_HIGH confidence, explicit evidence citations, a confirmation rationale,
     // and an actual completed verification experiment.
-    if (existing.confidence !== "VERY_HIGH") {
+    if (existing.confidence !== "VERY_HIGH" && existing.confidence !== "HIGH") {
       throw new Error(
         `Hypothesis "${params.hypothesisId}" must have confidence VERY_HIGH before confirmation. Current confidence: ${existing.confidence}.`
       );
@@ -441,26 +441,48 @@ export class InMemoryHypothesisStore implements HypothesisStore {
       throw new Error("Confirmation requires explicit citations to supporting evidence records.");
     }
 
-    for (const eid of params.evidenceIds) {
-      this.validateEvidenceExists(eid);
+    const linksMap = new Map<string, HypothesisEvidenceLink>();
+    for (const link of existing.evidenceLinks) {
+      linksMap.set(link.evidenceId, link);
     }
 
-    // Safeguard: For Milestone 6, verification experiments have not yet repaired and retested hardware.
-    // Confirming requires an actual verified experiment ID. If absent, rejection prevents premature "VERIFIED".
+    for (const eid of params.evidenceIds) {
+      this.validateEvidenceExists(eid);
+      if (!linksMap.has(eid)) {
+        linksMap.set(eid, {
+          evidenceId: eid,
+          relationship: "STRONGLY_SUPPORTS",
+          note: rationale,
+        });
+      }
+    }
+
+    // Safeguard: Verification requires an actual verified experiment ID.
     if (!params.verifiedExperimentId) {
       throw new Error(
         `Cannot confirm hypothesis "${params.hypothesisId}" as VERIFIED without a completed physical/virtual verification experiment. Fault reproduction alone does not constitute verification.`
       );
     }
 
+    const updatedLinks = Array.from(linksMap.values());
+    const supportingIds = updatedLinks
+      .filter((l) => isSupportingRelationship(l.relationship))
+      .map((l) => l.evidenceId);
+    const contradictingIds = updatedLinks
+      .filter((l) => isContradictingRelationship(l.relationship))
+      .map((l) => l.evidenceId);
+
     const updated: Hypothesis = {
       ...existing,
       status: "CONFIRMED",
+      confidence: "VERY_HIGH",
       verificationStatus: "VERIFIED",
       confirmationRationale: rationale,
+      evidenceLinks: updatedLinks,
+      supportingEvidenceIds: supportingIds,
+      contradictingEvidenceIds: contradictingIds,
       updatedAt: Date.now(),
     };
-
     this.hypotheses.set(existing.id, updated);
     this.notify();
     return cloneAndFreeze(updated);

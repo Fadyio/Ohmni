@@ -288,6 +288,72 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
       };
     },
   };
+  const confirmHypothesisTool: ModelContextTool = {
+    name: "confirm_hypothesis",
+    title: "Confirm and Verify Diagnostic Hypothesis",
+    description:
+      "Formally confirm and verify a diagnostic hypothesis after a physical/virtual repair intervention has been empirically verified by a re-test experiment.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        hypothesis_id: {
+          type: "string",
+          description: "Identifier of the hypothesis to confirm (e.g. H-001).",
+        },
+        rationale: {
+          type: "string",
+          minLength: 10,
+          maxLength: 800,
+          description: "Detailed scientific explanation and proof of empirical verification.",
+        },
+        evidence_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Array of supporting evidence IDs (e.g. ['E-001', 'E-006']).",
+        },
+        verified_experiment_id: {
+          type: "string",
+          description: "Identifier of the successful verification experiment (e.g. exp-abc12345).",
+        },
+      },
+      required: ["hypothesis_id", "rationale", "evidence_ids", "verified_experiment_id"],
+      additionalProperties: false,
+    },
+    annotations: {
+      readOnlyHint: false,
+    },
+    execute: async (input) => {
+      const hypothesisId = String(input.hypothesis_id || "").trim();
+      const rationale = String(input.rationale || "").trim();
+      const verifiedExperimentId = String(input.verified_experiment_id || "").trim();
+      const evidenceIds = Array.isArray(input.evidence_ids)
+        ? (input.evidence_ids as string[]).map((id) => String(id).trim())
+        : [];
+
+      if (!hypothesisId) {
+        throw new Error("Missing required parameter: hypothesis_id");
+      }
+      if (!rationale) {
+        throw new Error("Missing required parameter: rationale");
+      }
+      if (!verifiedExperimentId) {
+        throw new Error("Missing required parameter: verified_experiment_id");
+      }
+
+      const confirmed = hypothesisStore.confirm({
+        hypothesisId,
+        rationale,
+        evidenceIds,
+        verifiedExperimentId,
+      });
+
+      return {
+        hypothesis: confirmed,
+        message: `Hypothesis ${confirmed.id} successfully CONFIRMED and marked VERIFIED based on verification experiment ${verifiedExperimentId}.`,
+      };
+    },
+  };
+
 
   const listHypothesesTool: ModelContextTool = {
     name: "list_hypotheses",
@@ -355,6 +421,7 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     updateHypothesisTool,
     linkEvidenceTool,
     rejectHypothesisTool,
+    confirmHypothesisTool,
     listHypothesesTool,
     getHypothesisTool,
   ];

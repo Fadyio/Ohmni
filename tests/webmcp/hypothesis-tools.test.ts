@@ -51,7 +51,7 @@ describe("WebMCP Hypothesis Synthesis Tools (Milestone 6)", () => {
   });
 
   describe("Tool Registration & Annotations", () => {
-    it("registers all 6 hypothesis synthesis tools on document.modelContext", async () => {
+    it("registers all 7 hypothesis synthesis tools on document.modelContext", async () => {
       const tools = await modelContext.getTools();
       const names = tools.map((t) => t.name);
 
@@ -59,9 +59,10 @@ describe("WebMCP Hypothesis Synthesis Tools (Milestone 6)", () => {
       expect(names).toContain("update_hypothesis");
       expect(names).toContain("link_evidence");
       expect(names).toContain("reject_hypothesis");
+      expect(names).toContain("confirm_hypothesis");
       expect(names).toContain("list_hypotheses");
       expect(names).toContain("get_hypothesis");
-      expect(tools.length).toBe(6);
+      expect(tools.length).toBe(7);
     });
 
     it("applies strict readOnlyHint annotations according to WebMCP standard", async () => {
@@ -73,12 +74,15 @@ describe("WebMCP Hypothesis Synthesis Tools (Milestone 6)", () => {
       const updateTool = tools.find((t) => t.name === "update_hypothesis");
       const linkTool = tools.find((t) => t.name === "link_evidence");
       const rejectTool = tools.find((t) => t.name === "reject_hypothesis");
+      const confirmTool = tools.find((t) => t.name === "confirm_hypothesis");
 
       expect(listTool?.annotations?.readOnlyHint).toBe(true);
       expect(getTool?.annotations?.readOnlyHint).toBe(true);
       expect(proposeTool?.annotations?.readOnlyHint).toBe(false);
       expect(updateTool?.annotations?.readOnlyHint).toBe(false);
       expect(linkTool?.annotations?.readOnlyHint).toBe(false);
+      expect(rejectTool?.annotations?.readOnlyHint).toBe(false);
+      expect(confirmTool?.annotations?.readOnlyHint).toBe(false);
       expect(rejectTool?.annotations?.readOnlyHint).toBe(false);
     });
 

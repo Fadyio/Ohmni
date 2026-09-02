@@ -229,6 +229,11 @@ export const App: React.FC<AppProps> = ({
       {viewMode === "repair" && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 50, boxSizing: "border-box" }}>
           <RepairVerificationScene
+            deviceAdapter={resolvedAdapter}
+            experimentStore={experimentRunner?.getStore() ?? (typeof window !== "undefined" ? window.__experimentStore : undefined)}
+            evidenceStore={resolvedEvidenceStore}
+            hypothesisStore={resolvedHypothesisStore}
+            hypothesis={activeHypothesis}
             onReturnToInvestigation={() => setViewMode("investigation")}
           />
         </div>

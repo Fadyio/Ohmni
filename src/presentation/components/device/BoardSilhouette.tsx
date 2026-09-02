@@ -137,7 +137,12 @@ export const BoardSilhouette: React.FC<BoardSilhouetteProps> = ({
         </g>
 
         {/* Relay Module (K1 / GPIO14) */}
-        <g transform="translate(145, 34)">
+        <g
+          id="relay-module-group"
+          data-testid="relay-module-group"
+          data-relay-state={isRelayEnergized ? "closed" : "open"}
+          transform="translate(145, 34)"
+        >
           <rect
             x="0"
             y="0"

@@ -28,6 +28,7 @@ declare global {
     __hypothesisStore?: HypothesisStore;
     __experimentRunner?: ExperimentRunner;
     __modelContext?: InMemoryModelContext;
+    __scopeFrameCount?: number;
   }
 }
 

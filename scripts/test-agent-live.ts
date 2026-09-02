@@ -203,9 +203,9 @@ async function main(): Promise<void> {
   if (!apiKey) {
     console.info("\nLive Gemini:");
     console.info("NOT RUN — GEMINI_API_KEY not configured\n");
-    console.info("Note: Milestone 7 is code-complete with comprehensive deterministic tests.");
-    console.info("Set GEMINI_API_KEY in your local environment or Vercel to execute live acceptance.");
-    process.exit(0);
+    console.info("Note: Milestone 7.10 requires GEMINI_API_KEY for live agent test.");
+    console.info("Exit code 2: NOT RUN (Key absent).");
+    process.exit(2);
   }
 
   console.info(`\n[Live Gate] Using model: ${model}`);

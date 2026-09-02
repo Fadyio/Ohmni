@@ -66,9 +66,14 @@ export const EvidenceScene: React.FC<EvidenceSceneProps> = ({
         ) : (
           evidenceRecords.map((record) => {
             return (
-              <div
+              <motion.div
                 key={record.id}
                 data-testid={`evidence-card-${record.id}`}
+                data-evidence-id={record.id}
+                className="evidence-token-card"
+                initial={{ opacity: 0, x: 30, scale: 0.96 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 style={{
                   background: "var(--ohmni-lab-raised)",
                   border: "1px solid var(--ohmni-lab-border)",
@@ -97,7 +102,7 @@ export const EvidenceScene: React.FC<EvidenceSceneProps> = ({
                 <div className="font-mono" style={{ fontSize: "12px", color: "var(--ohmni-lab-muted)" }}>
                   Source: {record.source} {record.sourceTool ? `(${record.sourceTool})` : ""} • {new Date(record.createdAt).toLocaleTimeString()}
                 </div>
-              </div>
+              </motion.div>
             );
           })
         )}

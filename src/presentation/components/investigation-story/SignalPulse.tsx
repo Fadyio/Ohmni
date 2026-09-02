@@ -4,10 +4,11 @@
  * Requirements:
  * An electric-blue pulse that travels from the Agent Rail across to the Target Instrument / Hardware
  * when Gemini executes a tool call, and returns with the measured result.
+ * Implements real physical travel across the screen using dynamic viewport coordinates.
  */
 
-import React from "react";
-import { useReducedMotion } from "motion/react";
+import React, { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 
 export interface SignalPulseProps {
   readonly isActive: boolean;
@@ -22,27 +23,120 @@ export const SignalPulse: React.FC<SignalPulseProps> = ({
   color = "#45B8FF",
   label,
 }) => {
-  const shouldReduceMotion = useReducedMotion();
+  const [coords, setCoords] = useState<{
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+  } | null>(null);
+  useEffect(() => {
+    if (!isActive) return;
 
-  if (!isActive || shouldReduceMotion) return null;
+    const updateCoords = () => {
+      const agentEl =
+        document.querySelector("#lab-agent-rail") ||
+        document.querySelector("[data-testid='lab-agent-rail']");
+      const targetEl =
+        document.querySelector("#lab-main-scene") ||
+        document.querySelector("#hardware-illustration") ||
+        document.querySelector("[data-testid='hardware-illustration']");
+
+      if (agentEl && targetEl) {
+        const agentRect = agentEl.getBoundingClientRect();
+        const targetRect = targetEl.getBoundingClientRect();
+        setCoords({
+          startX: agentRect.left + agentRect.width * 0.4,
+          startY: agentRect.top + Math.min(220, agentRect.height * 0.3),
+          endX: targetRect.left + targetRect.width * 0.45,
+          endY: targetRect.top + targetRect.height * 0.4,
+        });
+      } else if (typeof window !== "undefined") {
+        setCoords({
+          startX: window.innerWidth * 0.82,
+          startY: window.innerHeight * 0.35,
+          endX: window.innerWidth * 0.28,
+          endY: window.innerHeight * 0.45,
+        });
+      }
+    };
+
+    updateCoords();
+    window.addEventListener("resize", updateCoords);
+    return () => window.removeEventListener("resize", updateCoords);
+  }, [isActive]);
+
+  if (!isActive) return null;
+
+  const defaultStartX = typeof window !== "undefined" ? window.innerWidth * 0.82 : 1150;
+  const defaultStartY = typeof window !== "undefined" ? window.innerHeight * 0.35 : 300;
+  const defaultEndX = typeof window !== "undefined" ? window.innerWidth * 0.28 : 380;
+  const defaultEndY = typeof window !== "undefined" ? window.innerHeight * 0.45 : 380;
+
+  const fromX = coords
+    ? direction === "agent-to-device"
+      ? coords.startX
+      : coords.endX
+    : direction === "agent-to-device"
+    ? defaultStartX
+    : defaultEndX;
+
+  const fromY = coords
+    ? direction === "agent-to-device"
+      ? coords.startY
+      : coords.endY
+    : direction === "agent-to-device"
+    ? defaultStartY
+    : defaultEndY;
+
+  const toX = coords
+    ? direction === "agent-to-device"
+      ? coords.endX
+      : coords.startX
+    : direction === "agent-to-device"
+    ? defaultEndX
+    : defaultStartX;
+
+  const toY = coords
+    ? direction === "agent-to-device"
+      ? coords.endY
+      : coords.startY
+    : direction === "agent-to-device"
+    ? defaultEndY
+    : defaultStartY;
 
   return (
-    <div
+    <motion.div
       data-testid="signal-pulse"
       id="signal-pulse"
+      initial={{
+        x: fromX,
+        y: fromY,
+        opacity: 0,
+        scale: 0.6,
+      }}
+      animate={{
+        x: [fromX, toX],
+        y: [fromY, toY],
+        opacity: [0, 1, 1, 0.8],
+        scale: [0.6, 1.2, 1, 0.8],
+      }}
+      transition={{
+        duration: 1.1,
+        repeat: Infinity,
+        ease: [0.16, 1, 0.3, 1],
+      }}
       style={{
-        position: "absolute",
-        top: "50%",
-        left: direction === "agent-to-device" ? "75%" : "25%",
-        transform: "translate(-50%, -50%)",
-        width: "14px",
-        height: "14px",
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "16px",
+        height: "16px",
         borderRadius: "50%",
         background: color,
         boxShadow: `0 0 20px ${color}, 0 0 40px ${color}`,
         pointerEvents: "none",
-        zIndex: 999,
-        transition: "left 0.45s cubic-bezier(0.16, 1, 0.3, 1)",
+        zIndex: 9999,
+        willChange: "transform, opacity",
       }}
     >
       {label && (
@@ -50,19 +144,23 @@ export const SignalPulse: React.FC<SignalPulseProps> = ({
           className="font-mono"
           style={{
             position: "absolute",
-            top: "-20px",
+            top: "-22px",
             left: "50%",
             transform: "translateX(-50%)",
-            fontSize: "10px",
+            fontSize: "10.5px",
             fontWeight: 700,
             color: color,
             whiteSpace: "nowrap",
             textShadow: `0 0 8px ${color}`,
+            background: "rgba(9, 11, 16, 0.75)",
+            padding: "2px 6px",
+            borderRadius: "4px",
+            border: `1px solid ${color}40`,
           }}
         >
           {label}
         </span>
       )}
-    </div>
+    </motion.div>
   );
 };

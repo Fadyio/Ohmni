@@ -91,6 +91,10 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
     let sweepProgress = 0;
 
     const render = () => {
+      // TEST/DEV Frame counter instrumentation
+      if (typeof window !== "undefined") {
+        window.__scopeFrameCount = (window.__scopeFrameCount || 0) + 1;
+      }
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       const width = rect.width;

@@ -233,6 +233,9 @@ export const DeviceSchematic: React.FC<DeviceSchematicProps> = ({
 
             {/* Armature Contact Lever (Animated on state change) */}
             <line
+              id="relay-armature-lever"
+              data-testid="relay-armature-lever"
+              data-relay-state={isClosed ? "closed" : "open"}
               x1="0"
               y1="10"
               x2={isClosed ? "28" : "24"}
