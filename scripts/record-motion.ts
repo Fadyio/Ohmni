@@ -1,13 +1,28 @@
 /**
- * Real Screen Recording Capture Tool for Chrome.
- * Milestone 7.9 — Visual Truth Reset.
+ * Real Screen Recording Capture Tool & Visual Proof Generator for Chrome.
+ * Milestone 7.13 — Visual Rescue: 3D OHMNI Identity + Cohesive Product UI
  *
  * Drives the real application end-to-end via CDP:
- * Welcome -> Start -> Agent inspect -> Approval -> Relay -> Brownout -> Evidence -> Hypothesis
- * Captures live viewport frames via Page.startScreencast and encodes to artifacts/demo-motion.webm.
+ * 1. 3D Landing (Large 3D OHMNI Wordmark + Editorial Hero)
+ * 2. Morph Transition (Wordmark travels & compresses to navbar)
+ * 3. Lab Ready State (Large central PCB + 70/30 layout)
+ * 4. Agent Tool Call (Electric blue signal pulse across screen)
+ * 5. Approval Gate (Amber interlock & relay armature lever)
+ * 6. Hero Oscilloscope (Dark surface #0B1017, 60fps telemetry trace)
+ * 7. Evidence & Hypothesis (Empirical tokens & grounded diagnosis)
+ *
+ * Saves:
+ *   - artifacts/visual-rescue.webm
+ *   - artifacts/01-3d-landing.png
+ *   - artifacts/02-transition.png
+ *   - artifacts/03-lab-ready.png
+ *   - artifacts/04-agent-observing.png
+ *   - artifacts/05-approval.png
+ *   - artifacts/06-scope.png
+ *   - artifacts/07-evidence.png
  */
 
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -21,10 +36,12 @@ function findChromePath(): string | null {
   const standardPaths = [
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
-    "/usr/bin/google-chrome-stable",
     "/usr/bin/google-chrome",
-    "/usr/bin/chromium-browser",
+    "/usr/bin/google-chrome-stable",
     "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
   ];
 
   for (const p of standardPaths) {
@@ -34,9 +51,7 @@ function findChromePath(): string | null {
 }
 
 interface MockTurnPayload {
-  readonly interactionId?: string;
   readonly previousInteractionId?: string;
-  readonly prompt?: string;
   readonly input?: unknown[];
 }
 
@@ -46,8 +61,8 @@ interface EvidenceDiscoveryItem {
 
 interface ChromeTargetItem {
   readonly id: string;
-  readonly title: string;
   readonly type: string;
+  readonly title: string;
   readonly url: string;
   readonly webSocketDebuggerUrl: string;
 }
@@ -64,6 +79,8 @@ async function startStaticServer(distDir: string, port = 5178): Promise<{ server
     ".json": "application/json; charset=utf-8",
     ".svg": "image/svg+xml",
     ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".wasm": "application/wasm",
     ".woff2": "font/woff2",
   };
 
@@ -235,24 +252,30 @@ async function startStaticServer(distDir: string, port = 5178): Promise<{ server
         filePath = join(distDir, "index.html");
       }
 
-      const content = await readFile(filePath);
       const ext = filePath.substring(filePath.lastIndexOf("."));
-      res.setHeader("Content-Type", mimeTypes[ext] || "application/octet-stream");
-      res.statusCode = 200;
+      const contentType = mimeTypes[ext] || "application/octet-stream";
+
+      const content = await readFile(filePath);
+      res.writeHead(200, {
+        "Content-Type": contentType,
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+      });
       res.end(content);
-    } catch {
-      res.statusCode = 404;
-      res.end("Not Found");
+    } catch (err: unknown) {
+      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.end(`Not Found: ${err instanceof Error ? err.message : String(err)}`);
     }
   });
 
-  const { promise, resolve, reject } = Promise.withResolvers<{ server: Server; url: string }>();
-  server.listen(port, "127.0.0.1", () => {
-    resolve({ server, url: `http://127.0.0.1:${port}` });
-  });
+  const { promise, resolve, reject } = Promise.withResolvers<void>();
   server.on("error", reject);
+  server.listen(port, "127.0.0.1", () => {
+    resolve();
+  });
+  await promise;
 
-  return promise;
+  return { server, url: `http://127.0.0.1:${port}` };
 }
 
 class CDPClient {
@@ -308,6 +331,15 @@ class CDPClient {
     return result.result.value;
   }
 
+  async captureScreenshot(outputPath: string): Promise<void> {
+    const res = (await this.send("Page.captureScreenshot", {
+      format: "png",
+      captureBeyondViewport: false,
+    })) as { data: string };
+    writeFileSync(outputPath, Buffer.from(res.data, "base64"));
+    console.info(`  📸 Screenshot saved: ${outputPath}`);
+  }
+
   close(): void {
     try {
       this.ws.close();
@@ -317,9 +349,8 @@ class CDPClient {
 
 async function recordMotionDemo(): Promise<void> {
   console.info("==================================================================");
-  console.info("   OHMNI — AUTOMATED REAL CHROME SCREEN RECORDING RECORDER        ");
-  console.info("   Sequence: Welcome -> Start -> Inspect -> Approval -> Relay ->   ");
-  console.info("             Brownout -> Evidence -> Hypothesis                   ");
+  console.info("   OHMNI — AUTOMATED SCREEN RECORDING & VISUAL PROOF GENERATOR   ");
+  console.info("   Milestone 7.13: 3D Wordmark + Cohesive Light Workbench         ");
   console.info("==================================================================");
 
   const chromePath = findChromePath();
@@ -327,8 +358,20 @@ async function recordMotionDemo(): Promise<void> {
     throw new Error("Chrome not found");
   }
 
+  console.info("[Recording] Building production distribution (vite build)...");
+  const buildProc = spawn("bun", ["run", "build"], { stdio: "inherit" });
+  const { promise: buildPromise, resolve: buildResolve, reject: buildReject } = Promise.withResolvers<void>();
+  buildProc.on("close", (code) => {
+    if (code === 0) buildResolve();
+    else buildReject(new Error(`vite build failed with exit code ${code}`));
+  });
+  await buildPromise;
+
   const distDir = join(process.cwd(), "dist");
   const { server, url: serverUrl } = await startStaticServer(distDir, 5178);
+
+  const artifactsDir = join(process.cwd(), "artifacts");
+  if (!existsSync(artifactsDir)) mkdirSync(artifactsDir, { recursive: true });
 
   const framesDir = mkdtempSync(join(tmpdir(), "ohmni-recording-frames-"));
   const tempProfile = mkdtempSync(join(tmpdir(), "ohmni-chrome-rec-"));
@@ -378,7 +421,7 @@ async function recordMotionDemo(): Promise<void> {
       }
     };
 
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1200));
 
     console.info("[Recording] Starting Page.startScreencast...");
     await cdpClient.send("Page.startScreencast", {
@@ -389,53 +432,68 @@ async function recordMotionDemo(): Promise<void> {
       everyNthFrame: 1,
     });
 
-    // 1. Welcome state (hold 2 seconds)
-    console.info("[Recording] 1. Welcome Screen (World 1)...");
-    await new Promise((r) => setTimeout(r, 2000));
+    // 1. Welcome state (hold 2 seconds) -> Screenshot 01
+    console.info("[Recording] 1. 3D Landing Page...");
+    await new Promise((r) => setTimeout(r, 1500));
+    await cdpClient.captureScreenshot(join(artifactsDir, "01-3d-landing.png"));
+    await new Promise((r) => setTimeout(r, 500));
 
-    // 2. Click Diagnose to trigger GSAP transition
-    console.info("[Recording] 2. Triggering GSAP Landing -> Lab Transition...");
+    // 2. Click Diagnose to trigger GSAP transition -> Screenshot 02 (mid-transition)
+    console.info("[Recording] 2. Triggering Landing -> Lab Transition...");
     await cdpClient.evaluate(`document.querySelector("#diagnose-demo-btn").click()`);
-    await new Promise((r) => setTimeout(r, 2500));
+    await new Promise((r) => setTimeout(r, 220));
+    await cdpClient.captureScreenshot(join(artifactsDir, "02-transition.png"));
+    await new Promise((r) => setTimeout(r, 1500));
 
-    // 3. Start Agent Investigation
-    console.info("[Recording] 3. Starting Bench Agent (Turn 1 - read_reset_history)...");
+    // 3. Lab Ready State -> Screenshot 03
+    console.info("[Recording] 3. Lab Ready State...");
+    await cdpClient.captureScreenshot(join(artifactsDir, "03-lab-ready.png"));
+    await new Promise((r) => setTimeout(r, 800));
+
+    // 4. Start Agent Investigation -> Screenshot 04 (Observing / Pulse)
+    console.info("[Recording] 4. Starting Bench Agent (Turn 1 - read_reset_history)...");
     await cdpClient.evaluate(`document.querySelector("[data-testid='bench-agent-start']").click()`);
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 450));
+    await cdpClient.captureScreenshot(join(artifactsDir, "04-agent-observing.png"));
+    await new Promise((r) => setTimeout(r, 1800));
 
-    // 4. Amber Approval Gate
-    console.info("[Recording] 4. Reaching Amber Approval Interlock...");
+    // 5. Amber Approval Gate -> Screenshot 05
+    console.info("[Recording] 5. Reaching Amber Approval Interlock...");
     let approvalReady = false;
     for (let i = 0; i < 30; i++) {
       approvalReady = await cdpClient.evaluate<boolean>(`Boolean(document.querySelector("[data-testid='bench-agent-approve']"))`);
       if (approvalReady) break;
       await new Promise((r) => setTimeout(r, 200));
     }
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 500));
+    await cdpClient.captureScreenshot(join(artifactsDir, "05-approval.png"));
+    await new Promise((r) => setTimeout(r, 1000));
 
-    // 5. Click Approve
-    console.info("[Recording] 5. Human Approval & Relay Actuation (Turn 2 - run_relay_stress_test)...");
+    // 6. Click Approve -> Screenshot 06 (Oscilloscope telemetry capture)
+    console.info("[Recording] 6. Human Approval & Relay Actuation (Turn 2 - run_relay_stress_test)...");
     await cdpClient.evaluate(`document.querySelector("[data-testid='bench-agent-approve']").click()`);
-    await new Promise((r) => setTimeout(r, 3500));
+    await new Promise((r) => setTimeout(r, 500));
+    await cdpClient.captureScreenshot(join(artifactsDir, "06-scope.png"));
+    await new Promise((r) => setTimeout(r, 2500));
 
-    // 6. Evidence & Hypothesis Synthesis (Turns 3-7)
-    console.info("[Recording] 6. Evidence Extraction & Hypothesis Synthesis...");
+    // 7. Evidence & Hypothesis Synthesis -> Screenshot 07
+    console.info("[Recording] 7. Evidence Extraction & Hypothesis Synthesis...");
     for (let i = 0; i < 30; i++) {
       const hasHypo = await cdpClient.evaluate<boolean>(`Boolean(document.querySelector("[data-testid='hypothesis-card']"))`);
       if (hasHypo) break;
       await new Promise((r) => setTimeout(r, 300));
     }
-    await new Promise((r) => setTimeout(r, 4000));
+    await new Promise((r) => setTimeout(r, 1500));
+    await cdpClient.captureScreenshot(join(artifactsDir, "07-evidence.png"));
+    await new Promise((r) => setTimeout(r, 2000));
 
     console.info("[Recording] Stopping screencast...");
     await cdpClient.send("Page.stopScreencast");
 
     console.info(`[Recording] Captured ${frameIndex} frames in ${framesDir}`);
 
-    // Encode to artifacts/demo-motion.webm using ffmpeg
-    const artifactsDir = join(process.cwd(), "artifacts");
-    if (!existsSync(artifactsDir)) mkdirSync(artifactsDir, { recursive: true });
-    const outputVideoPath = join(artifactsDir, "demo-motion.webm");
+    // Encode to artifacts/visual-rescue.webm using ffmpeg
+    const outputVideoPath = join(artifactsDir, "visual-rescue.webm");
 
     console.info(`[Recording] Encoding video with ffmpeg to ${outputVideoPath}...`);
     const ffmpegProc = spawn(
@@ -443,13 +501,13 @@ async function recordMotionDemo(): Promise<void> {
       [
         "-y",
         "-framerate",
-        "15",
+        "20",
         "-i",
         join(framesDir, "frame_%06d.jpg"),
         "-c:v",
         "libvpx-vp9",
         "-b:v",
-        "1M",
+        "1.5M",
         "-pix_fmt",
         "yuv420p",
         outputVideoPath,

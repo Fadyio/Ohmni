@@ -1,16 +1,20 @@
 /**
- * Dynamic Investigation Scene Controller (Left 75%).
+ * Dynamic Investigation Scene Controller (Left 70%).
+ * Milestone 7.13 — Visual Rescue: 3D OHMNI Identity + Cohesive Product UI
+ *
  * Answers "WHAT IS HAPPENING RIGHT NOW?" based on real domain state:
- * - Observing: Reset History & Initial Observations
- * - Test Request: Controlled Physical Test Approval Gate
- * - Running: 60fps Oscilloscope & Hardware Actuation
- * - Evidence: Captured Empirical Facts from Store
+ * - Ready: Large hardware device, initial lab entry state
+ * - Observing: Reset History & Initial Observations (when read_reset_history executed)
+ * - Test Request / Approval: Controlled Physical Test Approval Gate
+ * - Running: 60fps Oscilloscope Hero Viewport & Hardware Actuation
+ * - Evidence: Captured Empirical Facts & animated measurement tokens
  * - Hypothesis: Grounded Root Cause Diagnosis
  */
 
 import React from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
+import { ReadyScene } from "./scenes/ReadyScene";
 import { ObservingScene } from "./scenes/ObservingScene";
 import { TestRequestScene } from "./scenes/TestRequestScene";
 import { RunningExperimentScene } from "./scenes/RunningExperimentScene";
@@ -36,7 +40,7 @@ export interface DynamicInvestigationSceneProps {
   readonly onDenyTest: () => void;
   readonly onProceedToRepair?: () => void;
   readonly onStartAgent?: () => void;
-  readonly activeSceneOverride?: "observing" | "test-request" | "running" | "evidence" | "hypothesis" | null;
+  readonly activeSceneOverride?: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | null;
 }
 
 export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps> = ({
@@ -88,14 +92,23 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
       parsedSoftware = 0;
     }
   }
+
   // Determine active scene based on real domain state
-  const computeActiveScene = () => {
+  const computeActiveScene = (): "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" => {
     if (activeSceneOverride) return activeSceneOverride;
-    if (experimentStatus === "running" || relayState === "closed") return "running";
+    if (
+      experimentStatus === "running" ||
+      relayState === "closed" ||
+      (agentState.status === "investigating" &&
+        agentState.activity.some((a) => (a.call.name.includes("relay") || a.call.name.includes("stress")) && a.status !== "completed"))
+    ) {
+      return "running";
+    }
     if (agentState.status === "approval") return "test-request";
     if (hypothesis !== null || agentState.status === "completed") return "hypothesis";
     if (evidenceRecords.length > 0) return "evidence";
-    return "observing";
+    if (hasInspectedResetHistory) return "observing";
+    return "ready";
   };
   const currentScene = computeActiveScene();
 
@@ -106,18 +119,19 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
         display: "flex",
         flexDirection: "column",
         overflowY: "auto",
-        padding: "0.5rem",
+        padding: "0.75rem",
       }}
     >
+      {/* Agent Failure Diagnostic Banner */}
       {agentState.status === "failed" && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           style={{
-            background: "rgba(220, 38, 38, 0.05)",
-            border: "1px solid rgba(220, 38, 38, 0.25)",
+            background: "rgba(220, 80, 80, 0.06)",
+            border: "1px solid rgba(220, 80, 80, 0.28)",
             borderRadius: "var(--radius-lg)",
-            padding: "1.75rem 2rem",
+            padding: "1.5rem 1.75rem",
             marginBottom: "1.5rem",
             display: "flex",
             flexDirection: "column",
@@ -126,13 +140,13 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
         >
           <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--ohmni-lab-fault)", fontSize: "13px", fontWeight: 700 }}>
             <AlertTriangle size={18} />
-            <span>AGENT CONNECTION ERROR</span>
+            <span>AGENT INVESTIGATION INTERRUPTED</span>
           </div>
-          <h3 style={{ fontSize: "20px", fontWeight: 700, margin: 0, color: "var(--ohmni-lab-text)" }}>
-            Could not start Gemini investigation.
+          <h3 style={{ fontSize: "18px", fontWeight: 700, margin: 0, color: "var(--ohmni-lab-text)" }}>
+            Diagnostic process encountered an issue.
           </h3>
           <p style={{ margin: 0, fontSize: "14px", color: "var(--ohmni-lab-muted)", lineHeight: 1.5 }}>
-            {agentState.message || "Gemini request failed."}
+            {agentState.message || "Agent request failed."}
           </p>
           {agentState.requestId && (
             <div className="font-mono" style={{ fontSize: "11px", color: "var(--ohmni-lab-muted)" }}>
@@ -140,7 +154,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             </div>
           )}
           {onStartAgent && (
-            <div style={{ display: "flex", gap: "10px", marginTop: "6px" }}>
+            <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
               <button
                 onClick={onStartAgent}
                 className="btn-primary"
@@ -148,7 +162,6 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
                   padding: "8px 16px",
                   fontSize: "13px",
                   fontWeight: 700,
-                  background: "var(--ohmni-lab-brand)",
                   display: "flex",
                   alignItems: "center",
                   gap: "6px",
@@ -163,7 +176,18 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
         </motion.div>
       )}
 
-      <AnimatePresence mode="wait">
+      {/* Scene Render Container */}
+      <AnimatePresence>
+        {currentScene === "ready" && (
+          <ReadyScene
+            key="ready"
+            isConnected={true}
+            relayState={relayState}
+            railVoltage={railVoltage}
+            onStartInvestigation={onStartAgent}
+          />
+        )}
+
         {currentScene === "observing" && (
           <ObservingScene
             key="observing"
@@ -175,6 +199,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             softwarePanicCount={parsedSoftware}
           />
         )}
+
         {currentScene === "test-request" && (
           <TestRequestScene
             key="test-request"

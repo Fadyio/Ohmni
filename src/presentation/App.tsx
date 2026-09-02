@@ -77,13 +77,13 @@ export const App: React.FC<AppProps> = ({
 
   // GSAP Transition Refs
   const rootContainerRef = useRef<HTMLDivElement | null>(null);
+  const wordmarkRef = useRef<HTMLDivElement | null>(null);
   const heroTextRef = useRef<HTMLDivElement | null>(null);
   const hardwareVisualRef = useRef<HTMLDivElement | null>(null);
   const ctaButtonRef = useRef<HTMLButtonElement | null>(null);
   const labChromeRef = useRef<HTMLElement | null>(null);
   const labMainSceneRef = useRef<HTMLElement | null>(null);
   const agentRailRef = useRef<HTMLElement | null>(null);
-
   const { playTransition } = useLandingToLabTransition();
 
   // Hook subscriptions
@@ -134,6 +134,7 @@ export const App: React.FC<AppProps> = ({
     playTransition(
       {
         rootContainerRef,
+        wordmarkRef,
         heroTextRef,
         hardwareVisualRef,
         ctaButtonRef,
@@ -195,6 +196,7 @@ export const App: React.FC<AppProps> = ({
           <WelcomeView
             onStartDemo={handleStartDemo}
             onConnectHardware={handleConnectHardware}
+            wordmarkRef={wordmarkRef}
             heroTextRef={heroTextRef}
             hardwareVisualRef={hardwareVisualRef}
             ctaButtonRef={ctaButtonRef}

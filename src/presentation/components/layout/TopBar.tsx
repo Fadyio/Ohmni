@@ -1,15 +1,18 @@
 /**
  * Top Status Bar Component.
- * Displays brand identity, contextual target hardware metadata,
- * real-time device connection status, and compact WebMCP tool inspector button.
+ * Milestone 7.13 — Visual Rescue: 3D OHMNI Identity + Cohesive Product UI
+ *
+ * Displays compact 3D OHMNI Wordmark, contextual target hardware metadata,
+ * real-time connection status, and WebMCP capability drawer.
  */
 
 import React, { useState } from "react";
 import { motion } from "motion/react";
-import { Radio, Sliders, Cpu, Bot, CheckCircle2, AlertTriangle, Shield } from "lucide-react";
+import { Radio, Sliders, Cpu, Bot, CheckCircle2, AlertTriangle, ShieldCheck } from "lucide-react";
 import type { DeviceDescriptor } from "@/domain/device/descriptor";
 import { useWebMCPTools } from "../../hooks/useWebMCPTools";
 import { WebMCPCapabilityDrawer } from "./WebMCPCapabilityDrawer";
+import { Ohmni3DWordmark } from "../brand/Ohmni3DWordmark";
 
 interface TopBarProps {
   readonly isConnected: boolean;
@@ -27,170 +30,132 @@ export const TopBar: React.FC<TopBarProps> = ({
   const { tools, toolCount, isNative, isDiscovering } = useWebMCPTools();
   const [inspectorOpen, setInspectorOpen] = useState<boolean>(false);
 
-  const firmwareVersion = descriptor?.firmwareVersion ?? (isConnected ? "v2.4.1" : "—");
-  const deviceName = descriptor?.name ?? (isConnected ? "ESP32-S3 Environmental Controller" : "Virtual Workbench");
+  const deviceName = descriptor?.name ?? (isConnected ? "ESP32 ENVIRONMENTAL CONTROLLER" : "Virtual Workbench");
   const isReset = statusVisual === "reset";
 
   return (
     <>
       <header
+        id="lab-header"
+        data-testid="lab-header"
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 1.25rem",
-          height: "52px",
-          minHeight: "52px",
-          background: "var(--ohmni-surface)",
-          borderBottom: "1px solid var(--ohmni-border)",
-          userSelect: "none",
-          zIndex: 100,
+          padding: "0.75rem 2.25rem",
+          background: "var(--ohmni-lab-nav, rgba(255, 255, 255, 0.88))",
+          backdropFilter: "blur(12px)",
+          borderBottom: "1px solid var(--ohmni-lab-border)",
+          flex: "none",
+          zIndex: 10,
         }}
       >
-        {/* Left: Brand Logo & Title */}
-        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <img
-            src="/brand/ohmni-logo.svg"
-            alt="OHMNI"
-            style={{ height: "22px", width: "auto" }}
-          />
+        {/* Left: Compact 3D Brand Wordmark + Target Title */}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div id="navbar-brand-wordmark" data-testid="navbar-brand-wordmark">
+            <Ohmni3DWordmark variant="compact" />
+          </div>
 
-          <div
-            style={{
-              height: "16px",
-              width: "1px",
-              background: "var(--ohmni-border-subtle)",
-            }}
-          />
+          <div style={{ height: "18px", width: "1px", background: "var(--ohmni-lab-border)" }} />
 
-          <span
-            style={{
-              fontSize: "13px",
-              fontWeight: 600,
-              color: "var(--ohmni-text-primary)",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            {deviceName}
-          </span>
-        </div>
-
-        {/* Center: Device Connection Status & Telemetry Mode */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span
-            className="font-mono"
-            style={{
-              fontSize: "11px",
-              padding: "3px 9px",
-              borderRadius: "var(--radius-full)",
-              background: isConnected
-                ? isReset
-                  ? "rgba(255, 93, 104, 0.15)"
-                  : "rgba(53, 211, 154, 0.12)"
-                : "rgba(102, 112, 133, 0.12)",
-              color: isConnected
-                ? isReset
-                  ? "var(--ohmni-fault)"
-                  : "var(--ohmni-success)"
-                : "var(--ohmni-text-muted)",
-              fontWeight: 600,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "5px",
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span
               style={{
-                width: "6px",
-                height: "6px",
+                width: "7px",
+                height: "7px",
                 borderRadius: "50%",
-                background: "currentColor",
+                background: isReset
+                  ? "var(--ohmni-lab-fault)"
+                  : isConnected
+                  ? "var(--ohmni-lab-verified)"
+                  : "var(--ohmni-lab-muted)",
+                boxShadow: isConnected && !isReset ? "0 0 8px rgba(39, 150, 107, 0.5)" : "none",
               }}
             />
-            {isConnected ? (isReset ? "BROWNOUT RESET" : "DEVICE CONNECTED") : "STANDBY"}
-          </span>
-
-          {isConnected && (
-            <span className="metadata-text font-mono">
-              Firmware {firmwareVersion}
+            <span className="font-mono" style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-lab-text)" }}>
+              {deviceName}
             </span>
-          )}
+          </div>
         </div>
 
-        {/* Right: WebMCP Inspector Button & Agent Provider Trust Badge */}
+        {/* Center: WebMCP Mesh & Dynamic Status */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {/* WebMCP Instruments Button */}
+          <span
+            data-testid="webmcp-mode-badge"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "4px 12px",
+              borderRadius: "var(--radius-full)",
+              background: isNative ? "rgba(39, 150, 107, 0.08)" : "rgba(18, 21, 26, 0.04)",
+              border: `1px solid ${isNative ? "rgba(39, 150, 107, 0.25)" : "var(--ohmni-lab-border)"}`,
+              color: isNative ? "var(--ohmni-lab-verified)" : "var(--ohmni-lab-muted)",
+              fontSize: "11px",
+              fontWeight: 600,
+            }}
+          >
+            <ShieldCheck size={12} />
+            <span>{isNative ? "Native WebMCP Mesh" : "Standard WebMCP"}</span>
+          </span>
+
+          <span
+            data-testid="gemini-provider-badge"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "4px 12px",
+              borderRadius: "var(--radius-full)",
+              background: "rgba(73, 103, 255, 0.08)",
+              border: "1px solid rgba(73, 103, 255, 0.25)",
+              color: "var(--ohmni-lab-brand)",
+              fontSize: "11px",
+              fontWeight: 700,
+            }}
+          >
+            <Bot size={12} />
+            <span>DEMO AGENT</span>
+          </span>
+        </div>
+
+        {/* Right: Technical Inspector & Connection Toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <button
             onClick={() => setInspectorOpen(true)}
             className="btn-secondary"
             style={{
-              padding: "4px 10px",
+              padding: "6px 12px",
               fontSize: "12px",
-              fontWeight: 500,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "rgba(79, 107, 255, 0.08)",
-              border: "1px solid rgba(79, 107, 255, 0.2)",
-              color: "var(--ohmni-brand-hover)",
             }}
-            title="Inspect dynamic WebMCP instruments"
           >
-            <Radio size={13} />
-            <span>{toolCount} instruments</span>
-            <span
-              style={{
-                fontSize: "10px",
-                color: isNative ? "var(--ohmni-brand)" : "var(--ohmni-text-muted)",
-                paddingLeft: "2px",
-              }}
-            >
-              • {isNative ? "Native WebMCP" : "Compatibility Mode"}
-            </span>
+            <Radio size={13} color="var(--ohmni-lab-brand)" />
+            <span>WebMCP Tools ({toolCount})</span>
           </button>
-
-          {/* Provider Trust Badge */}
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "4px 10px",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--ohmni-surface-raised)",
-              border: "1px solid var(--ohmni-border-subtle)",
-              fontSize: "11px",
-            }}
-          >
-            <Bot size={12} color="#C084FC" />
-            <span style={{ fontWeight: 600, color: "var(--ohmni-text-primary)" }}>BENCH AGENT</span>
-            <span style={{ color: "var(--ohmni-text-muted)", fontSize: "10px" }}>Deterministic</span>
-          </div>
 
           {onToggleConnect && (
             <button
               onClick={onToggleConnect}
               className="btn-secondary"
               style={{
-                padding: "4px 10px",
+                padding: "6px 12px",
                 fontSize: "12px",
               }}
             >
-              {isConnected ? "Disconnect" : "Connect"}
+              <Sliders size={13} />
+              <span>{isConnected ? "Disconnect" : "Connect"}</span>
             </button>
           )}
         </div>
       </header>
 
-      {/* Inspector Modal */}
+      {/* WebMCP Capability Drawer */}
       <WebMCPCapabilityDrawer
         isOpen={inspectorOpen}
-        tools={tools}
-        isDiscovering={isDiscovering}
-        isNative={isNative}
         onClose={() => setInspectorOpen(false)}
+        tools={tools}
+        isNative={isNative}
+        isDiscovering={isDiscovering}
       />
     </>
   );
