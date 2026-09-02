@@ -8,6 +8,15 @@ import {
   type BenchAgentProvider,
   type GeminiFunctionDeclaration,
 } from "./gemini-provider.ts";
+import {
+  verifyPassword,
+  createSessionToken,
+  verifySessionToken,
+  extractCookie,
+  formatSessionCookie,
+  SESSION_COOKIE_NAME,
+} from "./auth.ts";
+
 export type {
   AgentFunctionCall,
   AgentFunctionResult,
@@ -34,6 +43,9 @@ const encoder = new TextEncoder();
 export interface BenchAgentEnvironment {
   readonly GEMINI_API_KEY?: string;
   readonly GEMINI_MODEL?: string;
+  readonly OHMNI_ACCESS_PASSWORD?: string;
+  readonly OHMNI_AUTH_SECRET?: string;
+  readonly NODE_ENV?: string;
 }
 
 export type BenchAgentHandler = (request: Request) => Promise<Response>;
@@ -245,6 +257,10 @@ export function createBenchAgentHandler(
 ): BenchAgentHandler {
   const apiKey = options.env.GEMINI_API_KEY?.trim() ?? "";
   const model = options.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+  const accessPassword = options.env.OHMNI_ACCESS_PASSWORD?.trim() ?? "";
+  const authSecret = options.env.OHMNI_AUTH_SECRET?.trim() || "ohmni-auth-secret-key-default";
+  const isAuthRequired = accessPassword.length > 0;
+
   const provider =
     options.provider ??
     (apiKey.length > 0
@@ -260,6 +276,46 @@ export function createBenchAgentHandler(
       url = new URL(request.url);
     } catch {
       url = new URL("http://localhost/api/bench-agent");
+    }
+
+    // 1. Auth Login Route: POST /api/auth/login
+    if (url.pathname.endsWith("/auth/login") || url.pathname.endsWith("/login")) {
+      if (request.method !== "POST") {
+        return jsonResponse({ error: "METHOD_NOT_ALLOWED" }, 405);
+      }
+      const bodyResult = await readJsonBody(request);
+      if (bodyResult.kind !== "ok" || typeof (bodyResult.value as Record<string, unknown>)?.password !== "string") {
+        return jsonResponse({ ok: false, error: "INVALID_REQUEST", message: "Missing password field." }, 400);
+      }
+      const entered = (bodyResult.value as Record<string, unknown>).password as string;
+      if (!verifyPassword(entered, accessPassword)) {
+        return jsonResponse({ ok: false, error: "INVALID_CREDENTIALS", message: "Incorrect password." }, 401);
+      }
+      const token = createSessionToken(authSecret, now());
+      const isProd = options.env.NODE_ENV === "production";
+      const cookieHeader = formatSessionCookie(token, { isProduction: isProd });
+      return jsonResponse({ ok: true, message: "Authenticated." }, 200, { "set-cookie": cookieHeader });
+    }
+
+    // 2. Auth Protection Gate for bench-agent turns
+    if (isAuthRequired) {
+      const cookieHeader = request.headers.get("cookie");
+      const authHeader = request.headers.get("authorization");
+      const token =
+        extractCookie(cookieHeader, SESSION_COOKIE_NAME) ||
+        (authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined);
+
+      if (!verifySessionToken(token, authSecret, undefined, now())) {
+        return jsonResponse(
+          {
+            ok: false,
+            error: "UNAUTHORIZED",
+            message: "Passcode authorization required to access Bench Agent.",
+            requestId,
+          },
+          401,
+        );
+      }
     }
 
     const isHealthCheck =
@@ -317,6 +373,7 @@ export function createBenchAgentHandler(
       return jsonResponse({
         available: apiKey.length > 0,
         model,
+        ...(isAuthRequired ? { authRequired: true } : {}),
       });
     }
     if (request.method !== "POST") {
@@ -369,7 +426,7 @@ export function createBenchAgentHandler(
     const parsedBody = await readJsonBody(request);
     if (parsedBody.kind === "too-large") {
       return jsonResponse(
-        { error: "PAYLOAD TOO LARGE", message: "Request body exceeds 128 KiB.", requestId },
+        { error: "PAYLOAD TOO LARGE", message: `Request body exceeds ${MAX_REQUEST_BODY_BYTES} bytes limit.`, requestId },
         413,
       );
     }
@@ -465,10 +522,19 @@ export function createBenchAgentHandler(
       return jsonResponse({ ...result, requestId });
     } catch (err: unknown) {
       const safeMessage = sanitizeErrorMessage(err);
-      const errorObj = err as Record<string, unknown> | undefined;
-      const errorName = errorObj?.name ?? (err instanceof Error ? err.name : "Error");
-      const statusCode = (errorObj?.status ?? errorObj?.statusCode ?? (err as any)?.code) as number | undefined;
-
+      const errorObj = typeof err === "object" && err !== null ? (err as Record<string, unknown>) : undefined;
+      const errorName = typeof errorObj?.name === "string" ? errorObj.name : (err instanceof Error ? err.name : "Error");
+      let statusCode: number | undefined;
+      if (typeof errorObj?.status === "number") {
+        statusCode = errorObj.status;
+      } else if (typeof errorObj?.statusCode === "number") {
+        statusCode = errorObj.statusCode;
+      } else if (errorObj !== undefined && "code" in errorObj) {
+        const rawCode = errorObj.code;
+        if (typeof rawCode === "number") {
+          statusCode = rawCode;
+        }
+      }
       console.error("[BenchAgent Server Failure]", {
         requestId,
         errorName,

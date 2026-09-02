@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { GoogleGenAI } from "@google/genai";
 
 // ============================================================================
@@ -408,13 +409,75 @@ async function readJsonBody(request: Request): Promise<
   }
 }
 
+export const SESSION_COOKIE_NAME = "ohmni_session";
+export const DEFAULT_SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+export function verifyPassword(entered: string, correct: string): boolean {
+  if (typeof entered !== "string" || typeof correct !== "string") return false;
+  const enteredHash = createHash("sha256").update(entered).digest();
+  const correctHash = createHash("sha256").update(correct).digest();
+  return timingSafeEqual(enteredHash, correctHash);
+}
+
+export function createSessionToken(secret: string, timestamp: number = Date.now()): string {
+  const effectiveSecret = secret.trim() || "ohmni-default-auth-secret-fallback";
+  const payload = String(timestamp);
+  const signature = createHmac("sha256", effectiveSecret).update(payload).digest("hex");
+  return `${payload}.${signature}`;
+}
+
+export function verifySessionToken(token: string | undefined | null, secret: string, maxAgeMs = DEFAULT_SESSION_MAX_AGE_MS, now = Date.now()): boolean {
+  if (!token || typeof token !== "string") return false;
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
+  const [timestampStr, providedSignature] = parts;
+  const timestamp = Number(timestampStr);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return false;
+  if (now - timestamp > maxAgeMs || timestamp > now + 60_000) return false;
+  const effectiveSecret = secret.trim() || "ohmni-default-auth-secret-fallback";
+  const expectedSignature = createHmac("sha256", effectiveSecret).update(timestampStr).digest("hex");
+  try {
+    const providedBuf = Buffer.from(providedSignature, "hex");
+    const expectedBuf = Buffer.from(expectedSignature, "hex");
+    if (providedBuf.length !== expectedBuf.length) return false;
+    return timingSafeEqual(providedBuf, expectedBuf);
+  } catch {
+    return false;
+  }
+}
+
+export function extractCookie(cookieHeader: string | null | undefined, cookieName: string): string | undefined {
+  if (!cookieHeader) return undefined;
+  const cookies = cookieHeader.split(";");
+  for (const cookie of cookies) {
+    const [name, ...rest] = cookie.trim().split("=");
+    if (name === cookieName) return rest.join("=");
+  }
+  return undefined;
+}
+
+export function formatSessionCookie(token: string, options: { isProduction?: boolean; maxAgeSeconds?: number } = {}): string {
+  const maxAge = options.maxAgeSeconds ?? 86400;
+  const secure = options.isProduction ? "; Secure" : "";
+  return `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+}
+
 export function createBenchAgentHandler(options: {
-  env: { GEMINI_API_KEY?: string; GEMINI_MODEL?: string };
+  env: {
+    GEMINI_API_KEY?: string;
+    GEMINI_MODEL?: string;
+    OHMNI_ACCESS_PASSWORD?: string;
+    OHMNI_AUTH_SECRET?: string;
+    NODE_ENV?: string;
+  };
   provider?: BenchAgentProvider;
   now?: () => number;
 }): (request: Request) => Promise<Response> {
   const apiKey = options.env.GEMINI_API_KEY?.trim() ?? "";
   const model = options.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+  const accessPassword = options.env.OHMNI_ACCESS_PASSWORD?.trim() ?? "";
+  const authSecret = options.env.OHMNI_AUTH_SECRET?.trim() || "ohmni-auth-secret-key-default";
+  const isAuthRequired = accessPassword.length > 0;
   const provider =
     options.provider ??
     (apiKey.length > 0
@@ -422,7 +485,6 @@ export function createBenchAgentHandler(options: {
       : undefined);
   const now = options.now ?? Date.now;
   const sessions = new Map<string, { count: number; windowStartedAt: number }>();
-
   return async (request: Request): Promise<Response> => {
     const requestId = "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
     let url: URL;
@@ -432,6 +494,45 @@ export function createBenchAgentHandler(options: {
       url = new URL("http://localhost/api/bench-agent");
     }
 
+    // 1. Auth Login Route
+    if (url.pathname.endsWith("/auth/login") || url.pathname.endsWith("/login")) {
+      if (request.method !== "POST") {
+        return jsonResponse({ error: "METHOD_NOT_ALLOWED" }, 405);
+      }
+      const bodyResult = await readJsonBody(request);
+      if (bodyResult.kind !== "ok" || typeof (bodyResult.value as Record<string, unknown>)?.password !== "string") {
+        return jsonResponse({ ok: false, error: "INVALID_REQUEST", message: "Missing password field." }, 400);
+      }
+      const entered = (bodyResult.value as Record<string, unknown>).password as string;
+      if (!verifyPassword(entered, accessPassword)) {
+        return jsonResponse({ ok: false, error: "INVALID_CREDENTIALS", message: "Incorrect password." }, 401);
+      }
+      const token = createSessionToken(authSecret, now());
+      const isProd = options.env.NODE_ENV === "production";
+      const cookieHeader = formatSessionCookie(token, { isProduction: isProd });
+      return jsonResponse({ ok: true, message: "Authenticated." }, 200, { "set-cookie": cookieHeader });
+    }
+
+    // 2. Auth Protection Gate
+    if (isAuthRequired) {
+      const cookieHeader = request.headers.get("cookie");
+      const authHeader = request.headers.get("authorization");
+      const token =
+        extractCookie(cookieHeader, SESSION_COOKIE_NAME) ||
+        (authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined);
+
+      if (!verifySessionToken(token, authSecret, undefined, now())) {
+        return jsonResponse(
+          {
+            ok: false,
+            error: "UNAUTHORIZED",
+            message: "Passcode authorization required to access Bench Agent.",
+            requestId,
+          },
+          401,
+        );
+      }
+    }
     const isHealthCheck =
       url.pathname.endsWith("/health") ||
       url.searchParams.get("health") === "1" ||
@@ -487,6 +588,7 @@ export function createBenchAgentHandler(options: {
       return jsonResponse({
         available: apiKey.length > 0,
         model,
+        ...(isAuthRequired ? { authRequired: true } : {}),
       });
     }
     if (request.method !== "POST") {
