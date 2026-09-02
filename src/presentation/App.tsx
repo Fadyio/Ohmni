@@ -151,8 +151,7 @@ export const App: React.FC<AppProps> = ({
   }, [isConnected, resolvedAdapter, resolvedRegistrar, disconnect, handleConnectHardware]);
 
   return (
-    <div style={{ position: "relative", width: "100%", maxWidth: "100vw", height: "100vh", overflow: "hidden", background: "var(--ohmni-canvas)", boxSizing: "border-box" }}>
-      {/* State 1: Welcome View (Full viewport when disconnected) */}
+    <div style={{ position: "relative", width: "100%", maxWidth: "100%", height: "100vh", overflow: "hidden", background: "var(--ohmni-canvas)", boxSizing: "border-box" }}>
       {!isConnected && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 40, boxSizing: "border-box" }}>
           <WelcomeView
