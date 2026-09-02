@@ -65,13 +65,15 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   return (
     <div
       style={{
-        width: "100vw",
-        height: "100vh",
+        width: "100%",
+        maxWidth: "100%",
+        height: "100%",
         display: "flex",
         flexDirection: "column",
         background: "var(--ohmni-canvas)",
         color: "var(--ohmni-ink)",
         overflow: "hidden",
+        boxSizing: "border-box",
       }}
     >
       {/* Clean Top Bar */}

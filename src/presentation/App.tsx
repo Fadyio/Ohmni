@@ -151,10 +151,10 @@ export const App: React.FC<AppProps> = ({
   }, [isConnected, resolvedAdapter, resolvedRegistrar, disconnect, handleConnectHardware]);
 
   return (
-    <div style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden", background: "var(--ohmni-canvas)" }}>
+    <div style={{ position: "relative", width: "100%", maxWidth: "100vw", height: "100vh", overflow: "hidden", background: "var(--ohmni-canvas)", boxSizing: "border-box" }}>
       {/* State 1: Welcome View (Full viewport when disconnected) */}
       {!isConnected && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 40 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 40, boxSizing: "border-box" }}>
           <WelcomeView
             onStartDemo={handleStartDemo}
             onConnectHardware={handleConnectHardware}
@@ -163,7 +163,7 @@ export const App: React.FC<AppProps> = ({
       )}
 
       {/* State 2: Investigation Story View */}
-      <div style={{ width: "100vw", height: "100vh", display: viewMode === "repair" ? "none" : "flex", flexDirection: "column" }}>
+      <div style={{ width: "100%", height: "100%", display: viewMode === "repair" ? "none" : "flex", flexDirection: "column", boxSizing: "border-box" }}>
         <InvestigationStoryView
           isConnected={isConnected}
           descriptor={descriptor}
@@ -188,7 +188,7 @@ export const App: React.FC<AppProps> = ({
 
       {/* State 3: Human Intervention & Repair Verification */}
       {viewMode === "repair" && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 50 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 50, boxSizing: "border-box" }}>
           <RepairVerificationScene
             onReturnToInvestigation={() => setViewMode("investigation")}
           />
