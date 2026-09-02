@@ -7,4 +7,11 @@ const handler = createBenchAgentHandler({
   },
 });
 
-export default handler;
+export const GET = (request: Request) => handler(request);
+export const POST = (request: Request) => handler(request);
+
+export default {
+  fetch(request: Request) {
+    return handler(request);
+  },
+};

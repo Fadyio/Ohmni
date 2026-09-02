@@ -199,6 +199,70 @@ describe("HttpBenchAgentProvider", () => {
       expect((error as Error).message).toBe("Gemini API key is not configured.");
     }
   });
+
+  it("formats forensic error when receiving non-JSON HTML error page with redacted secrets", async () => {
+    const htmlBody = `<!DOCTYPE html><html><body><h1>FUNCTION_INVOCATION_FAILED</h1><p>Error with API key AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q and secret=supersecret123456</p></body></html>`;
+    const htmlResponse = new Response(htmlBody, {
+      status: 500,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+    const { fetchImpl } = recordingFetch([htmlResponse]);
+    const provider = new HttpBenchAgentProvider(fetchImpl);
+
+    try {
+      await provider.turn(TURN_REQUEST);
+      throw new Error("Expected turn to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      const message = (error as Error).message;
+      expect(message).toContain("Bench Agent API returned HTTP 500 text/html; charset=utf-8.");
+      expect(message).toContain("FUNCTION_INVOCATION_FAILED");
+      expect(message).not.toContain("AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q");
+      expect(message).not.toContain("supersecret123456");
+      expect(message).toContain("[REDACTED");
+    }
+  });
+
+  it("formats forensic error on empty non-JSON response", async () => {
+    const emptyResponse = new Response("", {
+      status: 502,
+      headers: { "content-type": "text/plain" },
+    });
+    const { fetchImpl } = recordingFetch([emptyResponse]);
+    const provider = new HttpBenchAgentProvider(fetchImpl);
+
+    try {
+      await provider.turn(TURN_REQUEST);
+      throw new Error("Expected turn to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      const message = (error as Error).message;
+      expect(message).toContain("Bench Agent API returned HTTP 502 text/plain.");
+      expect(message).toContain("(empty response)");
+    }
+  });
+
+  it("detects and surfaces Vercel Protected Deployment 401 response with actionable error", async () => {
+    const vercelAuthResponse = jsonResponse(
+      {
+        protection: { auto_vercel_auth_redirect: true, vercel_auth_enabled: true },
+        error: { code: "401", message: "Protected deployment" },
+      },
+      401,
+    );
+    const { fetchImpl } = recordingFetch([vercelAuthResponse]);
+    const provider = new HttpBenchAgentProvider(fetchImpl);
+
+    try {
+      await provider.turn(TURN_REQUEST);
+      throw new Error("Expected turn to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      const message = (error as Error).message;
+      expect(message).toContain("Vercel Protected Deployment");
+      expect(message).toContain("Vercel Authentication is enabled on this preview deployment");
+    }
+  });
 });
 
 describe("fetchBenchAgentAvailability", () => {

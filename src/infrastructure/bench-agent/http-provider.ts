@@ -78,19 +78,55 @@ function parseAvailability(value: unknown): BenchAgentAvailability {
     model: record.model as string,
   };
 }
+function sanitizeResponseText(text: string): string {
+  return text
+    .replace(/AIza[0-9A-Za-z-_]{35}/g, "[REDACTED_API_KEY]")
+    .replace(/(?:api[_-]?key|secret|token|password|bearer)[=:\s]+["']?([^\s"',;]+)/gi, (match) => {
+      return match.replace(/([=:\s]+["']?)(.+)/, "$1[REDACTED]");
+    })
+    .slice(0, 1000);
+}
 
 async function readResponseJson(response: Response): Promise<unknown> {
+  const contentType = response.headers.get("content-type") || "unknown";
+  let rawText = "";
   try {
-    const payload: unknown = await response.json();
-    return payload;
+    rawText = await response.text();
   } catch {
-    throw new Error("Bench agent returned a non-JSON response.");
+    throw new Error(`Bench Agent API returned HTTP ${response.status} ${contentType} with unreadable body.`);
+  }
+
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    const sanitized = sanitizeResponseText(rawText).trim();
+    const excerpt = sanitized.length > 0 ? sanitized : "(empty response)";
+    throw new Error(
+      `Bench Agent API returned HTTP ${response.status} ${contentType}.\nResponse:\n${excerpt}`
+    );
   }
 }
 
 function responseError(response: Response, payload: unknown): Error {
   if (payload !== null && typeof payload === "object" && !Array.isArray(payload)) {
-    const message = (payload as Record<string, unknown>).message;
+    const record = payload as Record<string, unknown>;
+    if (
+      record.protection !== undefined ||
+      (typeof record.error === "object" &&
+        record.error !== null &&
+        (record.error as Record<string, unknown>).message === "Protected deployment")
+    ) {
+      return new Error(
+        "Vercel Protected Deployment: Vercel Authentication is enabled on this preview deployment. Disable Vercel Authentication under Project Settings -> Deployment Protection or access with bypass credentials."
+      );
+    }
+    if (typeof record.error === "object" && record.error !== null) {
+      const nestedMessage = (record.error as Record<string, unknown>).message;
+      if (typeof nestedMessage === "string" && nestedMessage.trim() !== "") {
+        return new Error(nestedMessage);
+      }
+    }
+    const message = record.message;
     if (typeof message === "string" && message.trim() !== "") {
       return new Error(message);
     }
