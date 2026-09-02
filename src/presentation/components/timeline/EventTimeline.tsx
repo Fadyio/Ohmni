@@ -43,9 +43,6 @@ export const EventTimeline: React.FC<EventTimelineProps> = ({
         borderTop: "1px solid var(--ohmni-border)",
         display: "flex",
         flexDirection: "column",
-        height: isExpanded ? "160px" : "42px",
-        minHeight: isExpanded ? "160px" : "42px",
-        transition: "height 0.22s var(--ease-workbench)",
         overflow: "hidden",
       }}
     >
@@ -117,15 +114,22 @@ export const EventTimeline: React.FC<EventTimelineProps> = ({
         </div>
       </div>
 
-      {/* Expanded Content Area */}
-      {isExpanded && (
+      {/* Expanded Content Area with zero-reflow CSS Grid */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateRows: isExpanded ? "1fr" : "0fr",
+          transition: "grid-template-rows 0.22s var(--ease-workbench)",
+          overflow: "hidden",
+        }}
+      >
         <div
           style={{
-            flex: 1,
+            minHeight: 0,
+            height: "118px",
             display: "grid",
             gridTemplateColumns: "1fr 300px",
             overflow: "hidden",
-            minHeight: 0,
           }}
         >
           {/* Events Stream List */}
@@ -247,7 +251,7 @@ export const EventTimeline: React.FC<EventTimelineProps> = ({
             )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

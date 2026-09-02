@@ -4,15 +4,15 @@
     <!-- Circle with cutout gaps where waveform enters and exits -->
     <path
       d="M 60 10 A 50 50 0 0 1 110 60 A 50 50 0 0 1 60 110 A 50 50 0 0 1 10 60 A 50 50 0 0 1 60 10"
-      stroke="#F5F7FA"
+      stroke="#151515"
       stroke-width="8"
       stroke-linecap="round"
       fill="none"
     />
-    <!-- Waveform Line (Vibrant Blue) -->
+    <!-- Waveform Line (Vibrant Brand Blue) -->
     <path
       d="M 0 60 L 30 60 L 45 40 L 60 80 L 75 40 L 90 60 L 120 60"
-      stroke="#4F6BFF"
+      stroke="#315CF5"
       stroke-width="8"
       stroke-linecap="round"
       stroke-linejoin="round"
@@ -21,7 +21,7 @@
   </g>
 
   <!-- Wordmark: ohmni -->
-  <g fill="#F5F7FA" transform="translate(160, 26)">
+  <g fill="#151515" transform="translate(160, 26)">
     <!-- o -->
     <path d="M 28 32 C 14.7 32 4 42.7 4 56 C 4 69.3 14.7 80 28 80 C 41.3 80 52 69.3 52 56 C 52 42.7 41.3 32 28 32 Z M 28 40 C 36.8 40 44 47.2 44 56 C 44 64.8 36.8 72 28 72 C 19.2 72 12 64.8 12 56 C 12 47.2 19.2 40 28 40 Z" />
     
@@ -38,6 +38,6 @@
     <path d="M 264 33 L 264 79 L 272 79 L 272 33 L 264 33 Z" />
     
     <!-- i (blue dot) -->
-    <circle cx="268" cy="18" r="5" fill="#4F6BFF" />
+    <circle cx="268" cy="18" r="5" fill="#315CF5" />
   </g>
 </svg>

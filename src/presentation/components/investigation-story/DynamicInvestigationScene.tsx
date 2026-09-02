@@ -1,11 +1,11 @@
 /**
- * Dynamic Investigation Scene Controller (Left 68%).
+ * Dynamic Investigation Scene Controller (Left 75%).
  * Answers "WHAT IS HAPPENING RIGHT NOW?" based on real domain state:
  * - Observing: Reset History & Initial Observations
  * - Test Request: Controlled Physical Test Approval Gate
  * - Running: 60fps Oscilloscope & Hardware Actuation
- * - Evidence: 2.72 V Captured Minimum Supply Drop
- * - Hypothesis: H-001 Root Cause Diagnosis
+ * - Evidence: Captured Empirical Facts from Store
+ * - Hypothesis: Grounded Root Cause Diagnosis
  */
 
 import React from "react";
@@ -52,16 +52,19 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   onProceedToRepair,
   activeSceneOverride,
 }) => {
-  // Determine active scene based on real state
+  const hasInspectedResetHistory =
+    resetCount > 0 ||
+    agentState.activity.some((a) => a.call.name.includes("reset") && (a.status === "completed" || a.status === "requested"));
+
+  // Determine active scene based on real domain state
   const computeActiveScene = () => {
     if (activeSceneOverride) return activeSceneOverride;
-    if (agentState.status === "approval") return "test-request";
     if (experimentStatus === "running" || relayState === "closed") return "running";
+    if (agentState.status === "approval") return "test-request";
     if (hypothesis !== null || agentState.status === "completed") return "hypothesis";
     if (evidenceRecords.length > 0) return "evidence";
     return "observing";
   };
-
   const currentScene = computeActiveScene();
 
   return (
@@ -80,6 +83,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             key="observing"
             resetCount={resetCount}
             railVoltage={railVoltage}
+            hasInspectedResetHistory={hasInspectedResetHistory}
           />
         )}
 
@@ -107,7 +111,6 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
           <EvidenceScene
             key="evidence"
             evidenceRecords={evidenceRecords}
-            minVoltage={2.72}
           />
         )}
 

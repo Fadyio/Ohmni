@@ -1,12 +1,15 @@
 /**
  * Root Application Component for OHMNI Hardware Diagnostic Workbench.
+ *
  * Implements the 3 Core Experience States:
- * 1. Welcome View (Full-Screen Hero Narrative + Hardware Visual)
- * 2. Investigation Story View (Left 68% Dynamic Scene + Right 32% Investigation Narrative)
- * 3. Repair Verification Scene (Physical Jumper Interaction + Split-Scope Comparison)
+ * 1. World 1: Welcome View (Editorial Narrative + Floating Hardware Composition)
+ * 2. World 2: Investigation Lab Mode (75% Live Scene + 25% Chronological Narrative)
+ * 3. State 3: Repair Verification Scene (Physical Jumper Interaction + Split-Scope Comparison)
+ *
+ * Choreographed with GSAP landing-to-lab timeline transitions.
  */
 
-import React, { useMemo, useState, useCallback, useEffect } from "react";
+import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import type { DeviceAdapter } from "@/domain/device/adapter";
 import type { DeviceToolRegistrar } from "@/infrastructure/webmcp/device-tool-registrar";
 import type { ITelemetryEventBus } from "@/domain/telemetry/bus";
@@ -23,6 +26,7 @@ import { useOscilloscopeBuffer } from "./hooks/useOscilloscopeBuffer";
 import { useBenchAgent } from "./hooks/useBenchAgent";
 import { useEvidenceStore } from "./hooks/useEvidenceStore";
 import { useHypothesisStore } from "./hooks/useHypothesisStore";
+import { useLandingToLabTransition } from "./hooks/useLandingToLabTransition";
 
 import "./theme/tokens.css";
 
@@ -71,6 +75,17 @@ export const App: React.FC<AppProps> = ({
   // View state: "welcome" | "investigation" | "repair"
   const [viewMode, setViewMode] = useState<"welcome" | "investigation" | "repair">("welcome");
 
+  // GSAP Transition Refs
+  const rootContainerRef = useRef<HTMLDivElement | null>(null);
+  const heroTextRef = useRef<HTMLDivElement | null>(null);
+  const hardwareVisualRef = useRef<HTMLDivElement | null>(null);
+  const ctaButtonRef = useRef<HTMLButtonElement | null>(null);
+  const labChromeRef = useRef<HTMLElement | null>(null);
+  const labMainSceneRef = useRef<HTMLElement | null>(null);
+  const agentRailRef = useRef<HTMLElement | null>(null);
+
+  const { playTransition } = useLandingToLabTransition();
+
   // Hook subscriptions
   const {
     isConnected,
@@ -103,15 +118,6 @@ export const App: React.FC<AppProps> = ({
 
   const activeHypothesis = hypotheses.length > 0 ? hypotheses[0] : null;
 
-  // Sync connection state with viewMode
-  useEffect(() => {
-    if (isConnected && viewMode === "welcome") {
-      setViewMode("investigation");
-    } else if (!isConnected && viewMode !== "welcome") {
-      setViewMode("welcome");
-    }
-  }, [isConnected, viewMode]);
-
   // Actions
   const handleStartDemo = useCallback(async () => {
     try {
@@ -120,11 +126,27 @@ export const App: React.FC<AppProps> = ({
         await resolvedRegistrar.registerDevice(resolvedAdapter);
       }
       setGoal("The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.");
-      setViewMode("investigation");
+
+      // Execute GSAP Welcome -> Lab choreographic timeline
+      playTransition(
+        {
+          rootContainerRef,
+          heroTextRef,
+          hardwareVisualRef,
+          ctaButtonRef,
+          labChromeRef,
+          labMainSceneRef,
+          agentRailRef,
+        },
+        () => {
+          setViewMode("investigation");
+        }
+      );
     } catch (err) {
       console.error("Failed to start virtual diagnosis:", err);
+      setViewMode("investigation");
     }
-  }, [connect, resolvedAdapter, resolvedRegistrar, setGoal]);
+  }, [connect, resolvedAdapter, resolvedRegistrar, setGoal, playTransition]);
 
   const handleConnectHardware = useCallback(async () => {
     try {
@@ -151,17 +173,32 @@ export const App: React.FC<AppProps> = ({
   }, [isConnected, resolvedAdapter, resolvedRegistrar, disconnect, handleConnectHardware]);
 
   return (
-    <div style={{ position: "relative", width: "100%", maxWidth: "100%", height: "100vh", overflow: "hidden", background: "var(--ohmni-canvas)", boxSizing: "border-box" }}>
-      {!isConnected && (
+    <div
+      ref={rootContainerRef}
+      id="ohmni-app-root"
+      style={{
+        position: "relative",
+        width: "100%",
+        maxWidth: "100%",
+        height: "100vh",
+        overflow: "hidden",
+        backgroundColor: viewMode === "welcome" ? "var(--ohmni-intro-bg)" : "var(--ohmni-lab-canvas)",
+        boxSizing: "border-box",
+      }}
+    >
+      {viewMode === "welcome" && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 40, boxSizing: "border-box" }}>
           <WelcomeView
             onStartDemo={handleStartDemo}
             onConnectHardware={handleConnectHardware}
+            heroTextRef={heroTextRef}
+            hardwareVisualRef={hardwareVisualRef}
+            ctaButtonRef={ctaButtonRef}
           />
         </div>
       )}
 
-      {/* State 2: Investigation Story View */}
+      {/* State 2: World 2 — Lab Mode Workbench */}
       <div style={{ width: "100%", height: "100%", display: viewMode === "repair" ? "none" : "flex", flexDirection: "column", boxSizing: "border-box" }}>
         <InvestigationStoryView
           isConnected={isConnected}
@@ -182,6 +219,9 @@ export const App: React.FC<AppProps> = ({
           onDenyTest={denyAgent}
           onToggleConnect={handleToggleConnect}
           onProceedToRepair={() => setViewMode("repair")}
+          labChromeRef={labChromeRef}
+          labMainSceneRef={labMainSceneRef}
+          agentRailRef={agentRailRef}
         />
       </div>
 

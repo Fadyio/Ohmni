@@ -4,15 +4,15 @@
     cx="70"
     cy="70"
     r="52"
-    stroke="#F5F7FA"
+    stroke="#151515"
     stroke-width="9"
     stroke-linecap="round"
     fill="none"
   />
-  <!-- Waveform Line (Vibrant Blue) -->
+  <!-- Waveform Line (Vibrant Brand Blue) -->
   <path
     d="M 8 70 L 40 70 L 55 46 L 70 94 L 85 46 L 100 70 L 132 70"
-    stroke="#4F6BFF"
+    stroke="#315CF5"
     stroke-width="9"
     stroke-linecap="round"
     stroke-linejoin="round"

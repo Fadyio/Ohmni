@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "test": "bun test",
     "test:chrome": "bun run scripts/test-chrome.ts",
+    "test:motion": "bun run scripts/test-motion.ts",
+    "record:motion": "bun run scripts/record-motion.ts",
     "test:agent:live": "bun run scripts/test-agent-live.ts",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit",
@@ -26,6 +28,8 @@
   },
   "dependencies": {
     "@google/genai": "2.20.0",
+    "@gsap/react": "^2.1.2",
+    "gsap": "^3.15.0",
     "lucide-react": "^1.39.0",
     "motion": "^13.1.1",
     "react": "^19.2.8",

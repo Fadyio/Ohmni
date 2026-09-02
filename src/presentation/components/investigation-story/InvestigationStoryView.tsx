@@ -1,14 +1,18 @@
 /**
- * State 2 — Investigation Story View for OHMNI.
- * Implements the ~68% / 32% split layout:
- * - Top Bar: OHMNI Logo | ESP32 Controller | Live Agent
- * - Left 68%: Dynamic Investigation Scene (Answers "WHAT IS HAPPENING RIGHT NOW?")
- * - Right 32%: Human Narrative Rail (01 Observed, 02 Testing, 03 Evidence, 04 Hypothesis)
+ * State 2 — World 2 (Focused Lab Mode Workbench).
+ *
+ * Requirements:
+ * - Top Bar: OHMNI Logo | GEMINI LIVE / ESP32 ENVIRONMENTAL CONTROLLER
+ * - Main Scene (~75%): Hardware / Scope / Dynamic Scene
+ * - Agent Story (~25%): Chronological live narrative & activity
+ * - Background: #090B10 (Dark technical lab canvas)
+ * - Zero rounded card wall; clean dividers and floating instrument planes.
  */
 
 import React, { useState } from "react";
 import { DynamicInvestigationScene } from "./DynamicInvestigationScene";
 import { InvestigationNarrativeRail } from "./InvestigationNarrativeRail";
+import { SignalPulse } from "./SignalPulse";
 import { WebMCPCapabilityDrawer } from "../layout/WebMCPCapabilityDrawer";
 import type { TelemetryRingBuffer } from "@/domain/telemetry/ring-buffer";
 import type { ScopeEventMarker } from "../../hooks/useOscilloscopeBuffer";
@@ -37,6 +41,9 @@ export interface InvestigationStoryViewProps {
   readonly onDenyTest: () => void;
   readonly onToggleConnect: () => void;
   readonly onProceedToRepair?: () => void;
+  readonly labChromeRef?: React.RefObject<HTMLElement | null>;
+  readonly labMainSceneRef?: React.RefObject<HTMLElement | null>;
+  readonly agentRailRef?: React.RefObject<HTMLElement | null>;
 }
 
 export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
@@ -58,9 +65,15 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   onDenyTest,
   onToggleConnect,
   onProceedToRepair,
+  labChromeRef,
+  labMainSceneRef,
+  agentRailRef,
 }) => {
   const [activeSceneOverride, setActiveSceneOverride] = useState<"observing" | "test-request" | "running" | "evidence" | "hypothesis" | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const isAgentActive = agentState.status === "investigating" || agentState.status === "approval";
+  const activeToolName = agentState.activity.length > 0 ? agentState.activity[agentState.activity.length - 1].call.name : undefined;
 
   return (
     <div
@@ -70,33 +83,44 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        background: "var(--ohmni-canvas)",
-        color: "var(--ohmni-ink)",
+        background: "var(--ohmni-lab-canvas)",
+        color: "var(--ohmni-lab-text)",
         overflow: "hidden",
         boxSizing: "border-box",
+        position: "relative",
       }}
     >
-      {/* Clean Top Bar */}
+      {/* Signal Pulse traveling between Agent and Target Hardware */}
+      <SignalPulse
+        isActive={isAgentActive}
+        direction="agent-to-device"
+        label={activeToolName}
+      />
+
+      {/* Lab Header Chrome */}
       <header
+        ref={labChromeRef}
+        id="lab-header"
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0.85rem 2rem",
-          background: "var(--ohmni-surface)",
-          borderBottom: "1px solid var(--ohmni-border)",
+          padding: "0.75rem 2rem",
+          background: "var(--ohmni-lab-raised)",
+          borderBottom: "1px solid var(--ohmni-lab-border)",
           flex: "none",
+          zIndex: 10,
         }}
       >
-        {/* Left: Brand */}
+        {/* Left: Brand + Hardware Identity */}
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <img
             src="/brand/ohmni-logo.svg"
             alt="OHMNI"
-            style={{ height: "26px", width: "auto" }}
+            style={{ height: "24px", width: "auto" }}
           />
 
-          <div style={{ height: "16px", width: "1px", background: "var(--ohmni-border)" }} />
+          <div style={{ height: "16px", width: "1px", background: "var(--ohmni-lab-border)" }} />
 
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span
@@ -104,23 +128,38 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
                 width: "7px",
                 height: "7px",
                 borderRadius: "50%",
-                background: "var(--ohmni-success)",
+                background: "var(--ohmni-lab-verified)",
+                boxShadow: "0 0 8px rgba(79, 209, 154, 0.4)",
               }}
             />
-            <span style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--ohmni-ink)" }}>
-              {descriptor?.name ?? "ESP32 Environmental Controller"}
+            <span className="font-mono" style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-lab-text)" }}>
+              {descriptor?.name ?? "ESP32 ENVIRONMENTAL CONTROLLER"}
             </span>
           </div>
         </div>
 
-        {/* Center: Scenario Goal Excerpt */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", maxWidth: "450px" }}>
-          <span style={{ fontSize: "12.5px", color: "var(--ohmni-secondary)", fontStyle: "italic", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            "{agentState.goal.length > 0 ? agentState.goal : "Controller resets whenever the fan turns on."}"
+        {/* Center: Gemini Live Badge */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "3px 10px",
+              borderRadius: "var(--radius-full)",
+              background: "rgba(85, 112, 255, 0.12)",
+              border: "1px solid rgba(85, 112, 255, 0.25)",
+              color: "var(--ohmni-lab-brand)",
+              fontSize: "12px",
+              fontWeight: 700,
+            }}
+          >
+            <Sparkles size={12} />
+            <span>GEMINI LIVE</span>
           </span>
         </div>
 
-        {/* Right: Technical Inspector & Connection */}
+        {/* Right: Technical Drawer & Connection Toggle */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <button
             onClick={() => setDrawerOpen(true)}
@@ -129,10 +168,12 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               padding: "6px 12px",
               fontSize: "12px",
               fontWeight: 600,
+              color: "var(--ohmni-lab-text)",
+              borderColor: "var(--ohmni-lab-border)",
             }}
           >
-            <Radio size={13} />
-            WebMCP Tools
+            <Radio size={13} color="var(--ohmni-lab-signal)" />
+            <span>WebMCP Tools</span>
           </button>
 
           <button
@@ -142,31 +183,35 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               padding: "6px 12px",
               fontSize: "12px",
               fontWeight: 600,
+              color: "var(--ohmni-lab-text)",
+              borderColor: "var(--ohmni-lab-border)",
             }}
           >
             <Sliders size={13} />
-            Disconnect
+            <span>Disconnect</span>
           </button>
         </div>
       </header>
 
-      {/* Main 68% / 32% Investigation Canvas */}
+      {/* Main 75% / 25% Lab Layout */}
       <div
         style={{
           flex: 1,
           display: "grid",
-          gridTemplateColumns: "68% 32%",
+          gridTemplateColumns: "75% 25%",
           overflow: "hidden",
           minHeight: 0,
         }}
       >
-        {/* Left 68%: Dynamic Investigation Scene */}
+        {/* Left 75%: Current Scene (Hardware & Scope) */}
         <main
+          ref={labMainSceneRef}
+          id="lab-main-scene"
           style={{
             height: "100%",
             overflowY: "auto",
             padding: "1.75rem 2rem",
-            background: "var(--ohmni-canvas)",
+            background: "var(--ohmni-lab-canvas)",
           }}
         >
           <DynamicInvestigationScene
@@ -186,12 +231,14 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
           />
         </main>
 
-        {/* Right 32%: Human Investigation Narrative Rail */}
+        {/* Right 25%: Chronological Agent Narrative Rail */}
         <aside
+          ref={agentRailRef}
+          id="lab-agent-rail"
           style={{
             height: "100%",
             overflow: "hidden",
-            background: "var(--ohmni-surface)",
+            background: "var(--ohmni-lab-raised)",
           }}
         >
           <InvestigationNarrativeRail

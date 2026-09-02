@@ -1,15 +1,18 @@
 /**
- * Scene 2 — Controlled Physical Test Request.
- * Full-scene transformation when the agent requests an amber-gated physical actuation:
- * - Large relay coil & armature visualization
- * - Explicit hypothesis and justification
- * - Controlled execution parameters (500ms duration, max 3 attempts, auto-abort on reset)
- * - [ Deny ] and [ Approve test ] actions with keyboard accelerators
+ * Scene 2 — Controlled Physical Test Request & Human Approval Interlock.
+ *
+ * Requirements:
+ * - Headline: "Gemini needs your approval."
+ * - Subtext: "It wants to energize the fan relay while monitoring the MCU supply rail."
+ * - Shows explicit execution safety bounds (500 ms max, auto-abort, live monitoring).
+ * - On Approve: transforms to APPROVED, amber pulse travels to relay, armature snaps, fan spins.
+ * - Uses GSAP timeline for tactile response.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
-import { ShieldAlert, Check, X, Zap, Cpu, Activity, Clock } from "lucide-react";
+import { ShieldAlert, Check, X, Zap, Clock, Activity, AlertTriangle } from "lucide-react";
+import gsap from "gsap";
 
 export interface TestRequestSceneProps {
   readonly onApprove: () => void;
@@ -22,6 +25,18 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
   onDeny,
   toolName = "run_relay_stress_test",
 }) => {
+  const [isApproved, setIsApproved] = useState(false);
+
+  const handleApproveClick = () => {
+    setIsApproved(true);
+    onApprove();
+    gsap.to("#approve-btn-inner", {
+      scale: 0.95,
+      duration: 0.1,
+      yoyo: true,
+      repeat: 1,
+    });
+  };
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.98 }}
@@ -31,8 +46,9 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "1.5rem",
+        gap: "1.75rem",
         height: "100%",
+        color: "var(--ohmni-lab-text)",
       }}
     >
       {/* Header Tag */}
@@ -41,172 +57,123 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: "6px",
-            color: "var(--ohmni-warning)",
-            fontSize: "13px",
+            gap: "7px",
+            padding: "4px 10px",
+            borderRadius: "var(--radius-full)",
+            background: "rgba(255, 181, 74, 0.12)",
+            border: "1px solid rgba(255, 181, 74, 0.25)",
+            fontSize: "12px",
             fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
+            color: "var(--ohmni-lab-action)",
+            letterSpacing: "0.05em",
           }}
         >
-          <ShieldAlert size={15} />
-          Human Authorization Gate • High-Current Load
+          <ShieldAlert size={14} />
+          AMBER SAFETY GATE • HUMAN AUTHORIZATION
         </div>
-        <h2 className="scene-heading" style={{ margin: "4px 0 0" }}>
-          Controlled Physical Stress Test
+
+        <h2 style={{ fontSize: "32px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "8px 0 0", letterSpacing: "-0.02em" }}>
+          Gemini needs your approval.
         </h2>
+
+        <p style={{ margin: "6px 0 0", fontSize: "16px", color: "var(--ohmni-lab-muted)", maxWidth: "600px", lineHeight: 1.5 }}>
+          It wants to energize the fan relay while monitoring the MCU supply rail.
+        </p>
       </div>
 
-      {/* Main Test Card with Hardware Schematic */}
+      {/* Main Approval Card with Highlighted Relay */}
       <div
         style={{
-          background: "var(--ohmni-surface)",
-          border: "1.5px solid rgba(229, 154, 37, 0.4)",
+          background: "var(--ohmni-lab-raised)",
+          border: "1.5px solid var(--ohmni-lab-action)",
           borderRadius: "var(--radius-xl)",
-          padding: "1.75rem 2rem",
-          boxShadow: "0 8px 30px rgba(229, 154, 37, 0.08)",
-          display: "grid",
-          gridTemplateColumns: "1.2fr 1fr",
-          gap: "2rem",
-          alignItems: "center",
+          padding: "2rem",
+          boxShadow: "0 0 32px rgba(255, 181, 74, 0.12)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "1.5rem",
         }}
       >
-        {/* Left Column: Hypothesis & Parameter Specification */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        {/* Relay Schematics & Intent */}
+        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "2rem", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: "17px", fontWeight: 800, color: "var(--ohmni-ink)" }}>
-              The agent wants to briefly energize the fan relay while monitoring MCU supply voltage.
+            <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-lab-action)", textTransform: "uppercase" }}>
+              TARGET INSTRUMENT CALL
             </div>
-            <p className="body-text" style={{ margin: "8px 0 0", fontSize: "14.5px" }}>
-              <strong>Hypothesis:</strong> The relay coil draws surge current from the shared 3.3 V rail, causing voltage to collapse below the 2.80 V brownout threshold and resetting the controller.
+            <div className="font-mono" style={{ fontSize: "18px", fontWeight: 800, color: "var(--ohmni-lab-text)", marginTop: "4px" }}>
+              {toolName}
+            </div>
+            <p style={{ fontSize: "14px", color: "var(--ohmni-lab-muted)", lineHeight: 1.5, marginTop: "8px" }}>
+              Controlled physical actuation of the 12V cooling fan relay to test for inductive inrush current collapse on the shared 3.3V power bus.
             </p>
           </div>
 
-          {/* Execution Bounds */}
+          {/* Safety Bounds Box */}
           <div
             style={{
-              background: "var(--ohmni-warning-subtle)",
-              border: "1px solid rgba(229, 154, 37, 0.2)",
-              borderRadius: "var(--radius-md)",
-              padding: "12px 16px",
+              background: "var(--ohmni-lab-soft-raised)",
+              border: "1px solid var(--ohmni-lab-border)",
+              borderRadius: "var(--radius-lg)",
+              padding: "1rem 1.25rem",
               display: "flex",
               flexDirection: "column",
-              gap: "6px",
+              gap: "8px",
             }}
           >
-            <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-warning)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-              Controlled Safety Parameters
+            <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-lab-text)", textTransform: "uppercase" }}>
+              CONTROLLED SAFETY ENVELOPE
             </div>
-            <div style={{ fontSize: "13.5px", color: "var(--ohmni-ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>• Duration: <strong>500 ms</strong></span>
-              <span>• Max attempts: <strong>3</strong></span>
-              <span>• Auto-abort on reset: <strong>Active</strong></span>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
+              <Clock size={13} color="var(--ohmni-lab-action)" />
+              <span>500 ms maximum actuation</span>
             </div>
-          </div>
-
-          {/* Action CTAs */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "0.5rem" }}>
-            <button
-              id="btn-approve-test"
-              data-testid="bench-agent-approve"
-              onClick={onApprove}
-              className="btn-primary"
-              style={{
-                padding: "12px 24px",
-                fontSize: "15px",
-                fontWeight: 700,
-                background: "var(--ohmni-warning)",
-                borderColor: "var(--ohmni-warning)",
-                color: "#FFFFFF",
-                boxShadow: "0 4px 14px rgba(229, 154, 37, 0.35)",
-              }}
-            >
-              <Check size={16} />
-              Approve test
-              <span
-                style={{
-                  background: "rgba(0, 0, 0, 0.2)",
-                  padding: "1px 6px",
-                  borderRadius: "3px",
-                  fontSize: "11px",
-                  fontFamily: "var(--font-mono)",
-                  marginLeft: "4px",
-                }}
-              >
-                A
-              </span>
-            </button>
-
-            <button
-              id="btn-deny-test"
-              data-testid="bench-agent-deny"
-              onClick={onDeny}
-              className="btn-secondary"
-              style={{
-                padding: "12px 20px",
-                fontSize: "14px",
-                fontWeight: 600,
-              }}
-            >
-              <X size={15} />
-              Deny
-              <span
-                style={{
-                  background: "rgba(116, 113, 107, 0.15)",
-                  padding: "1px 6px",
-                  borderRadius: "3px",
-                  fontSize: "11px",
-                  fontFamily: "var(--font-mono)",
-                  marginLeft: "4px",
-                }}
-              >
-                D
-              </span>
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
+              <AlertTriangle size={13} color="var(--ohmni-lab-fault)" />
+              <span>Automatic abort on reset</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
+              <Activity size={13} color="var(--ohmni-lab-signal)" />
+              <span>Live voltage monitoring</span>
+            </div>
           </div>
         </div>
 
-        {/* Right Column: Hardware Relay Visualization */}
-        <div
-          style={{
-            background: "var(--ohmni-surface-dark)",
-            borderRadius: "var(--radius-lg)",
-            padding: "1.5rem",
-            boxShadow: "inset 0 1px 3px rgba(0, 0, 0, 0.4)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-            <span className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-warning)" }}>
-              TARGET LOAD: RELAY K1
-            </span>
-            <span className="font-mono" style={{ fontSize: "11px", color: "#94A3B8" }}>
-              GPIO14 • 12V FAN
-            </span>
-          </div>
+        {/* Action Controls */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px", paddingTop: "1rem", borderTop: "1px solid var(--ohmni-lab-border)" }}>
+          <button
+            data-testid="deny-test-btn"
+            id="deny-test-btn"
+            onClick={onDeny}
+            className="btn-secondary"
+            style={{
+              borderColor: "var(--ohmni-lab-border)",
+              color: "var(--ohmni-lab-text)",
+              padding: "10px 20px",
+            }}
+          >
+            <X size={15} />
+            <span>Deny [D]</span>
+          </button>
 
-          <svg viewBox="0 0 240 140" style={{ width: "100%", height: "auto", display: "block" }}>
-            {/* Coil */}
-            <g transform="translate(30, 40)">
-              <path
-                d="M 0 30 Q 12 10 24 30 Q 36 10 48 30 Q 60 10 72 30 Q 84 10 96 30"
-                stroke="#E59A25"
-                strokeWidth="2.5"
-                fill="none"
-              />
-              <text x="48" y="55" textAnchor="middle" fill="#E59A25" fontSize="9" fontFamily="var(--font-mono)" fontWeight="700">
-                COIL 3.3V
-              </text>
-            </g>
-
-            {/* Switch Contacts */}
-            <g transform="translate(150, 40)">
-              <circle cx="10" cy="30" r="3.5" fill="#E59A25" />
-              <circle cx="50" cy="15" r="3.5" fill="#E59A25" />
-              <line x1="10" y1="30" x2="44" y2="18" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" />
-              <text x="58" y="18" fill="#94A3B8" fontSize="8" fontFamily="var(--font-mono)">NO</text>
-              <text x="0" y="34" fill="#94A3B8" fontSize="8" fontFamily="var(--font-mono)">COM</text>
-            </g>
-          </svg>
+          <button
+            data-testid="approve-test-btn"
+            id="approve-test-btn"
+            onClick={handleApproveClick}
+            disabled={isApproved}
+            className="btn-primary"
+            style={{
+              background: isApproved ? "var(--ohmni-lab-verified)" : "var(--ohmni-lab-action)",
+              color: "#090B10",
+              fontWeight: 800,
+              padding: "10px 24px",
+              boxShadow: "0 0 20px rgba(255, 181, 74, 0.35)",
+            }}
+          >
+            <div id="approve-btn-inner" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Check size={16} />
+              <span>{isApproved ? "APPROVED" : "Approve test [A]"}</span>
+            </div>
+          </button>
         </div>
       </div>
     </motion.div>

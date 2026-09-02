@@ -1,24 +1,27 @@
 /**
- * Scene 1 — Observing State (Reset History & Sensor Inspection).
- * Displays the diagnostic readout of the ESP32-S3 reset reason registers:
- * - Brownout: 3 events (Active fault trigger)
- * - Watchdog: 0 events
- * - Software: 0 events
- * - Real-time baseline oscilloscope preview canvas
+ * Scene 1 — Observing State (Hardware State & Reset History Observation).
+ *
+ * Requirements:
+ * - Before read_reset_history actually returns: "No reset history inspected yet."
+ * - Only after read_reset_history executes: animate values from blank -> measured values.
+ * - Shows hardware schematic & live baseline oscilloscope preview.
+ * - Uses Lab Mode dark palette (Canvas #090B10, Raised #11141B, Text #F5F6F8).
  */
 
 import React, { useRef, useEffect } from "react";
 import { motion } from "motion/react";
-import { RotateCcw, AlertTriangle, ShieldCheck, Cpu, Activity, Clock } from "lucide-react";
+import { RotateCcw, AlertTriangle, ShieldCheck, Activity, Clock, Terminal } from "lucide-react";
 
 export interface ObservingSceneProps {
   readonly resetCount: number;
   readonly railVoltage: number;
+  readonly hasInspectedResetHistory?: boolean;
 }
 
 export const ObservingScene: React.FC<ObservingSceneProps> = ({
   resetCount,
   railVoltage,
+  hasInspectedResetHistory = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -37,7 +40,7 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
     // 2.80V threshold line
     ctx.beginPath();
     ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = "rgba(229, 154, 37, 0.6)";
+    ctx.strokeStyle = "rgba(255, 181, 74, 0.6)";
     ctx.lineWidth = 1;
     ctx.moveTo(30, 45);
     ctx.lineTo(width - 20, 45);
@@ -46,7 +49,7 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
     // 3.31V baseline line
     ctx.beginPath();
     ctx.setLineDash([]);
-    ctx.strokeStyle = "#38BDF8";
+    ctx.strokeStyle = "#45B8FF";
     ctx.lineWidth = 2;
     ctx.moveTo(30, 22);
     ctx.lineTo(width - 20, 22);
@@ -62,117 +65,135 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "1.5rem",
+        gap: "1.75rem",
         height: "100%",
+        color: "var(--ohmni-lab-text)",
       }}
     >
       {/* Scene Header */}
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-brand)", fontSize: "13px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-          <Activity size={15} />
-          Current Step • Hardware State Observation
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-signal)", fontSize: "12.5px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <Activity size={14} />
+          OBSERVING • HARDWARE STATE
         </div>
-        <h2 className="scene-heading" style={{ margin: "4px 0 0" }}>
+        <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "6px 0 0", letterSpacing: "-0.02em" }}>
           Microcontroller Reset History
         </h2>
-        <p className="body-text" style={{ margin: "4px 0 0", fontSize: "15px" }}>
-          The agent read the hardware reset register table via <span className="font-mono" style={{ fontWeight: 600, color: "var(--ohmni-ink)" }}>read_reset_history</span>.
+        <p style={{ margin: "6px 0 0", fontSize: "14.5px", color: "var(--ohmni-lab-muted)" }}>
+          {hasInspectedResetHistory
+            ? "Diagnostic registers read via read_reset_history."
+            : "No reset history inspected yet."}
         </p>
       </div>
 
-      {/* 3 Reset Register Metric Cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-          gap: "14px",
-        }}
-      >
-        {/* Brownout Card (Critical) */}
+      {/* 3 Reset Register Metric Display */}
+      {!hasInspectedResetHistory ? (
         <div
           style={{
-            background: "var(--ohmni-surface)",
-            border: "1.5px solid rgba(217, 74, 69, 0.3)",
+            background: "var(--ohmni-lab-raised)",
+            border: "1px dashed var(--ohmni-lab-border)",
             borderRadius: "var(--radius-lg)",
-            padding: "1.25rem 1.4rem",
-            boxShadow: "var(--shadow-card)",
-            position: "relative",
-            overflow: "hidden",
+            padding: "2rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--ohmni-lab-muted)",
+            fontSize: "14px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-fault)" }}>
-              BROWNOUT (BOD)
-            </span>
-            <RotateCcw size={16} color="var(--ohmni-fault)" />
-          </div>
-
-          <div className="major-value" style={{ color: "var(--ohmni-fault)", margin: "0.5rem 0 0.25rem" }}>
-            3
-          </div>
-
-          <div style={{ fontSize: "12px", color: "var(--ohmni-text-muted)" }}>
-            Supply voltage fell below 2.80 V threshold
-          </div>
+          <span>No reset history inspected yet. Agent is preparing observation tool call.</span>
         </div>
-
-        {/* Watchdog Card */}
+      ) : (
         <div
           style={{
-            background: "var(--ohmni-surface)",
-            border: "1px solid var(--ohmni-border)",
-            borderRadius: "var(--radius-lg)",
-            padding: "1.25rem 1.4rem",
-            boxShadow: "var(--shadow-card)",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "14px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-secondary)" }}>
-              WATCHDOG TIMER
-            </span>
-            <Clock size={16} color="var(--ohmni-text-muted)" />
+          {/* Brownout Register */}
+          <div
+            style={{
+              background: "var(--ohmni-lab-raised)",
+              border: "1px solid rgba(255, 89, 95, 0.35)",
+              borderRadius: "var(--radius-lg)",
+              padding: "1.25rem 1.4rem",
+              boxShadow: "0 0 20px rgba(255, 89, 95, 0.08)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-fault)" }}>
+                BROWNOUT (BOD)
+              </span>
+              <RotateCcw size={16} color="var(--ohmni-lab-fault)" />
+            </div>
+
+            <div className="font-mono" style={{ fontSize: "36px", fontWeight: 800, color: "var(--ohmni-lab-fault)", margin: "0.5rem 0 0.25rem" }}>
+              {resetCount}
+            </div>
+
+            <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted)" }}>
+              Supply fell below 2.80V threshold
+            </div>
           </div>
 
-          <div className="major-value" style={{ color: "var(--ohmni-ink)", margin: "0.5rem 0 0.25rem" }}>
-            0
+          {/* Watchdog Register */}
+          <div
+            style={{
+              background: "var(--ohmni-lab-raised)",
+              border: "1px solid var(--ohmni-lab-border)",
+              borderRadius: "var(--radius-lg)",
+              padding: "1.25rem 1.4rem",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-muted)" }}>
+                WATCHDOG TIMER
+              </span>
+              <Clock size={16} color="var(--ohmni-lab-muted)" />
+            </div>
+
+            <div className="font-mono" style={{ fontSize: "36px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "0.5rem 0 0.25rem" }}>
+              0
+            </div>
+
+            <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted)" }}>
+              No execution timeouts recorded
+            </div>
           </div>
 
-          <div style={{ fontSize: "12px", color: "var(--ohmni-text-muted)" }}>
-            No task execution timeouts
+          {/* Software Reset Register */}
+          <div
+            style={{
+              background: "var(--ohmni-lab-raised)",
+              border: "1px solid var(--ohmni-lab-border)",
+              borderRadius: "var(--radius-lg)",
+              padding: "1.25rem 1.4rem",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-muted)" }}>
+                SOFTWARE PANIC
+              </span>
+              <ShieldCheck size={16} color="var(--ohmni-lab-verified)" />
+            </div>
+
+            <div className="font-mono" style={{ fontSize: "36px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "0.5rem 0 0.25rem" }}>
+              0
+            </div>
+
+            <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted)" }}>
+              No firmware crash assertions
+            </div>
           </div>
         </div>
-
-        {/* Software Reset Card */}
-        <div
-          style={{
-            background: "var(--ohmni-surface)",
-            border: "1px solid var(--ohmni-border)",
-            borderRadius: "var(--radius-lg)",
-            padding: "1.25rem 1.4rem",
-            boxShadow: "var(--shadow-card)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-secondary)" }}>
-              SOFTWARE PANIC
-            </span>
-            <ShieldCheck size={16} color="var(--ohmni-success)" />
-          </div>
-
-          <div className="major-value" style={{ color: "var(--ohmni-ink)", margin: "0.5rem 0 0.25rem" }}>
-            0
-          </div>
-
-          <div style={{ fontSize: "12px", color: "var(--ohmni-text-muted)" }}>
-            No firmware crash assertions
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Live Oscilloscope Baseline Strip */}
       <div
         style={{
-          background: "var(--ohmni-surface-dark)",
+          background: "var(--ohmni-lab-raised)",
+          border: "1px solid var(--ohmni-lab-border)",
           borderRadius: "var(--radius-lg)",
           padding: "1rem 1.25rem",
           display: "flex",
@@ -181,20 +202,20 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "#38BDF8" }}>
-            LIVE SCOPE BASELINE • {railVoltage.toFixed(2)} V
+          <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-signal)" }}>
+            LIVE SCOPE BASELINE • {railVoltage > 0 ? railVoltage.toFixed(2) : "3.31"} V
           </span>
-          <span className="font-mono" style={{ fontSize: "11px", color: "#94A3B8" }}>
+          <span className="font-mono" style={{ fontSize: "11px", color: "var(--ohmni-lab-action)" }}>
             2.80V BOD LIMIT ARMED
           </span>
         </div>
         <canvas
           ref={canvasRef}
           width={600}
-          height={70}
+          height={65}
           style={{
             width: "100%",
-            height: "70px",
+            height: "65px",
             display: "block",
             borderRadius: "4px",
           }}

@@ -1,14 +1,15 @@
 /**
- * Scene 3 — Running Experiment (60fps Oscilloscope & Hardware Actuation).
- * Embedded dark instrument surface:
- * - 60fps Canvas Oscilloscope trace
- * - 2.80 V Safe Brownout Threshold line
- * - Live voltage drop to 2.72 V (deterministic ground truth)
- * - Minimum capture callout (MIN 2.72 V • BROWNOUT DETECTED)
- * - Relay actuation animation and spinning fan load
+ * Scene 3 — Running Experiment (Live 60fps Oscilloscope & Hardware Physical State).
+ *
+ * Requirements:
+ * - Hardware + Scope together.
+ * - Real telemetry trace with sweep cursor.
+ * - 2.80V threshold changes state on crossing.
+ * - At real minimum: freeze marker.
+ * - Physical relay & fan driven by real relayState.
  */
 
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Activity, Zap, RotateCcw, AlertTriangle, ShieldCheck } from "lucide-react";
 import type { TelemetryRingBuffer } from "@/domain/telemetry/ring-buffer";
@@ -57,12 +58,12 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
       ctx.save();
       ctx.scale(dpr, dpr);
 
-      // Dark Inset Instrument Background
+      // Dark Instrument Canvas Background
       ctx.fillStyle = "#0C1017";
       ctx.fillRect(0, 0, width, height);
 
       const padLeft = 48;
-      const padRight = 75;
+      const padRight = 80;
       const padTop = 32;
       const padBottom = 26;
       const plotWidth = Math.max(10, width - padLeft - padRight);
@@ -92,14 +93,14 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
           // Amber Dashed Safe Limit Threshold Line
           ctx.beginPath();
           ctx.setLineDash([5, 4]);
-          ctx.strokeStyle = "rgba(229, 154, 37, 0.85)";
+          ctx.strokeStyle = "rgba(255, 181, 74, 0.85)";
           ctx.lineWidth = 1.5;
           ctx.moveTo(padLeft, y);
           ctx.lineTo(padLeft + plotWidth, y);
           ctx.stroke();
           ctx.setLineDash([]);
 
-          ctx.fillStyle = "#E59A25";
+          ctx.fillStyle = "#FFB54A";
           ctx.fillText(`${vt.toFixed(2)}`, padLeft - 6, y);
 
           ctx.textAlign = "left";
@@ -121,103 +122,68 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
       }
 
       // Telemetry Trace from Ring Buffer
-      const ringBuffer = ringBufferRef.current;
-      const samples = ringBuffer ? ringBuffer.toArray() : [];
-
-      if (samples.length > 0) {
-        const latest = samples[samples.length - 1];
-        const firstTMs = samples[0].tMs;
-        const lastTMs = latest.tMs;
-        const tDuration = Math.max(10, lastTMs - firstTMs);
+      if (ringBufferRef.current) {
+        const samples = ringBufferRef.current.getSamples();
+        const durationMs = 500;
 
         const timeToX = (tMs: number) => {
-          if (tDuration <= 0) return padLeft;
-          const norm = (tMs - firstTMs) / tDuration;
-          return padLeft + plotWidth * Math.min(1, Math.max(0, norm));
+          const norm = Math.max(0, Math.min(1, tMs / durationMs));
+          return padLeft + plotWidth * norm;
         };
 
-        // Trace glow gradient
-        const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotHeight);
-        grad.addColorStop(0, "rgba(56, 189, 248, 0.18)");
-        grad.addColorStop(0.7, "rgba(56, 189, 248, 0.03)");
-        grad.addColorStop(1, "rgba(56, 189, 248, 0)");
-
-        ctx.beginPath();
-        ctx.moveTo(timeToX(samples[0].tMs), voltToY(samples[0].value));
-        for (let i = 1; i < samples.length; i++) {
-          ctx.lineTo(timeToX(samples[i].tMs), voltToY(samples[i].value));
-        }
-        ctx.lineTo(timeToX(samples[samples.length - 1].tMs), padTop + plotHeight);
-        ctx.lineTo(timeToX(samples[0].tMs), padTop + plotHeight);
-        ctx.closePath();
-        ctx.fillStyle = grad;
-        ctx.fill();
-
-        // Segments with color shift below safe limit
-        ctx.lineWidth = 2.6;
-        ctx.lineJoin = "round";
-        ctx.lineCap = "round";
-
-        let minSample = samples[0];
-
-        for (let i = 0; i < samples.length - 1; i++) {
-          const s1 = samples[i];
-          const s2 = samples[i + 1];
-          if (s1.value < minSample.value) minSample = s1;
-          if (s2.value < minSample.value) minSample = s2;
-
-          const x1 = timeToX(s1.tMs);
-          const y1 = voltToY(s1.value);
-          const x2 = timeToX(s2.tMs);
-          const y2 = voltToY(s2.value);
-
-          const isSag = s1.value < safeThresholdVoltage || s2.value < safeThresholdVoltage;
+        if (samples.length > 1) {
+          let minSample = samples[0];
 
           ctx.beginPath();
-          ctx.strokeStyle = isSag ? "#F43F5E" : "#38BDF8";
-          ctx.moveTo(x1, y1);
-          ctx.lineTo(x2, y2);
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = "#45B8FF";
+
+          for (let i = 0; i < samples.length; i++) {
+            const s = samples[i];
+            const x = timeToX(s.tMs);
+            const y = voltToY(s.value);
+
+            if (s.value < minSample.value) {
+              minSample = s;
+            }
+
+            if (i === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
           ctx.stroke();
+
+          // If minSample crossed brownout threshold
+          if (minSample.value < safeThresholdVoltage) {
+            const minX = timeToX(minSample.tMs);
+            const minY = voltToY(minSample.value);
+
+            // Red fault dot
+            ctx.beginPath();
+            ctx.arc(minX, minY, 5, 0, Math.PI * 2);
+            ctx.fillStyle = "#FF595F";
+            ctx.fill();
+
+            // Fault callout text
+            ctx.fillStyle = "#FF595F";
+            ctx.font = 'bold 11px "JetBrains Mono", monospace';
+            ctx.textAlign = "center";
+            ctx.fillText(`MIN ${minSample.value.toFixed(2)} V ↓`, minX, minY + 16);
+          }
         }
-
-        // Exact Minimum Marker Callout (2.72 V ground truth)
-        if (minSample.value < 3.20) {
-          const minX = timeToX(minSample.tMs);
-          const minY = voltToY(minSample.value);
-          const isFault = minSample.value < safeThresholdVoltage;
-
-          ctx.beginPath();
-          ctx.arc(minX, minY, 4, 0, Math.PI * 2);
-          ctx.fillStyle = isFault ? "#F43F5E" : "#38BDF8";
-          ctx.fill();
-          ctx.strokeStyle = "#FFFFFF";
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-
-          ctx.fillStyle = isFault ? "#F43F5E" : "#38BDF8";
-          ctx.font = 'bold 10px "JetBrains Mono", monospace';
-          ctx.textAlign = "center";
-          ctx.fillText(`MIN ${minSample.value.toFixed(2)} V ↓`, minX, minY + 16);
-        }
-      } else {
-        const baselineY = voltToY(3.31);
-        ctx.beginPath();
-        ctx.strokeStyle = "rgba(56, 189, 248, 0.4)";
-        ctx.lineWidth = 2;
-        ctx.moveTo(padLeft, baselineY);
-        ctx.lineTo(padLeft + plotWidth, baselineY);
-        ctx.stroke();
       }
 
       // Sweep Cursor
-      if (isRunning) {
+      if (isRunning && !shouldReduceMotion) {
         sweepProgress = (sweepProgress + 0.02) % 1;
-        const sweepX = padLeft + plotWidth * sweepProgress;
+        const cursorX = padLeft + plotWidth * sweepProgress;
         ctx.beginPath();
-        ctx.strokeStyle = "rgba(56, 189, 248, 0.35)";
+        ctx.strokeStyle = "rgba(69, 184, 255, 0.4)";
         ctx.lineWidth = 1.5;
-        ctx.moveTo(sweepX, padTop);
-        ctx.lineTo(sweepX, padTop + plotHeight);
+        ctx.moveTo(cursorX, padTop);
+        ctx.lineTo(cursorX, padTop + plotHeight);
         ctx.stroke();
       }
 
@@ -225,9 +191,12 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
       animationFrameId = requestAnimationFrame(render);
     };
 
-    animationFrameId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [ringBufferRef, markersRef, isRunning]);
+    render();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [ringBufferRef, markersRef, isRunning, shouldReduceMotion]);
 
   return (
     <motion.div
@@ -238,126 +207,64 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "1.25rem",
+        gap: "1.5rem",
         height: "100%",
+        color: "var(--ohmni-lab-text)",
       }}
     >
-      {/* Header Bar */}
+      {/* Header Tag */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-signal)", fontSize: "13px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-            <Activity size={15} />
-            Live Experiment • Real-Time Scope
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-signal)", fontSize: "12.5px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <Activity size={14} className={isRunning ? "animate-spin" : ""} />
+            REAL-TIME PHYSICAL EXPERIMENT
           </div>
-          <h2 className="scene-heading" style={{ margin: "4px 0 0" }}>
-            Relay Actuation & Supply Telemetry
+          <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "4px 0 0", letterSpacing: "-0.02em" }}>
+            Relay Actuation & Oscilloscope Telemetry
           </h2>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span
-            className="font-mono"
-            style={{
-              fontSize: "18px",
-              fontWeight: 800,
-              color: railVoltage < safeThresholdVoltage ? "var(--ohmni-fault)" : "var(--ohmni-signal)",
-            }}
-          >
-            {railVoltage.toFixed(2)} V
-          </span>
-
-          <span
-            style={{
-              fontSize: "12px",
-              fontWeight: 700,
-              padding: "4px 10px",
-              borderRadius: "var(--radius-full)",
-              background: isRunning ? "var(--ohmni-warning-subtle)" : "var(--ohmni-surface-raised)",
-              color: isRunning ? "var(--ohmni-warning)" : "var(--ohmni-secondary)",
-              border: "1px solid var(--ohmni-border)",
-            }}
-          >
-            {isRunning ? "ACQUIRING (500ms)" : "EXPERIMENT COMPLETE"}
+        {/* Live Status Chip */}
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "6px 14px",
+            borderRadius: "var(--radius-full)",
+            background: isClosed ? "rgba(255, 181, 74, 0.15)" : "var(--ohmni-lab-raised)",
+            border: `1px solid ${isClosed ? "var(--ohmni-lab-action)" : "var(--ohmni-lab-border)"}`,
+          }}
+        >
+          <Zap size={14} color={isClosed ? "var(--ohmni-lab-action)" : "var(--ohmni-lab-muted)"} />
+          <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: isClosed ? "var(--ohmni-lab-action)" : "var(--ohmni-lab-text)" }}>
+            RELAY {isClosed ? "CLOSED (ENERGIZED)" : "OPEN (INERT)"}
           </span>
         </div>
       </div>
 
-      {/* Main Canvas Scope Surface */}
+      {/* Scope Instrument Canvas */}
       <div
         style={{
-          background: "var(--ohmni-surface-dark)",
+          background: "var(--ohmni-lab-raised)",
+          border: "1px solid var(--ohmni-lab-border)",
           borderRadius: "var(--radius-xl)",
-          padding: "1rem",
-          boxShadow: "inset 0 1px 3px rgba(0,0,0,0.4), var(--shadow-md)",
-          position: "relative",
-          flex: 1,
-          minHeight: "260px",
-          display: "flex",
-          flexDirection: "column",
+          padding: "1.25rem",
+          boxShadow: "0 0 32px rgba(0, 0, 0, 0.4)",
         }}
       >
         <canvas
+          data-testid="oscilloscope-canvas"
           ref={canvasRef}
+          width={800}
+          height={260}
           style={{
             width: "100%",
-            height: "100%",
-            minHeight: "240px",
+            height: "260px",
             display: "block",
+            borderRadius: "var(--radius-md)",
           }}
         />
-      </div>
-
-      {/* Hardware Actuation Embedded Strip */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.2fr 1fr",
-          gap: "12px",
-        }}
-      >
-        <div
-          style={{
-            background: "var(--ohmni-surface)",
-            border: "1px solid var(--ohmni-border)",
-            borderRadius: "var(--radius-md)",
-            padding: "12px 16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-secondary)", textTransform: "uppercase" }}>
-              Relay K1 Armature Contact
-            </div>
-            <div style={{ fontSize: "14px", fontWeight: 800, color: isClosed ? "var(--ohmni-warning)" : "var(--ohmni-ink)", marginTop: "2px" }}>
-              {isClosed ? "⚡ CLOSED (12V Fan Energized)" : "OPEN (Idle)"}
-            </div>
-          </div>
-          <Zap size={20} color={isClosed ? "var(--ohmni-warning)" : "var(--ohmni-text-muted)"} />
-        </div>
-
-        <div
-          style={{
-            background: "var(--ohmni-surface)",
-            border: "1px solid var(--ohmni-border)",
-            borderRadius: "var(--radius-md)",
-            padding: "12px 16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-secondary)", textTransform: "uppercase" }}>
-              Safe Supply Limit
-            </div>
-            <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--ohmni-ink)", marginTop: "2px" }}>
-              2.80 V Threshold
-            </div>
-          </div>
-          <AlertTriangle size={18} color="var(--ohmni-warning)" />
-        </div>
       </div>
     </motion.div>
   );

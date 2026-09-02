@@ -1,15 +1,15 @@
 /**
  * Scene 5 — Synthesized Root Cause Hypothesis.
- * Displays the evidence-grounded hypothesis:
- * - H-001: Relay-induced supply brownout
- * - HIGH CONFIDENCE tier badge
- * - Supported by E-001 (Brownout reset) and E-002 (2.72 V minimum)
- * - Proposed verification repair action
+ *
+ * Requirements:
+ * - Rendered ONLY when HypothesisStore actually contains a hypothesis.
+ * - Zero predetermined or hardcoded placeholder strings.
+ * - Title, confidence, citations directly from actual hypothesis object.
  */
 
 import React from "react";
 import { motion } from "motion/react";
-import { Scale, Sparkles, CheckCircle2, ArrowRight, Layers, ShieldCheck, Wrench } from "lucide-react";
+import { Scale, CheckCircle2, ArrowRight, Layers, ShieldCheck, Wrench } from "lucide-react";
 import type { Hypothesis } from "@/domain/hypothesis/types";
 
 export interface HypothesisSceneProps {
@@ -21,9 +21,25 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
   hypothesis,
   onProceedToRepair,
 }) => {
-  const title = hypothesis?.title ?? "Relay-induced supply brownout";
-  const confidence = hypothesis?.confidence ?? "HIGH";
-  const citations = hypothesis?.supportingEvidenceIds?.length ? hypothesis.supportingEvidenceIds : ["E-001", "E-002"];
+  if (!hypothesis) {
+    return (
+      <div
+        style={{
+          background: "var(--ohmni-lab-raised)",
+          border: "1px dashed var(--ohmni-lab-border)",
+          borderRadius: "var(--radius-lg)",
+          padding: "2rem",
+          textAlign: "center",
+          color: "var(--ohmni-lab-muted)",
+          fontSize: "14px",
+        }}
+      >
+        No root cause hypothesis synthesized yet.
+      </div>
+    );
+  }
+
+  const { id, title, confidence, supportingEvidenceIds } = hypothesis;
 
   return (
     <motion.div
@@ -36,124 +52,116 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
         flexDirection: "column",
         gap: "1.75rem",
         height: "100%",
+        color: "var(--ohmni-lab-text)",
       }}
     >
       {/* Header Tag */}
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-agent)", fontSize: "13px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-          <Sparkles size={15} />
-          Autonomous Diagnosis Complete
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-brand)", fontSize: "12.5px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <Scale size={14} />
+          SYNTHESIZED DIAGNOSIS
         </div>
-        <h2 className="scene-heading" style={{ margin: "4px 0 0" }}>
-          Root Cause Verification
+        <h2 style={{ fontSize: "32px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "4px 0 0", letterSpacing: "-0.02em" }}>
+          Root Cause Hypothesis
         </h2>
       </div>
 
       {/* Main Hypothesis Card */}
       <div
+        data-testid="hypothesis-card"
         style={{
-          background: "var(--ohmni-surface)",
-          border: "1.5px solid rgba(117, 87, 211, 0.3)",
+          background: "var(--ohmni-lab-raised)",
+          border: "1.5px solid var(--ohmni-lab-brand)",
           borderRadius: "var(--radius-xl)",
           padding: "2rem",
-          boxShadow: "var(--shadow-card)",
+          boxShadow: "0 0 32px rgba(85, 112, 255, 0.15)",
           display: "flex",
           flexDirection: "column",
           gap: "1.5rem",
         }}
       >
+        {/* Top Identification & Confidence Badge */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span className="font-mono" style={{ fontSize: "16px", fontWeight: 800, color: "var(--ohmni-agent)" }}>
-              {hypothesis?.id ?? "H-001"}
+            <span className="font-mono" style={{ fontSize: "16px", fontWeight: 800, color: "var(--ohmni-lab-brand)" }}>
+              {id}
             </span>
             <span
               style={{
-                fontSize: "12px",
+                fontSize: "11px",
                 fontWeight: 800,
                 padding: "3px 10px",
                 borderRadius: "var(--radius-full)",
-                background: "var(--ohmni-success-subtle)",
-                color: "var(--ohmni-success)",
-                letterSpacing: "0.04em",
+                background: "rgba(79, 209, 154, 0.15)",
+                color: "var(--ohmni-lab-verified)",
+                border: "1px solid rgba(79, 209, 154, 0.3)",
               }}
             >
               {confidence} CONFIDENCE
             </span>
           </div>
 
-          <span style={{ fontSize: "13px", color: "var(--ohmni-text-muted)" }}>
-            Empirically Proven
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-verified)", fontSize: "12px", fontWeight: 600 }}>
+            <CheckCircle2 size={15} />
+            <span>GROUNDED BY {supportingEvidenceIds.length} FACTS</span>
+          </div>
         </div>
 
+        {/* Title */}
         <div>
-          <h3 style={{ fontSize: "22px", fontWeight: 800, color: "var(--ohmni-ink)", margin: "0 0 8px" }}>
+          <h3 style={{ fontSize: "22px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "0 0 8px" }}>
             {title}
           </h3>
-          <p className="body-text" style={{ fontSize: "15px", lineHeight: 1.6, margin: 0 }}>
-            Energizing the 12V fan relay coil draws an inductive surge current directly from the shared 3.3V microcontroller rail, causing rail voltage to collapse to <strong>2.72 V</strong>. This crosses the ESP32-S3 brownout detector (2.80 V), causing a hardware reset.
-          </p>
         </div>
 
-        {/* Supporting Evidence Tokens */}
-        <div
-          style={{
-            background: "var(--ohmni-surface-raised)",
-            border: "1px solid var(--ohmni-border)",
-            borderRadius: "var(--radius-md)",
-            padding: "14px 16px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-          }}
-        >
-          <div style={{ fontSize: "11.5px", fontWeight: 700, color: "var(--ohmni-secondary)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-            Supported By Factual Evidence
+        {/* Citations List */}
+        {supportingEvidenceIds.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-lab-muted)", textTransform: "uppercase" }}>
+              CITED EMPIRICAL EVIDENCE
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {supportingEvidenceIds.map((citeId) => (
+                <span
+                  key={citeId}
+                  className="font-mono"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "4px 10px",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--ohmni-lab-soft-raised)",
+                    border: "1px solid var(--ohmni-lab-border)",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    color: "var(--ohmni-lab-signal)",
+                  }}
+                >
+                  <CheckCircle2 size={13} color="var(--ohmni-lab-verified)" />
+                  <span>TOKEN {citeId}</span>
+                </span>
+              ))}
+            </div>
           </div>
+        )}
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            {citations.map((citeId) => (
-              <span
-                key={citeId}
-                className="font-mono"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "4px 10px",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--ohmni-surface)",
-                  border: "1px solid var(--ohmni-border)",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  color: "var(--ohmni-brand)",
-                }}
-              >
-                <CheckCircle2 size={13} color="var(--ohmni-success)" />
-                {citeId}: {citeId === "E-001" ? "Brownout Reset Register (3 events)" : "2.72 V Measured Minimum Drop"}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* CTA to Proceed to Physical Repair & Verification */}
+        {/* Bottom CTA to Physical Repair Verification */}
         {onProceedToRepair && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginTop: "0.5rem" }}>
+          <div style={{ paddingTop: "1rem", borderTop: "1px solid var(--ohmni-lab-border)", display: "flex", justifyContent: "flex-end" }}>
             <button
               onClick={onProceedToRepair}
               className="btn-primary"
               style={{
+                background: "var(--ohmni-lab-brand)",
                 padding: "12px 24px",
-                fontSize: "15px",
+                fontSize: "14px",
                 fontWeight: 700,
-                background: "var(--ohmni-agent)",
-                borderColor: "var(--ohmni-agent)",
               }}
             >
-              <Wrench size={16} />
-              Review physical repair instructions
-              <ArrowRight size={16} />
+              <Wrench size={15} />
+              <span>Proceed to physical verification & repair</span>
+              <ArrowRight size={15} />
             </button>
           </div>
         )}

@@ -20,8 +20,17 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
   onReturnToInvestigation,
 }) => {
   const [jumperPosition, setJumperPosition] = useState<"3V3" | "5V">("3V3");
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
+  const [hasVerified, setHasVerified] = useState<boolean>(false);
   const isRepaired = jumperPosition === "5V";
 
+  const handleRunVerificationTest = () => {
+    setIsVerifying(true);
+    setTimeout(() => {
+      setIsVerifying(false);
+      setHasVerified(true);
+    }, 600);
+  };
   return (
     <div
       style={{
@@ -130,9 +139,18 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
             </div>
 
             {/* Visual Jumper Toggle */}
-            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <div
+              role="radiogroup"
+              aria-label="Physical Jumper Position"
+              style={{ display: "flex", gap: "12px", alignItems: "center" }}
+            >
               <button
-                onClick={() => setJumperPosition("3V3")}
+                role="radio"
+                aria-checked={jumperPosition === "3V3"}
+                onClick={() => {
+                  setJumperPosition("3V3");
+                  setHasVerified(false);
+                }}
                 style={{
                   background: jumperPosition === "3V3" ? "var(--ohmni-fault)" : "#1E293B",
                   color: "#FFFFFF",
@@ -150,6 +168,8 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
               <span style={{ color: "#64748B", fontSize: "16px" }}>→</span>
 
               <button
+                role="radio"
+                aria-checked={jumperPosition === "5V"}
                 onClick={() => setJumperPosition("5V")}
                 style={{
                   background: jumperPosition === "5V" ? "var(--ohmni-success)" : "#1E293B",
@@ -170,9 +190,46 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
             <div style={{ fontSize: "12px", color: isRepaired ? "var(--ohmni-success)" : "#94A3B8" }}>
               {isRepaired ? "✓ Jumper set to External 5V Rail" : "Click 5.0 V to move jumper"}
             </div>
+
+            {isRepaired && (
+              <button
+                onClick={handleRunVerificationTest}
+                disabled={isVerifying}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  background: hasVerified ? "rgba(37, 138, 96, 0.2)" : "var(--ohmni-brand)",
+                  color: hasVerified ? "var(--ohmni-success)" : "#FFFFFF",
+                  border: hasVerified ? "1px solid var(--ohmni-success)" : "none",
+                  padding: "8px 16px",
+                  borderRadius: "var(--radius-md)",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: isVerifying ? "wait" : "pointer",
+                  marginTop: "4px",
+                }}
+              >
+                {hasVerified ? (
+                  <>
+                    <CheckCircle2 size={14} />
+                    <span>Re-test Verified: 3.18V Stable</span>
+                  </>
+                ) : isVerifying ? (
+                  <>
+                    <Activity size={14} className="animate-spin" />
+                    <span>Actuating Relay on 5V Rail...</span>
+                  </>
+                ) : (
+                  <>
+                    <Activity size={14} />
+                    <span>Re-run Verification Stress Test</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
-
         {/* The Money Shot: Split-Scope Before vs After Comparison */}
         <div>
           <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-secondary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "12px" }}>

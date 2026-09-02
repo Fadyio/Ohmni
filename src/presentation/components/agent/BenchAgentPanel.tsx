@@ -354,14 +354,19 @@ export const BenchAgentPanel: React.FC<BenchAgentPanelProps> = ({ isConnected, o
           <div
             role="alert"
             style={{
-              padding: "10px",
-              borderLeft: "3px solid var(--ohmni-fault)",
-              background: "rgba(255, 93, 104, 0.1)",
+              padding: "10px 12px",
+              border: "1px solid var(--ohmni-fault)",
+              borderRadius: "var(--radius-md)",
+              background: "var(--ohmni-fault-subtle)",
               color: "var(--ohmni-fault)",
               fontSize: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
             }}
           >
-            {state.message}
+            <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+            <span>{state.message}</span>
           </div>
         )}
 
