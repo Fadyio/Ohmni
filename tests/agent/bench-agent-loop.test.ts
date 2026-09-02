@@ -135,7 +135,7 @@ describe("runBenchAgent", () => {
             type: "function",
             name: "read_device_info",
             description:
-              "Read hardware identity, firmware build metadata, MCU architecture, and MAC address from the connected device.",
+              "Read hardware identity, firmware build metadata, MCU architecture, and MAC address from the connected device. Does not modify hardware configuration.",
             parameters: {
               type: "object",
               properties: {},
@@ -146,7 +146,7 @@ describe("runBenchAgent", () => {
             type: "function",
             name: "read_reset_history",
             description:
-              "Retrieve the hardware boot and reset event history log to identify past brownouts, watchdogs, software resets, and reset causes.",
+              "Retrieve chronological log of system boot and reset events to identify past brownouts, watchdogs, software resets, and power cycles. Read-only query.",
             parameters: {
               type: "object",
               properties: {},
@@ -157,7 +157,7 @@ describe("runBenchAgent", () => {
             type: "function",
             name: "read_system_health",
             description:
-              "Read current operational diagnostics: heap memory, internal core temperature, and system uptime.",
+              "Read operational diagnostics including free heap memory, internal core temperature, and system uptime. Does not alter system state.",
             parameters: {
               type: "object",
               properties: {},
@@ -168,7 +168,40 @@ describe("runBenchAgent", () => {
             type: "function",
             name: "measure_supply_voltage",
             description:
-              "Sample the internal analog-to-digital converter (ADC) to measure instantaneous VDD rail voltage.",
+              "Sample internal ADC to measure instantaneous voltage on the primary 3.3V rail. Returns measured voltage without changing electrical state.",
+            parameters: {
+              type: "object",
+              properties: {},
+              additionalProperties: false,
+            },
+          },
+          {
+            type: "function",
+            name: "scan_i2c_bus",
+            description:
+              "Probe the active I²C bus for responding 7-bit addresses. Returns observed ACK addresses only. Does not infer device identity or modify bus configuration.",
+            parameters: {
+              type: "object",
+              properties: {},
+              additionalProperties: false,
+            },
+          },
+          {
+            type: "function",
+            name: "read_sensor_status",
+            description:
+              "Query firmware environmental sensor status register. Returns configured target bus address, transaction outcome (ACK/NACK/BUS_ERROR), and telemetry reading if available.",
+            parameters: {
+              type: "object",
+              properties: {},
+              additionalProperties: false,
+            },
+          },
+          {
+            type: "function",
+            name: "read_i2c_line_state",
+            description:
+              "Sample electrical logic levels on I²C clock (SCL) and data (SDA) lines. Detects pullup status and floating/open line faults without modifying bus state.",
             parameters: {
               type: "object",
               properties: {},
@@ -179,7 +212,7 @@ describe("runBenchAgent", () => {
             type: "function",
             name: "run_relay_stress_test",
             description:
-              "Actuate the onboard relay under inrush load to test power supply rail stability and detect load-induced brownout resets.",
+              "Briefly actuate the cooling-fan relay while sampling the MCU supply rail. May reproduce a physical reset. Requires human authorization.",
             parameters: {
               type: "object",
               properties: {

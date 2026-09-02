@@ -30,6 +30,8 @@ const KNOWN_OBSERVE_TOOLS = new Set<string>([
   "read_system_health",
   "measure_supply_voltage",
   "scan_i2c_bus",
+  "read_sensor_status",
+  "read_i2c_line_state",
   "list_evidence",
   "get_evidence",
   "list_hypotheses",
@@ -52,6 +54,7 @@ const KNOWN_HUMAN_REQUEST_TOOLS = new Set<string>([
 const KNOWN_PHYSICAL_TOOLS = new Set<string>([
   "run_relay_stress_test",
 ]);
+
 export class DefaultToolSafetyPolicy implements ToolSafetyPolicy {
   public classify(toolName: string, annotations?: ToolAnnotationsHint): ToolExecutionClass {
     const normalized = toolName.trim();
@@ -75,12 +78,13 @@ export class DefaultToolSafetyPolicy implements ToolSafetyPolicy {
     if (KNOWN_PHYSICAL_TOOLS.has(normalized)) {
       return "physical";
     }
-    // 4. Annotated read-only tools
+
+    // 5. Annotated read-only tools
     if (annotations?.readOnlyHint === true) {
       return "observe";
     }
 
-    // 5. Safe Failure: Unknown non-read-only tool requires physical authorization
+    // 6. Safe Failure: Unknown non-read-only tool requires physical authorization
     return "physical";
   }
 

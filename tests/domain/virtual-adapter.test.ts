@@ -55,6 +55,9 @@ describe("VirtualDeviceAdapter - Domain Foundation & Deterministic Physics", () 
         "read_reset_history",
         "read_system_health",
         "measure_supply_voltage",
+        "scan_i2c_bus",
+        "read_sensor_status",
+        "read_i2c_line_state",
         "run_relay_stress_test",
       ]);
 
@@ -107,6 +110,27 @@ describe("VirtualDeviceAdapter - Domain Foundation & Deterministic Physics", () 
       expect(Array.isArray(result.data.resets)).toBe(true);
       expect(result.data.resets.length).toBeGreaterThanOrEqual(1);
       expect(result.data.resets[0].reason).toBe("POWER_ON");
+    });
+    it("scans I2C bus and returns responding addresses", async () => {
+      const result = await adapter.executeCapability<{ devices: string[]; count: number }>("scan_i2c_bus");
+      expect(result.ok).toBe(true);
+      expect(result.data.devices).toEqual(["0x76"]);
+      expect(result.data.count).toBe(1);
+    });
+
+    it("reads sensor status and returns ACK when addresses match", async () => {
+      const result = await adapter.executeCapability<{ transactionStatus: string; temperatureC: number }>("read_sensor_status");
+      expect(result.ok).toBe(true);
+      expect(result.data.transactionStatus).toBe("ACK");
+      expect(result.data.temperatureC).toBe(24.2);
+    });
+
+    it("reads I2C line state and detects nominal high lines", async () => {
+      const result = await adapter.executeCapability<{ scl: string; sda: string; busReady: boolean }>("read_i2c_line_state");
+      expect(result.ok).toBe(true);
+      expect(result.data.scl).toBe("HIGH");
+      expect(result.data.sda).toBe("HIGH");
+      expect(result.data.busReady).toBe(true);
     });
   });
 

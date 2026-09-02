@@ -32,7 +32,7 @@ export class CapabilityRegistry {
       name: "read_device_info",
       title: "Read Device Information",
       description:
-        "Read hardware identity, firmware build metadata, MCU architecture, and MAC address from the connected device.",
+        "Read hardware identity, firmware build metadata, MCU architecture, and MAC address from the connected device. Does not modify hardware configuration.",
       inputSchema: {
         type: "object",
         properties: {},
@@ -52,7 +52,7 @@ export class CapabilityRegistry {
       name: "read_reset_history",
       title: "Read Reset History",
       description:
-        "Retrieve the hardware boot and reset event history log to identify past brownouts, watchdogs, software resets, and reset causes.",
+        "Retrieve chronological log of system boot and reset events to identify past brownouts, watchdogs, software resets, and power cycles. Read-only query.",
       inputSchema: {
         type: "object",
         properties: {},
@@ -72,7 +72,7 @@ export class CapabilityRegistry {
       name: "read_system_health",
       title: "Read System Health",
       description:
-        "Read current operational diagnostics: heap memory, internal core temperature, and system uptime.",
+        "Read operational diagnostics including free heap memory, internal core temperature, and system uptime. Does not alter system state.",
       inputSchema: {
         type: "object",
         properties: {},
@@ -92,7 +92,7 @@ export class CapabilityRegistry {
       name: "measure_supply_voltage",
       title: "Measure Supply Voltage",
       description:
-        "Sample the internal analog-to-digital converter (ADC) to measure instantaneous VDD rail voltage.",
+        "Sample internal ADC to measure instantaneous voltage on the primary 3.3V rail. Returns measured voltage without changing electrical state.",
       inputSchema: {
         type: "object",
         properties: {},
@@ -107,12 +107,72 @@ export class CapabilityRegistry {
       },
     }));
 
-    // 5. run_relay_stress_test (Amber / Actuation — ExperimentRunner)
+    // 5. scan_i2c_bus (Green / ReadOnly)
+    this.registerFactory("scan_i2c_bus", (adapter) => ({
+      name: "scan_i2c_bus",
+      title: "Scan I2C Bus",
+      description:
+        "Probe the active I²C bus for responding 7-bit addresses. Returns observed ACK addresses only. Does not infer device identity or modify bus configuration.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      annotations: {
+        readOnlyHint: true,
+      },
+      execute: async (_input, _options) => {
+        const result = await adapter.executeCapability("scan_i2c_bus");
+        return result.data;
+      },
+    }));
+
+    // 6. read_sensor_status (Green / ReadOnly)
+    this.registerFactory("read_sensor_status", (adapter) => ({
+      name: "read_sensor_status",
+      title: "Read Sensor Status",
+      description:
+        "Query firmware environmental sensor status register. Returns configured target bus address, transaction outcome (ACK/NACK/BUS_ERROR), and telemetry reading if available.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      annotations: {
+        readOnlyHint: true,
+      },
+      execute: async (_input, _options) => {
+        const result = await adapter.executeCapability("read_sensor_status");
+        return result.data;
+      },
+    }));
+
+    // 7. read_i2c_line_state (Green / ReadOnly)
+    this.registerFactory("read_i2c_line_state", (adapter) => ({
+      name: "read_i2c_line_state",
+      title: "Read I2C Line State",
+      description:
+        "Sample electrical logic levels on I²C clock (SCL) and data (SDA) lines. Detects pullup status and floating/open line faults without modifying bus state.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      annotations: {
+        readOnlyHint: true,
+      },
+      execute: async (_input, _options) => {
+        const result = await adapter.executeCapability("read_i2c_line_state");
+        return result.data;
+      },
+    }));
+
+    // 8. run_relay_stress_test (Amber / Actuation — ExperimentRunner)
     this.registerFactory("run_relay_stress_test", (adapter, runner) => ({
       name: "run_relay_stress_test",
       title: "Run Relay Stress Test",
       description:
-        "Actuate the onboard relay under inrush load to test power supply rail stability and detect load-induced brownout resets.",
+        "Briefly actuate the cooling-fan relay while sampling the MCU supply rail. May reproduce a physical reset. Requires human authorization.",
       inputSchema: {
         type: "object",
         properties: {

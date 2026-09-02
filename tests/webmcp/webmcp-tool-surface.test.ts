@@ -47,12 +47,15 @@ describe("WebMCP Tool Surface — Protocol & Security Regression Tests", () => {
         "read_reset_history",
         "read_system_health",
         "measure_supply_voltage",
+        "scan_i2c_bus",
+        "read_sensor_status",
+        "read_i2c_line_state",
         "run_relay_stress_test",
       ]);
 
       // 3. Discover registered tools via WebMCP getTools()
       const registeredTools = await modelContext.getTools();
-      expect(registeredTools.length).toBe(5);
+      expect(registeredTools.length).toBe(8);
 
       const toolNames = registeredTools.map((t) => t.name);
       expect(toolNames).toContain("read_device_info");
@@ -125,7 +128,7 @@ describe("WebMCP Tool Surface — Protocol & Security Regression Tests", () => {
       // Check read_reset_history metadata
       const resetTool = tools.find((t) => t.name === "read_reset_history");
       expect(resetTool).toBeDefined();
-      expect(resetTool?.description).toContain("reset causes");
+      expect(resetTool?.description).toContain("reset");
       expect(resetTool?.annotations?.readOnlyHint).toBe(true);
       expect(resetTool?.inputSchema).toMatchObject({
         type: "object",
@@ -165,7 +168,7 @@ describe("WebMCP Tool Surface — Protocol & Security Regression Tests", () => {
       const session = await registrar.registerDevice(adapter);
 
       const toolsBefore = await modelContext.getTools();
-      expect(toolsBefore.length).toBe(5);
+      expect(toolsBefore.length).toBe(8);
 
       // Aborting the session registration controller tears down the tools
       session.abortController.abort();
@@ -311,12 +314,13 @@ describe("WebMCP Tool Surface — Protocol & Security Regression Tests", () => {
       await registrar.registerDevice(adapter);
 
       // 5 tools registered -> 5 toolchange events dispatched
-      expect(toolchangeCount).toBe(5);
+      // 8 tools registered -> 8 toolchange events dispatched
+      expect(toolchangeCount).toBe(8);
 
       registrar.unregisterDevice(adapter);
 
-      // 5 tools removed -> 5 toolchange events dispatched
-      expect(toolchangeCount).toBe(10);
+      // 8 tools removed -> 8 toolchange events dispatched
+      expect(toolchangeCount).toBe(16);
 
       modelContext.removeEventListener("toolchange", listener);
     });

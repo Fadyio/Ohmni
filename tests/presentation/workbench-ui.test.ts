@@ -51,18 +51,21 @@ describe("Milestone 4 — Workbench UI & WebMCP Presentation Contracts", () => {
     expect(virtualDevice.isConnected()).toBe(false);
   });
 
-  it("2. Connecting virtual device updates tool count to 5 WebMCP tools", async () => {
+  it("2. Connecting virtual device updates tool count to 8 WebMCP tools", async () => {
     await virtualDevice.connect();
     await toolRegistrar.registerDevice(virtualDevice);
 
     const tools = await modelContext.getTools();
-    expect(tools.length).toBe(5);
+    expect(tools.length).toBe(8);
 
     const toolNames = tools.map((t) => t.name);
     expect(toolNames).toContain("read_device_info");
     expect(toolNames).toContain("read_reset_history");
     expect(toolNames).toContain("read_system_health");
     expect(toolNames).toContain("measure_supply_voltage");
+    expect(toolNames).toContain("scan_i2c_bus");
+    expect(toolNames).toContain("read_sensor_status");
+    expect(toolNames).toContain("read_i2c_line_state");
     expect(toolNames).toContain("run_relay_stress_test");
   });
 
@@ -149,7 +152,7 @@ describe("Milestone 4 — Workbench UI & WebMCP Presentation Contracts", () => {
   it("7. Device disconnect returns UI to disconnected state and unregisters tools", async () => {
     await virtualDevice.connect();
     await toolRegistrar.registerDevice(virtualDevice);
-    expect((await modelContext.getTools()).length).toBe(5);
+    expect((await modelContext.getTools()).length).toBe(8);
 
     await virtualDevice.disconnect();
     toolRegistrar.unregisterDevice(virtualDevice);
