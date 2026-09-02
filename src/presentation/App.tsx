@@ -9,6 +9,7 @@ import type { DeviceToolRegistrar } from "@/infrastructure/webmcp/device-tool-re
 import type { ITelemetryEventBus } from "@/domain/telemetry/bus";
 import type { ExperimentRunner } from "@/domain/experiment/runner";
 import type { EvidenceStore } from "@/domain/evidence/store";
+import type { HypothesisStore } from "@/domain/hypothesis/store";
 
 import { WorkbenchLayout } from "./components/layout/WorkbenchLayout";
 import { TopBar } from "./components/layout/TopBar";
@@ -17,7 +18,7 @@ import { Oscilloscope } from "./components/instruments/Oscilloscope";
 import { MetricStrip } from "./components/instruments/MetricStrip";
 import { ExperimentStatusCard } from "./components/instruments/ExperimentStatusCard";
 import { EventTimeline } from "./components/timeline/EventTimeline";
-import { EvidenceLedger } from "./components/investigation/EvidenceLedger";
+import { InvestigationPanel } from "./components/investigation/InvestigationPanel";
 import { VirtualBenchControls } from "./components/controls/VirtualBenchControls";
 import { useDeviceState } from "./hooks/useDeviceState";
 import { useExperimentTimeline } from "./hooks/useExperimentTimeline";
@@ -31,16 +32,16 @@ export interface AppProps {
   readonly telemetryBus?: ITelemetryEventBus;
   readonly experimentRunner?: ExperimentRunner;
   readonly evidenceStore?: EvidenceStore;
+  readonly hypothesisStore?: HypothesisStore;
 }
-
 export const App: React.FC<AppProps> = ({
   deviceAdapter,
   toolRegistrar,
   telemetryBus,
   experimentRunner,
   evidenceStore,
+  hypothesisStore,
 }) => {
-  // Resolve instances from props or window globals
   const resolvedAdapter = useMemo(() => {
     return deviceAdapter ?? (typeof window !== "undefined" ? window.__virtualDevice : undefined);
   }, [deviceAdapter]);
@@ -61,8 +62,19 @@ export const App: React.FC<AppProps> = ({
     );
   }, [evidenceStore, experimentRunner]);
 
+  const resolvedHypothesisStore = useMemo(() => {
+    return (
+      hypothesisStore ??
+      (typeof window !== "undefined"
+        ? (window as unknown as { __hypothesisStore?: HypothesisStore }).__hypothesisStore
+        : undefined)
+    );
+  }, [hypothesisStore]);
+
   const [selectedEvidenceId, setSelectedEvidenceId] = React.useState<string | null>(null);
+  const [selectedHypothesisId, setSelectedHypothesisId] = React.useState<string | null>(null);
   const [highlightedExperimentId, setHighlightedExperimentId] = React.useState<string | null>(null);
+
   // Hook subscriptions
   const {
     isConnected,
@@ -74,7 +86,6 @@ export const App: React.FC<AppProps> = ({
     connect,
     disconnect,
   } = useDeviceState(resolvedAdapter);
-
   const {
     activeExperimentId,
     experimentStatus,
@@ -158,14 +169,19 @@ export const App: React.FC<AppProps> = ({
         </>
       }
       rightPanel={
-        <EvidenceLedger
+        <InvestigationPanel
           evidenceStore={resolvedEvidenceStore}
+          hypothesisStore={resolvedHypothesisStore}
           selectedEvidenceId={selectedEvidenceId}
           onSelectEvidence={(record) => {
             setSelectedEvidenceId(record ? record.id : null);
             if (record?.experimentId) {
               setHighlightedExperimentId(record.experimentId);
             }
+          }}
+          selectedHypothesisId={selectedHypothesisId}
+          onSelectHypothesis={(h) => {
+            setSelectedHypothesisId(h ? h.id : null);
           }}
           highlightedExperimentId={highlightedExperimentId}
           onHighlightExperiment={setHighlightedExperimentId}

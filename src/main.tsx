@@ -15,6 +15,8 @@ import { InMemoryExperimentStore } from "@/domain/experiment/store";
 import { ExperimentRunner } from "@/domain/experiment/runner";
 import type { EvidenceStore } from "@/domain/evidence/store";
 import { registerEvidenceTools } from "@/infrastructure/webmcp/evidence-tools";
+import { InMemoryHypothesisStore, type HypothesisStore } from "@/domain/hypothesis/store";
+import { registerHypothesisTools } from "@/infrastructure/webmcp/hypothesis-tools";
 import { App } from "@/presentation/App";
 declare global {
   interface Window {
@@ -23,6 +25,7 @@ declare global {
     __telemetryBus?: TelemetryEventBus;
     __experimentStore?: InMemoryExperimentStore;
     __evidenceStore?: EvidenceStore;
+    __hypothesisStore?: HypothesisStore;
     __experimentRunner?: ExperimentRunner;
     __modelContext?: InMemoryModelContext;
   }
@@ -52,12 +55,15 @@ const experimentRunner = new ExperimentRunner({
   store: experimentStore,
 });
 const evidenceStore = experimentRunner.getEvidenceStore();
+const hypothesisStore = new InMemoryHypothesisStore(evidenceStore);
 
-// Register read-only investigation evidence tools (list_evidence, get_evidence)
+// Register investigation tools (evidence & hypothesis synthesis)
 registerEvidenceTools(modelContext, evidenceStore).catch((err) => {
   console.error("[Ohmni] Failed to register WebMCP evidence tools:", err);
 });
-
+registerHypothesisTools(modelContext, hypothesisStore).catch((err) => {
+  console.error("[Ohmni] Failed to register WebMCP hypothesis tools:", err);
+});
 // 3. Initialize Virtual Device & Tool Registrar
 const virtualDevice = new VirtualDeviceAdapter();
 const capabilityRegistry = new CapabilityRegistry(experimentRunner);
@@ -69,6 +75,7 @@ if (typeof window !== "undefined") {
   window.__telemetryBus = telemetryBus;
   window.__experimentStore = experimentStore;
   window.__evidenceStore = evidenceStore;
+  window.__hypothesisStore = hypothesisStore;
   window.__experimentRunner = experimentRunner;
   if (modelContext instanceof InMemoryModelContext) {
     window.__modelContext = modelContext;
@@ -88,6 +95,7 @@ if (typeof document !== "undefined") {
           telemetryBus={telemetryBus}
           experimentRunner={experimentRunner}
           evidenceStore={evidenceStore}
+          hypothesisStore={hypothesisStore}
         />
       </React.StrictMode>
     );
