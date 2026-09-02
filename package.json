@@ -12,12 +12,16 @@
     "test:chrome": "bun run scripts/test-chrome.ts",
     "test:motion": "bun run scripts/test-motion.ts",
     "record:motion": "bun run scripts/record-motion.ts",
+    "test:mystery": "bun run scripts/test-mystery.ts",
+    "test:chaos": "bun run scripts/test-chaos.ts",
+    "test:visual": "bun run scripts/test-visual.ts",
     "test:agent:live": "bun run scripts/test-agent-live.ts",
     "test:agent:supervised-ui": "bun run scripts/test-agent-supervised-ui.ts",
     "test:agent:vercel": "bun run scripts/test-agent-vercel.ts",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit",
     "verify": "bun test && bun run typecheck && bun run build",
+    "release:verify": "bun run verify && bun run test:chrome && bun run test:motion && bun run test:mystery && bun run test:chaos && bun run test:visual",
     "smoke": "bun run scripts/smoke.ts"
   },
   "devDependencies": {

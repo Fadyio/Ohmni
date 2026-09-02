@@ -150,6 +150,10 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
     };
   }
 
+  public subscriberCount(): number {
+    return this.subscribers.size;
+  }
+
   private emit(event: DeviceEvent): void {
     for (const subscriber of this.subscribers) {
       subscriber(event);

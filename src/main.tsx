@@ -60,8 +60,10 @@ if (typeof document !== "undefined" && !isNativeWebMCP) {
 
 if (typeof window !== "undefined") {
   window.__webmcpMode = isNativeWebMCP ? "native" : "compatibility";
+  const sha = (import.meta.env.VITE_BUILD_SHA as string) || "development";
+  window.__OHMNI_BUILD_SHA__ = sha;
   window.__buildInfo = {
-    commitSha: (import.meta.env.VITE_BUILD_SHA as string) || "development",
+    commitSha: sha,
   };
 }
 // 2. Initialize Telemetry & Experiment Pipeline

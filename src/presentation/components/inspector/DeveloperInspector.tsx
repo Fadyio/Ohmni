@@ -42,10 +42,9 @@ export const DeveloperInspector: React.FC<DeveloperInspectorProps> = ({
 }) => {
   const [copiedSnippet, setCopiedSnippet] = useState(false);
   const buildSha =
-    typeof window !== "undefined" && window.__OHMNI_BUILD_SHA__
-      ? window.__OHMNI_BUILD_SHA__
-      : "172ee0f";
-
+    (typeof window !== "undefined" && window.__OHMNI_BUILD_SHA__) ||
+    (import.meta.env.VITE_BUILD_SHA as string) ||
+    "development";
   const copySnippet = () => {
     navigator.clipboard.writeText("await document.modelContext.getTools()");
     setCopiedSnippet(true);

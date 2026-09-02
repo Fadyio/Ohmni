@@ -300,18 +300,45 @@ export const App: React.FC<AppProps> = ({
         const gt = activeScenario.revealGroundTruth();
         setRevealedGroundTruth(gt);
 
-        const match = matchDiagnosis(
-          gt,
-          activeHypothesis.title,
-          activeHypothesis.description,
-          (activeHypothesis as unknown as Record<string, unknown>).rootCauseCategory as string | undefined
-        );
+        const rootCause =
+          activeHypothesis && "rootCauseCategory" in activeHypothesis && typeof activeHypothesis.rootCauseCategory === "string"
+            ? activeHypothesis.rootCauseCategory
+            : undefined;
+        const match = matchDiagnosis(gt, activeHypothesis.title, activeHypothesis.description, rootCause);
         setMatchResult(match);
+        setViewMode("reveal");
       } catch (err) {
         console.error("Error revealing ground truth:", err);
       }
     }
   }, [activeHypothesis, activeScenario, viewMode]);
+
+  // Action: Manual Ground Truth Reveal (Condition B: Forfeit/End investigation)
+  const handleManualReveal = useCallback(() => {
+    if (activeScenario && viewMode !== "reveal") {
+      try {
+        const gt = activeScenario.revealGroundTruth();
+        setRevealedGroundTruth(gt);
+        const rootCause =
+          activeHypothesis && "rootCauseCategory" in activeHypothesis && typeof activeHypothesis.rootCauseCategory === "string"
+            ? activeHypothesis.rootCauseCategory
+            : undefined;
+        const match = activeHypothesis
+          ? matchDiagnosis(gt, activeHypothesis.title, activeHypothesis.description, rootCause)
+          : { isMatch: false, score: 0, reason: "Investigation ended before empirical verification.", matchedTags: [] };
+        setMatchResult(match);
+        setViewMode("reveal");
+      } catch (err) {
+        console.error("Error manually revealing ground truth:", err);
+      }
+    }
+  }, [activeScenario, viewMode, activeHypothesis]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as unknown as { __revealGroundTruth?: () => void }).__revealGroundTruth = handleManualReveal;
+    }
+  }, [handleManualReveal]);
 
   // Action: Run another mystery
   const handleRunAnotherMystery = useCallback(() => {

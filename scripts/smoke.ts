@@ -45,6 +45,30 @@ async function runSmokeTest(): Promise<void> {
 
   const html = await response.text();
   console.info(`[Smoke Test] Step 1 PASS: HTTP ${response.status}, length ${html.length} bytes`);
+  // 1b. Verify Deployment Truth & Build SHA (Phase 19)
+  const buildInfoUrl = new URL("/build-info.json", targetUrl).toString();
+  console.info(`[Smoke Test] Step 1b: Requesting ${buildInfoUrl}...`);
+  let loadedSha = "unknown";
+  try {
+    const buildInfoRes = await fetch(buildInfoUrl);
+    if (buildInfoRes.ok) {
+      const buildInfo = (await buildInfoRes.json()) as { buildSha?: string };
+      loadedSha = buildInfo.buildSha || "unknown";
+    }
+  } catch (err) {
+    console.warn(`[Smoke Test] Warning: Failed to fetch /build-info.json: ${err}`);
+  }
+
+  const expectedSha = process.env.EXPECTED_SHA || process.env.VITE_BUILD_SHA || "unknown";
+  console.info(`--------------------------------------------------`);
+  console.info(`TARGET URL:   ${targetUrl}`);
+  console.info(`LOADED SHA:   ${loadedSha}`);
+  console.info(`EXPECTED SHA: ${expectedSha}`);
+  console.info(`--------------------------------------------------`);
+
+  if (expectedSha !== "unknown" && loadedSha !== "unknown" && loadedSha !== expectedSha) {
+    throw new Error(`Deployment build SHA mismatch! Loaded: ${loadedSha}, Expected: ${expectedSha}`);
+  }
 
   // 2. Verify Application Root
   console.info("[Smoke Test] Step 2: Checking application root element (#app)...");
@@ -52,7 +76,6 @@ async function runSmokeTest(): Promise<void> {
     throw new Error('Application root element (<div id="app">) not found in returned HTML');
   }
   console.info("[Smoke Test] Step 2 PASS: Application root container confirmed.");
-
   // 3. Extract and Verify Linked JS / CSS Assets
   console.info("[Smoke Test] Step 3: Discovering and verifying referenced static assets...");
   const assetRegex = /(?:src|href)=["'](\/assets\/[^"']+)["']/g;
