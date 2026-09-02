@@ -1,31 +1,35 @@
 /**
  * Top Status Bar Component.
- * Milestone 7.13 — Visual Rescue: 3D OHMNI Identity + Cohesive Product UI
+ * Master Milestone 8 — Precision Workbench Header.
  *
  * Displays compact 3D OHMNI Wordmark, contextual target hardware metadata,
- * real-time connection status, and WebMCP capability drawer.
+ * sealed scenario badge, real-time connection status, and WebMCP capability drawer.
  */
 
 import React, { useState } from "react";
-import { motion } from "motion/react";
-import { Radio, Sliders, Cpu, Bot, CheckCircle2, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Radio, Sliders, Cpu, Bot, CheckCircle2, AlertTriangle, ShieldCheck, Lock, Terminal } from "lucide-react";
 import type { DeviceDescriptor } from "@/domain/device/descriptor";
+import type { ScenarioSession } from "@/domain/scenario/types";
 import { useWebMCPTools } from "../../hooks/useWebMCPTools";
 import { WebMCPCapabilityDrawer } from "./WebMCPCapabilityDrawer";
 import { Ohmni3DWordmark } from "../brand/Ohmni3DWordmark";
 
-interface TopBarProps {
+export interface TopBarProps {
   readonly isConnected: boolean;
   readonly descriptor: DeviceDescriptor | null;
-  readonly statusVisual: "nominal" | "reset" | "disconnected";
+  readonly statusVisual?: "nominal" | "reset" | "disconnected";
+  readonly activeScenario?: ScenarioSession | null;
   readonly onToggleConnect?: () => void;
+  readonly onOpenDevInspector?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
   isConnected,
   descriptor,
-  statusVisual,
+  statusVisual = "nominal",
+  activeScenario,
   onToggleConnect,
+  onOpenDevInspector,
 }) => {
   const { tools, toolCount, isNative, isDiscovering } = useWebMCPTools();
   const [inspectorOpen, setInspectorOpen] = useState<boolean>(false);
@@ -45,7 +49,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           padding: "0.75rem 2.25rem",
           background: "var(--ohmni-lab-nav, rgba(255, 255, 255, 0.88))",
           backdropFilter: "blur(12px)",
-          borderBottom: "1px solid var(--ohmni-lab-border)",
+          borderBottom: "1px solid var(--ohmni-lab-border, #E2E4E9)",
           flex: "none",
           zIndex: 10,
         }}
@@ -56,7 +60,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             <Ohmni3DWordmark variant="compact" />
           </div>
 
-          <div style={{ height: "18px", width: "1px", background: "var(--ohmni-lab-border)" }} />
+          <div style={{ height: "18px", width: "1px", background: "var(--ohmni-lab-border, #E2E4E9)" }} />
 
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span
@@ -65,21 +69,45 @@ export const TopBar: React.FC<TopBarProps> = ({
                 height: "7px",
                 borderRadius: "50%",
                 background: isReset
-                  ? "var(--ohmni-lab-fault)"
+                  ? "var(--ohmni-lab-fault, #DC5050)"
                   : isConnected
-                  ? "var(--ohmni-lab-verified)"
-                  : "var(--ohmni-lab-muted)",
+                  ? "var(--ohmni-lab-verified, #27966B)"
+                  : "var(--ohmni-lab-muted, #64748B)",
                 boxShadow: isConnected && !isReset ? "0 0 8px rgba(39, 150, 107, 0.5)" : "none",
               }}
             />
-            <span className="font-mono" style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-lab-text)" }}>
+            <span className="font-mono" style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-lab-text, #0F172A)" }}>
               {deviceName}
             </span>
           </div>
         </div>
 
-        {/* Center: WebMCP Mesh & Dynamic Status */}
+        {/* Center: Sealed Ground Truth & WebMCP Mesh Status */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {/* Sealed Fault Badge */}
+          {activeScenario && (
+            <span
+              data-testid="sealed-fault-badge"
+              title="The scenario state is held outside the model/tool context and is revealed only after verification."
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "4px 10px",
+                borderRadius: "var(--radius-full, 9999px)",
+                background: activeScenario.isSealed ? "rgba(15, 23, 42, 0.05)" : "rgba(39, 150, 107, 0.1)",
+                border: `1px solid ${activeScenario.isSealed ? "rgba(15, 23, 42, 0.15)" : "rgba(39, 150, 107, 0.3)"}`,
+                color: activeScenario.isSealed ? "var(--ohmni-lab-secondary, #64748B)" : "var(--ohmni-lab-verified, #27966B)",
+                fontSize: "11px",
+                fontWeight: 700,
+                cursor: "help",
+              }}
+            >
+              <Lock size={12} />
+              <span>{activeScenario.isSealed ? "SEALED FAULT" : "VERIFIED FAULT"}</span>
+            </span>
+          )}
+
           <span
             data-testid="webmcp-mode-badge"
             style={{
@@ -87,10 +115,10 @@ export const TopBar: React.FC<TopBarProps> = ({
               alignItems: "center",
               gap: "6px",
               padding: "4px 12px",
-              borderRadius: "var(--radius-full)",
+              borderRadius: "var(--radius-full, 9999px)",
               background: isNative ? "rgba(39, 150, 107, 0.08)" : "rgba(18, 21, 26, 0.04)",
-              border: `1px solid ${isNative ? "rgba(39, 150, 107, 0.25)" : "var(--ohmni-lab-border)"}`,
-              color: isNative ? "var(--ohmni-lab-verified)" : "var(--ohmni-lab-muted)",
+              border: `1px solid ${isNative ? "rgba(39, 150, 107, 0.25)" : "var(--ohmni-lab-border, #E2E4E9)"}`,
+              color: isNative ? "var(--ohmni-lab-verified, #27966B)" : "var(--ohmni-lab-muted, #64748B)",
               fontSize: "11px",
               fontWeight: 600,
             }}
@@ -106,22 +134,43 @@ export const TopBar: React.FC<TopBarProps> = ({
               alignItems: "center",
               gap: "6px",
               padding: "4px 12px",
-              borderRadius: "var(--radius-full)",
+              borderRadius: "var(--radius-full, 9999px)",
               background: "rgba(73, 103, 255, 0.08)",
               border: "1px solid rgba(73, 103, 255, 0.25)",
-              color: "var(--ohmni-lab-brand)",
+              color: "var(--ohmni-lab-brand, #4967FF)",
               fontSize: "11px",
               fontWeight: 700,
             }}
           >
             <Bot size={12} />
-            <span>DEMO AGENT</span>
+            <span>BENCH AGENT</span>
           </span>
         </div>
 
         {/* Right: Technical Inspector & Connection Toggle */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {onOpenDevInspector && (
+            <button
+              type="button"
+              data-testid="open-dev-inspector-btn"
+              onClick={onOpenDevInspector}
+              className="btn-secondary"
+              title="Developer Inspector [Cmd+Shift+D]"
+              style={{
+                padding: "6px 10px",
+                fontSize: "12px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              <Terminal size={13} color="var(--ohmni-lab-brand, #4967FF)" />
+              <span>Inspector</span>
+            </button>
+          )}
+
           <button
+            type="button"
             onClick={() => setInspectorOpen(true)}
             className="btn-secondary"
             style={{
@@ -129,12 +178,13 @@ export const TopBar: React.FC<TopBarProps> = ({
               fontSize: "12px",
             }}
           >
-            <Radio size={13} color="var(--ohmni-lab-brand)" />
+            <Radio size={13} color="var(--ohmni-lab-brand, #4967FF)" />
             <span>WebMCP Tools ({toolCount})</span>
           </button>
 
           {onToggleConnect && (
             <button
+              type="button"
               onClick={onToggleConnect}
               className="btn-secondary"
               style={{

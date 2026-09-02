@@ -1,26 +1,27 @@
 /**
  * State 1 — World 1 (Editorial Intro Experience).
- * Milestone 7.13 — Visual Rescue: 3D OHMNI Identity + Cohesive Product UI
+ * Master Milestone 8 — Blind Hardware Investigation Mode
  *
  * Requirements:
- * - Dimensional 3D OHMNI Wordmark as the central brand anchor (~120–170px tall on desktop).
+ * - Dimensional 3D OHMNI Wordmark as the central brand anchor (~25-30% visual weight).
  * - Background: #F5F6F8 (Cohesive light canvas)
  * - Headline:
  *     Your AI can debug code.
  *     Now let it debug hardware.
  * - Subtext:
  *     Ohmni gives agents live diagnostic instruments to measure, test and verify physical devices.
- * - CTAs: [ Diagnose the demo device ] & [ Connect hardware ]
- * - Physical hardware composition with layered depth and micro-parallax.
+ * - Primary CTA: [ Start Mystery Diagnosis ]
+ * - Secondary CTAs: [ Explore Brownout Demo ] & [ Connect Hardware ]
  */
 
 import React from "react";
-import { ArrowRight, Zap, ShieldCheck, Activity, Cpu } from "lucide-react";
+import { ArrowRight, Zap, ShieldCheck, Activity, Cpu, Lock, Sparkles } from "lucide-react";
 import { Ohmni3DWordmark } from "../brand/Ohmni3DWordmark";
 import { AuthoredHardwareIllustration } from "./AuthoredHardwareIllustration";
 import { useWebMCPTools } from "../../hooks/useWebMCPTools";
 
 export interface WelcomeViewProps {
+  readonly onStartMystery?: () => void;
   readonly onStartDemo: () => void;
   readonly onConnectHardware: () => void;
   readonly heroTextRef?: React.RefObject<HTMLDivElement | null>;
@@ -30,6 +31,7 @@ export interface WelcomeViewProps {
 }
 
 export const WelcomeView: React.FC<WelcomeViewProps> = ({
+  onStartMystery,
   onStartDemo,
   onConnectHardware,
   heroTextRef,
@@ -37,7 +39,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
   ctaButtonRef,
   wordmarkRef,
 }) => {
-  const { toolCount } = useWebMCPTools();
+  const { toolCount, isNative } = useWebMCPTools();
 
   return (
     <div
@@ -50,8 +52,8 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        background: "var(--ohmni-intro-bg)",
-        color: "var(--ohmni-intro-ink)",
+        background: "var(--ohmni-intro-bg, #F5F6F8)",
+        color: "var(--ohmni-intro-ink, #12151A)",
         overflowY: "auto",
         overflowX: "hidden",
         position: "relative",
@@ -76,11 +78,11 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
               fontSize: "12px",
               fontWeight: 700,
               letterSpacing: "0.08em",
-              color: "var(--ohmni-intro-secondary)",
+              color: "var(--ohmni-intro-secondary, #525866)",
               textTransform: "uppercase",
             }}
           >
-            PRECISION INSTRUMENT MESH
+            PRECISION HARDWARE INSTRUMENT MESH
           </span>
         </div>
 
@@ -92,12 +94,12 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
               alignItems: "center",
               gap: "7px",
               padding: "5px 14px",
-              borderRadius: "var(--radius-full)",
-              background: "var(--ohmni-intro-surface)",
-              border: "1px solid var(--ohmni-intro-border)",
+              borderRadius: "var(--radius-full, 9999px)",
+              background: "var(--ohmni-intro-surface, #FFFFFF)",
+              border: "1px solid var(--ohmni-intro-border, #E2E4E9)",
               fontSize: "12.5px",
               fontWeight: 600,
-              color: "var(--ohmni-intro-ink)",
+              color: "var(--ohmni-intro-ink, #12151A)",
               boxShadow: "var(--shadow-sm)",
             }}
           >
@@ -106,11 +108,11 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 width: "7px",
                 height: "7px",
                 borderRadius: "50%",
-                background: "var(--ohmni-intro-brand)",
+                background: "var(--ohmni-intro-brand, #4967FF)",
                 boxShadow: "0 0 6px rgba(73, 103, 255, 0.6)",
               }}
             />
-            WebMCP Instrument Mesh • {toolCount > 0 ? `${toolCount} Instruments Active` : "Active"}
+            {isNative ? "Native WebMCP Mesh" : "WebMCP Compatibility Mode"} • {toolCount > 0 ? `${toolCount} Instruments` : "Active"}
           </span>
         </div>
       </header>
@@ -172,14 +174,14 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   fontWeight: 800,
                   lineHeight: 1.12,
                   letterSpacing: "-0.03em",
-                  color: "var(--ohmni-intro-ink)",
+                  color: "var(--ohmni-intro-ink, #12151A)",
                   margin: 0,
                 }}
               >
-                Your AI can debug code.
+                AI can debug your code.
                 <br />
-                <span style={{ color: "var(--ohmni-intro-brand)" }}>
-                  Now let it debug hardware.
+                <span style={{ color: "var(--ohmni-intro-brand, #4967FF)" }}>
+                  Now it can investigate your board.
                 </span>
               </h1>
 
@@ -187,43 +189,64 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 style={{
                   fontSize: "16.5px",
                   lineHeight: 1.6,
-                  color: "var(--ohmni-intro-secondary)",
+                  color: "var(--ohmni-intro-secondary, #525866)",
                   margin: "8px 0 0",
                   maxWidth: "540px",
                 }}
               >
-                Ohmni gives agents live diagnostic instruments to measure, test and verify physical devices.
+                Ohmni gives an AI agent safe browser-native instruments to measure, test, and experimentally verify physical hardware.
               </p>
             </div>
 
             {/* Action CTAs */}
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "14px", marginTop: "4px" }}>
+              {/* Primary Winning Demo CTA: Start Mystery Diagnosis */}
               <button
                 ref={ctaButtonRef}
-                data-testid="diagnose-demo-btn"
-                id="diagnose-demo-btn"
-                onClick={onStartDemo}
+                data-testid="start-mystery-btn"
+                id="start-mystery-btn"
+                onClick={onStartMystery ?? onStartDemo}
                 className="btn-primary"
                 style={{
                   padding: "14px 28px",
                   fontSize: "15.5px",
+                  fontWeight: 800,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
                 }}
               >
-                <span>Diagnose the demo device</span>
+                <Lock size={16} />
+                <span>Start a blind diagnosis</span>
                 <ArrowRight size={17} />
               </button>
 
+              {/* Secondary Demo CTA: Deterministic Brownout */}
+              <button
+                data-testid="diagnose-demo-btn"
+                id="diagnose-demo-btn"
+                onClick={onStartDemo}
+                className="btn-secondary"
+                style={{
+                  padding: "14px 20px",
+                  fontSize: "14.5px",
+                }}
+              >
+                <span>Explore Brownout Demo</span>
+              </button>
+
+              {/* Secondary CTA: Connect Hardware */}
               <button
                 data-testid="connect-hardware-btn"
                 onClick={onConnectHardware}
                 className="btn-secondary"
                 style={{
-                  padding: "14px 24px",
-                  fontSize: "15px",
+                  padding: "14px 20px",
+                  fontSize: "14.5px",
                 }}
               >
-                <Zap size={16} color="var(--ohmni-intro-brand)" />
-                <span>Connect hardware</span>
+                <Zap size={16} color="var(--ohmni-intro-brand, #4967FF)" />
+                <span>Connect Hardware</span>
               </button>
             </div>
 
@@ -234,24 +257,24 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 alignItems: "center",
                 gap: "18px",
                 marginTop: "6px",
-                color: "var(--ohmni-intro-secondary)",
+                color: "var(--ohmni-intro-secondary, #525866)",
                 fontSize: "12.5px",
                 fontWeight: 500,
               }}
             >
               <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                <ShieldCheck size={14} color="var(--ohmni-lab-verified)" />
+                <ShieldCheck size={14} color="var(--ohmni-lab-verified, #27966B)" />
                 Native WebMCP
               </span>
               <span>•</span>
               <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                <Activity size={14} color="var(--ohmni-lab-warning)" />
-                Amber Safety Bounds
+                <Activity size={14} color="var(--ohmni-lab-warning, #D97706)" />
+                Amber Physical Safety
               </span>
               <span>•</span>
               <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                <Cpu size={14} color="var(--ohmni-intro-brand)" />
-                60fps Oscilloscope
+                <Cpu size={14} color="var(--ohmni-intro-brand, #4967FF)" />
+                Sealed Ground Truth
               </span>
             </div>
           </div>

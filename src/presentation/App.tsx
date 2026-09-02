@@ -1,12 +1,14 @@
 /**
  * Root Application Component for OHMNI Hardware Diagnostic Workbench.
+ * Master Milestone 8 — Blind Hardware Investigation + Product Hardening + Judge-Ready Release.
  *
- * Implements the 3 Core Experience States:
- * 1. World 1: Welcome View (Editorial Narrative + Floating Hardware Composition)
- * 2. World 2: Investigation Lab Mode (75% Live Scene + 25% Chronological Narrative)
- * 3. State 3: Repair Verification Scene (Physical Jumper Interaction + Split-Scope Comparison)
- *
- * Choreographed with GSAP landing-to-lab timeline transitions.
+ * Implements the Core Product Workflow:
+ * 1. World 1: Welcome View (Editorial Narrative + 3D Brand Anchor)
+ * 2. Mystery Intro: Cryptographically Sealed Ground Truth + Public Symptom
+ * 3. World 2: Investigation Lab Mode (70% Live Scene + 30% Chronological Narrative)
+ * 4. Human Intervention & Repair: First-Class Physical Manipulation + Continuation
+ * 5. Ground Truth Reveal: Final Payoff comparing unsealed ground truth with agent diagnosis.
+ * 6. Developer Inspector: Protocol compliance & modelContext proof [Cmd+Shift+D].
  */
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
@@ -16,10 +18,15 @@ import type { ITelemetryEventBus } from "@/domain/telemetry/bus";
 import type { ExperimentRunner } from "@/domain/experiment/runner";
 import type { EvidenceStore } from "@/domain/evidence/store";
 import type { HypothesisStore } from "@/domain/hypothesis/store";
+import type { ScenarioSession, ScenarioGroundTruth, ScenarioId } from "@/domain/scenario/types";
 
 import { WelcomeView } from "./components/welcome/WelcomeView";
 import { InvestigationStoryView } from "./components/investigation-story/InvestigationStoryView";
 import { RepairVerificationScene } from "./components/repair/RepairVerificationScene";
+import { MysteryIntroModal } from "./components/mystery/MysteryIntroModal";
+import { GroundTruthRevealScene } from "./components/mystery/GroundTruthRevealScene";
+import { DeveloperInspector } from "./components/inspector/DeveloperInspector";
+
 import { useDeviceState } from "./hooks/useDeviceState";
 import { useExperimentTimeline } from "./hooks/useExperimentTimeline";
 import { useOscilloscopeBuffer } from "./hooks/useOscilloscopeBuffer";
@@ -27,6 +34,9 @@ import { useBenchAgent } from "./hooks/useBenchAgent";
 import { useEvidenceStore } from "./hooks/useEvidenceStore";
 import { useHypothesisStore } from "./hooks/useHypothesisStore";
 import { useLandingToLabTransition } from "./hooks/useLandingToLabTransition";
+import { useWebMCPTools } from "./hooks/useWebMCPTools";
+
+import { createScenarioSession, startMysteryScenario, matchDiagnosis, type DiagnosisMatchResult } from "@/domain/scenario";
 
 import "./theme/tokens.css";
 
@@ -72,8 +82,17 @@ export const App: React.FC<AppProps> = ({
     return undefined;
   }, [hypothesisStore]);
 
-  // View state: "welcome" | "investigation" | "repair"
-  const [viewMode, setViewMode] = useState<"welcome" | "investigation" | "repair">("welcome");
+  // View mode: "welcome" | "investigation" | "repair" | "reveal"
+  const [viewMode, setViewMode] = useState<"welcome" | "investigation" | "repair" | "reveal">("welcome");
+
+  // Mystery Scenario State
+  const [activeScenario, setActiveScenario] = useState<ScenarioSession | null>(null);
+  const [showMysteryIntro, setShowMysteryIntro] = useState<boolean>(false);
+  const [revealedGroundTruth, setRevealedGroundTruth] = useState<ScenarioGroundTruth | null>(null);
+  const [matchResult, setMatchResult] = useState<DiagnosisMatchResult | null>(null);
+
+  // Developer Inspector Drawer State
+  const [devInspectorOpen, setDevInspectorOpen] = useState<boolean>(false);
 
   // GSAP Transition Refs
   const rootContainerRef = useRef<HTMLDivElement | null>(null);
@@ -92,7 +111,6 @@ export const App: React.FC<AppProps> = ({
     descriptor,
     relayState,
     resetCount,
-    statusVisual,
     railVoltage,
     connect,
     disconnect,
@@ -101,28 +119,88 @@ export const App: React.FC<AppProps> = ({
   const {
     activeExperimentId,
     experimentStatus,
-    events,
-    lastCallInfo,
-    voltageSummary,
-    requestedCycles,
-    completedCycles,
-    faultReproduced,
-    resetOccurred,
-    resetReason,
   } = useExperimentTimeline(resolvedBus);
 
   const { ringBufferRef, markersRef } = useOscilloscopeBuffer(resolvedBus);
-  const { state: agentState, setGoal, start: startAgent, sendObservation: sendAgentObservation, stop: stopAgent, approve: approveAgent, deny: denyAgent } = useBenchAgent(isConnected);
+  const {
+    state: agentState,
+    setGoal,
+    start: startAgent,
+    sendObservation: sendAgentObservation,
+    stop: stopAgent,
+    approve: approveAgent,
+    deny: denyAgent,
+  } = useBenchAgent(isConnected);
+
   const { records: evidenceRecords } = useEvidenceStore(resolvedEvidenceStore);
   const { hypotheses } = useHypothesisStore(resolvedHypothesisStore);
+  const { tools: registeredTools, isNative: isNativeWebMCP } = useWebMCPTools();
 
   const activeHypothesis = hypotheses.length > 0 ? hypotheses[0] : null;
 
-  // Actions
-  const handleStartDemo = useCallback(() => {
-    setGoal("The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.");
+  // Keyboard shortcut listener for Developer Inspector [Cmd+Shift+D or Ctrl+Shift+D]
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === "D" || e.key === "d")) {
+        e.preventDefault();
+        setDevInspectorOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
-    // Initiate hardware connection in background concurrently with the transition
+  // Detect explicit URL query param ?scenario=... for developer testing
+  const queryScenarioId = useMemo<ScenarioId | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    const params = new URLSearchParams(window.location.search);
+    const scen = params.get("scenario");
+    if (scen === "brownout" || scen === "i2c_address" || scen === "sda_fault") {
+      return scen;
+    }
+    return undefined;
+  }, []);
+
+  // Setup initial scenario if requested via URL
+  useEffect(() => {
+    if (queryScenarioId && !activeScenario) {
+      const session = createScenarioSession({ scenarioId: queryScenarioId });
+      setActiveScenario(session);
+    }
+  }, [queryScenarioId, activeScenario]);
+
+  // Action: Start Mystery Diagnosis
+  const handleStartMystery = useCallback(() => {
+    const session = createScenarioSession({ scenarioId: queryScenarioId });
+    setActiveScenario(session);
+
+    // Apply scenario initial configuration to virtual device
+    const initConfig = session.getInitialDeviceConfig();
+    if (resolvedAdapter && typeof resolvedAdapter.setInterventionPoint === "function") {
+      if (initConfig.initialRelayPower) {
+        resolvedAdapter.setInterventionPoint("relay_power_jumper", initConfig.initialRelayPower);
+      }
+      if (initConfig.initialSensorAddress) {
+        resolvedAdapter.setInterventionPoint("sensor_address_selector", initConfig.initialSensorAddress);
+      }
+      if (initConfig.initialSdaConnected !== undefined) {
+        resolvedAdapter.setInterventionPoint("sda_connection", initConfig.initialSdaConnected ? "connected" : "unseated");
+      }
+    }
+
+    setShowMysteryIntro(true);
+  }, [queryScenarioId, resolvedAdapter]);
+
+  // Action: Begin Investigation from Mystery Intro Modal
+  const handleBeginInvestigation = useCallback(async () => {
+    setShowMysteryIntro(false);
+
+    if (!activeScenario) return;
+
+    const goal = `${activeScenario.publicSymptom} Investigate the root cause using the available WebMCP diagnostic instruments, request physical help when needed, and experimentally verify the repair.`;
+    setGoal(goal);
+
+    // Initiate hardware connection
     const connectPromise = (async () => {
       await connect();
       if (resolvedAdapter && resolvedRegistrar) {
@@ -130,7 +208,44 @@ export const App: React.FC<AppProps> = ({
       }
     })();
 
-    // Execute GSAP Welcome -> Lab choreographic timeline immediately at t=0
+    // Execute GSAP transition immediately
+    playTransition(
+      {
+        rootContainerRef,
+        wordmarkRef,
+        heroTextRef,
+        hardwareVisualRef,
+        ctaButtonRef,
+        labChromeRef,
+        labMainSceneRef,
+        agentRailRef,
+      },
+      async () => {
+        try {
+          await connectPromise;
+        } catch (err) {
+          console.error("Failed to connect hardware during transition:", err);
+        }
+        setViewMode("investigation");
+      }
+    );
+  }, [activeScenario, setGoal, connect, resolvedAdapter, resolvedRegistrar, playTransition]);
+
+  // Action: Deterministic Brownout Demo (Secondary CTA)
+  const handleStartDemo = useCallback(() => {
+    const session = createScenarioSession({ scenarioId: "brownout" });
+    setActiveScenario(session);
+
+    const goal = "The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.";
+    setGoal(goal);
+
+    const connectPromise = (async () => {
+      await connect();
+      if (resolvedAdapter && resolvedRegistrar) {
+        await resolvedRegistrar.registerDevice(resolvedAdapter);
+      }
+    })();
+
     playTransition(
       {
         rootContainerRef,
@@ -177,6 +292,41 @@ export const App: React.FC<AppProps> = ({
     }
   }, [isConnected, resolvedAdapter, resolvedRegistrar, disconnect, handleConnectHardware]);
 
+  // Check for verified hypothesis and trigger Ground Truth Reveal payoff
+  useEffect(() => {
+    if (activeHypothesis?.verificationStatus === "VERIFIED" && activeScenario && viewMode !== "reveal") {
+      activeScenario.markVerified();
+      try {
+        const gt = activeScenario.revealGroundTruth();
+        setRevealedGroundTruth(gt);
+
+        const match = matchDiagnosis(
+          gt,
+          activeHypothesis.title,
+          activeHypothesis.description,
+          (activeHypothesis as unknown as Record<string, unknown>).rootCauseCategory as string | undefined
+        );
+        setMatchResult(match);
+      } catch (err) {
+        console.error("Error revealing ground truth:", err);
+      }
+    }
+  }, [activeHypothesis, activeScenario, viewMode]);
+
+  // Action: Run another mystery
+  const handleRunAnotherMystery = useCallback(() => {
+    setViewMode("welcome");
+    setRevealedGroundTruth(null);
+    setMatchResult(null);
+    if (resolvedHypothesisStore) {
+      resolvedHypothesisStore.clear();
+    }
+    if (resolvedEvidenceStore) {
+      resolvedEvidenceStore.clear();
+    }
+    handleStartMystery();
+  }, [handleStartMystery, resolvedHypothesisStore, resolvedEvidenceStore]);
+
   return (
     <div
       ref={rootContainerRef}
@@ -187,13 +337,15 @@ export const App: React.FC<AppProps> = ({
         maxWidth: "100%",
         height: "100vh",
         overflow: "hidden",
-        backgroundColor: viewMode === "welcome" ? "var(--ohmni-intro-bg)" : "var(--ohmni-lab-canvas)",
+        backgroundColor: viewMode === "welcome" ? "var(--ohmni-intro-bg, #F5F6F8)" : "var(--ohmni-lab-canvas, #F4F5F7)",
         boxSizing: "border-box",
       }}
     >
+      {/* State 1: World 1 — Landing Welcome View */}
       {viewMode === "welcome" && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 40, boxSizing: "border-box" }}>
           <WelcomeView
+            onStartMystery={handleStartMystery}
             onStartDemo={handleStartDemo}
             onConnectHardware={handleConnectHardware}
             wordmarkRef={wordmarkRef}
@@ -204,8 +356,26 @@ export const App: React.FC<AppProps> = ({
         </div>
       )}
 
+      {/* Mystery Introduction Modal */}
+      {showMysteryIntro && activeScenario && (
+        <MysteryIntroModal
+          session={activeScenario}
+          isDevMode={Boolean(queryScenarioId)}
+          onBegin={handleBeginInvestigation}
+          onCancel={() => setShowMysteryIntro(false)}
+        />
+      )}
+
       {/* State 2: World 2 — Lab Mode Workbench */}
-      <div style={{ width: "100%", height: "100%", display: viewMode === "repair" ? "none" : "flex", flexDirection: "column", boxSizing: "border-box" }}>
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: viewMode === "repair" || viewMode === "reveal" ? "none" : "flex",
+          flexDirection: "column",
+          boxSizing: "border-box",
+        }}
+      >
         <InvestigationStoryView
           isConnected={isConnected}
           descriptor={descriptor}
@@ -218,6 +388,7 @@ export const App: React.FC<AppProps> = ({
           evidenceRecords={evidenceRecords}
           hypothesis={activeHypothesis}
           agentState={agentState}
+          activeScenario={activeScenario}
           onSetGoal={setGoal}
           onStartAgent={startAgent}
           onStopAgent={stopAgent}
@@ -225,6 +396,7 @@ export const App: React.FC<AppProps> = ({
           onDenyTest={denyAgent}
           onToggleConnect={handleToggleConnect}
           onProceedToRepair={() => setViewMode("repair")}
+          onOpenDevInspector={() => setDevInspectorOpen(true)}
           labChromeRef={labChromeRef}
           labMainSceneRef={labMainSceneRef}
           agentRailRef={agentRailRef}
@@ -248,6 +420,44 @@ export const App: React.FC<AppProps> = ({
           />
         </div>
       )}
+
+      {/* State 4: Dedicated Ground Truth Reveal Payoff Scene */}
+      {viewMode === "reveal" && revealedGroundTruth && matchResult && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 60, overflowY: "auto", background: "var(--ohmni-lab-canvas, #F4F5F7)", boxSizing: "border-box" }}>
+          <GroundTruthRevealScene
+            groundTruth={revealedGroundTruth}
+            hypothesis={activeHypothesis}
+            matchResult={matchResult}
+            evidenceRecords={evidenceRecords}
+            toolsUsedCount={agentState.activity.filter((a) => a.status === "completed").length}
+            experimentsCount={evidenceRecords.filter((e) => e.type === "test_result").length}
+            humanInterventionsCount={evidenceRecords.filter((e) => e.source === "human").length}
+            onRunAnotherMystery={handleRunAnotherMystery}
+            onReturnToWorkbench={() => setViewMode("investigation")}
+          />
+        </div>
+      )}
+
+      {/* Developer Inspector Drawer */}
+      <DeveloperInspector
+        isOpen={devInspectorOpen}
+        onClose={() => setDevInspectorOpen(false)}
+        isNativeWebMCP={isNativeWebMCP}
+        registeredTools={registeredTools}
+        activeScenario={activeScenario}
+        evidenceRecords={evidenceRecords}
+        hypotheses={hypotheses}
+        latestToolResult={
+          agentState.activity.length > 0
+            ? {
+                toolName: agentState.activity[agentState.activity.length - 1].call.name,
+                result: agentState.activity[agentState.activity.length - 1].result ?? "",
+                timestamp: Date.now(),
+              }
+            : null
+        }
+        activeExperimentId={activeExperimentId ?? undefined}
+      />
     </div>
   );
 };

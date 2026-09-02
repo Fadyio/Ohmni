@@ -1,13 +1,14 @@
 /**
  * State 2 — World 2 (Focused Lab Mode Workbench).
- * Milestone 7.13 — Visual Rescue: 3D OHMNI Identity + Cohesive Product UI
+ * Master Milestone 8 — Precision Workbench Layout.
  *
  * Requirements:
- * - Top Bar: Compact 3D OHMNI Wordmark | ESP32 Controller | Gemini / WebMCP Provider Badge
+ * - Top Bar: Compact 3D OHMNI Wordmark | ESP32 Controller | Sealed Scenario Badge | Gemini / WebMCP Provider Badge
  * - 70% Left Main Workbench Canvas / 30% Right Agent Column
  * - Cohesive Light Theme Canvas (#F4F5F7)
  * - Clean whitespace and typography; remove card wall
  * - Signal pulse connects agent orb and hardware target
+ * - Developer Inspector access
  */
 
 import React, { useState } from "react";
@@ -22,7 +23,8 @@ import type { EvidenceRecord } from "@/domain/evidence/types";
 import type { Hypothesis } from "@/domain/hypothesis/types";
 import type { DeviceDescriptor } from "@/domain/device/descriptor";
 import type { BenchAgentState } from "../../hooks/useBenchAgent";
-import { Radio, Sliders, Cpu, AlertTriangle, Bot, ShieldCheck, Sparkles } from "lucide-react";
+import type { ScenarioSession } from "@/domain/scenario/types";
+import { Radio, Sliders, AlertTriangle, Bot, ShieldCheck, Sparkles, Lock, Terminal } from "lucide-react";
 
 export interface InvestigationStoryViewProps {
   readonly isConnected: boolean;
@@ -36,6 +38,7 @@ export interface InvestigationStoryViewProps {
   readonly evidenceRecords: readonly EvidenceRecord[];
   readonly hypothesis: Hypothesis | null;
   readonly agentState: BenchAgentState;
+  readonly activeScenario?: ScenarioSession | null;
   readonly onSetGoal: (goal: string) => void;
   readonly onStartAgent: () => void;
   readonly onStopAgent: () => void;
@@ -43,6 +46,7 @@ export interface InvestigationStoryViewProps {
   readonly onDenyTest: () => void;
   readonly onToggleConnect: () => void;
   readonly onProceedToRepair?: () => void;
+  readonly onOpenDevInspector?: () => void;
   readonly labChromeRef?: React.RefObject<HTMLElement | null>;
   readonly labMainSceneRef?: React.RefObject<HTMLElement | null>;
   readonly agentRailRef?: React.RefObject<HTMLElement | null>;
@@ -60,6 +64,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   evidenceRecords,
   hypothesis,
   agentState,
+  activeScenario,
   onSetGoal,
   onStartAgent,
   onStopAgent,
@@ -67,6 +72,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   onDenyTest,
   onToggleConnect,
   onProceedToRepair,
+  onOpenDevInspector,
   labChromeRef,
   labMainSceneRef,
   agentRailRef,
@@ -114,7 +120,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
           padding: "0.75rem 2.25rem",
           background: "var(--ohmni-lab-nav, rgba(255, 255, 255, 0.88))",
           backdropFilter: "blur(12px)",
-          borderBottom: "1px solid var(--ohmni-lab-border)",
+          borderBottom: "1px solid var(--ohmni-lab-border, #E2E4E9)",
           flex: "none",
           zIndex: 10,
         }}
@@ -125,7 +131,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             <Ohmni3DWordmark variant="compact" />
           </div>
 
-          <div style={{ height: "18px", width: "1px", background: "var(--ohmni-lab-border)" }} />
+          <div style={{ height: "18px", width: "1px", background: "var(--ohmni-lab-border, #E2E4E9)" }} />
 
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span
@@ -133,18 +139,42 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
                 width: "7px",
                 height: "7px",
                 borderRadius: "50%",
-                background: isConnected ? "var(--ohmni-lab-verified)" : "var(--ohmni-lab-muted)",
+                background: isConnected ? "var(--ohmni-lab-verified, #27966B)" : "var(--ohmni-lab-muted, #64748B)",
                 boxShadow: isConnected ? "0 0 8px rgba(39, 150, 107, 0.5)" : "none",
               }}
             />
-            <span className="font-mono" style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-lab-text)" }}>
+            <span className="font-mono" style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-lab-text, #0F172A)" }}>
               {descriptor?.name ?? "ESP32 ENVIRONMENTAL CONTROLLER"}
             </span>
           </div>
         </div>
 
-        {/* Center: Dynamic Agent Provider Badge */}
+        {/* Center: Sealed Fault Badge & Dynamic Agent Provider Badge */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {/* Sealed Fault Badge */}
+          {activeScenario && (
+            <span
+              data-testid="sealed-fault-badge"
+              title="The scenario state is held outside the model/tool context and is revealed only after verification."
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "4px 10px",
+                borderRadius: "var(--radius-full, 9999px)",
+                background: activeScenario.isSealed ? "rgba(15, 23, 42, 0.05)" : "rgba(39, 150, 107, 0.1)",
+                border: `1px solid ${activeScenario.isSealed ? "rgba(15, 23, 42, 0.15)" : "rgba(39, 150, 107, 0.3)"}`,
+                color: activeScenario.isSealed ? "var(--ohmni-lab-secondary, #64748B)" : "var(--ohmni-lab-verified, #27966B)",
+                fontSize: "11px",
+                fontWeight: 700,
+                cursor: "help",
+              }}
+            >
+              <Lock size={12} />
+              <span>{activeScenario.isSealed ? "SEALED FAULT" : "VERIFIED FAULT"}</span>
+            </span>
+          )}
+
           <span
             data-testid="gemini-provider-badge"
             style={{
@@ -152,7 +182,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               alignItems: "center",
               gap: "6px",
               padding: "4px 12px",
-              borderRadius: "var(--radius-full)",
+              borderRadius: "var(--radius-full, 9999px)",
               background:
                 providerStatus === "live"
                   ? "rgba(39, 150, 107, 0.1)"
@@ -168,16 +198,16 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
                   ? "rgba(220, 80, 80, 0.3)"
                   : providerStatus === "configured"
                   ? "rgba(73, 103, 255, 0.3)"
-                  : "var(--ohmni-lab-border)"
+                  : "var(--ohmni-lab-border, #E2E4E9)"
               }`,
               color:
                 providerStatus === "live"
-                  ? "var(--ohmni-lab-verified)"
+                  ? "var(--ohmni-lab-verified, #27966B)"
                   : providerStatus === "error"
-                  ? "var(--ohmni-lab-fault)"
+                  ? "var(--ohmni-lab-fault, #DC5050)"
                   : providerStatus === "configured"
-                  ? "var(--ohmni-lab-brand)"
-                  : "var(--ohmni-lab-muted)",
+                  ? "var(--ohmni-lab-brand, #4967FF)"
+                  : "var(--ohmni-lab-muted, #64748B)",
               fontSize: "11.5px",
               fontWeight: 700,
               letterSpacing: "0.02em",
@@ -185,7 +215,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
           >
             {providerStatus === "live" ? (
               <>
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--ohmni-lab-verified)", boxShadow: "0 0 6px rgba(39, 150, 107, 0.8)" }} />
+                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--ohmni-lab-verified, #27966B)", boxShadow: "0 0 6px rgba(39, 150, 107, 0.8)" }} />
                 <span>GEMINI LIVE</span>
               </>
             ) : providerStatus === "error" ? (
@@ -201,7 +231,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             ) : (
               <>
                 <Bot size={12} />
-                <span>DEMO AGENT</span>
+                <span>BENCH AGENT</span>
               </>
             )}
           </span>
@@ -214,10 +244,10 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               alignItems: "center",
               gap: "5px",
               padding: "4px 10px",
-              borderRadius: "var(--radius-full)",
+              borderRadius: "var(--radius-full, 9999px)",
               background: isNativeMode ? "rgba(39, 150, 107, 0.08)" : "rgba(18, 21, 26, 0.04)",
-              border: `1px solid ${isNativeMode ? "rgba(39, 150, 107, 0.25)" : "var(--ohmni-lab-border)"}`,
-              color: isNativeMode ? "var(--ohmni-lab-verified)" : "var(--ohmni-lab-muted)",
+              border: `1px solid ${isNativeMode ? "rgba(39, 150, 107, 0.25)" : "var(--ohmni-lab-border, #E2E4E9)"}`,
+              color: isNativeMode ? "var(--ohmni-lab-verified, #27966B)" : "var(--ohmni-lab-muted, #64748B)",
               fontSize: "11px",
               fontWeight: 600,
             }}
@@ -227,9 +257,30 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
           </span>
         </div>
 
-        {/* Right: Technical Drawer & Disconnect Button */}
+        {/* Right: Technical Inspector & Disconnect Button */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {onOpenDevInspector && (
+            <button
+              type="button"
+              data-testid="open-dev-inspector-btn"
+              onClick={onOpenDevInspector}
+              className="btn-secondary"
+              title="Developer Inspector [Cmd+Shift+D]"
+              style={{
+                padding: "7px 12px",
+                fontSize: "12.5px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              <Terminal size={13} color="var(--ohmni-lab-brand, #4967FF)" />
+              <span>Inspector</span>
+            </button>
+          )}
+
           <button
+            type="button"
             onClick={() => setDrawerOpen(true)}
             className="btn-secondary"
             style={{
@@ -237,11 +288,12 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               fontSize: "12.5px",
             }}
           >
-            <Radio size={13} color="var(--ohmni-lab-brand)" />
+            <Radio size={13} color="var(--ohmni-lab-brand, #4967FF)" />
             <span>WebMCP Tools</span>
           </button>
 
           <button
+            type="button"
             onClick={onToggleConnect}
             className="btn-secondary"
             style={{

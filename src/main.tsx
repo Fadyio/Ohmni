@@ -35,6 +35,7 @@ declare global {
       commitSha: string;
       builtAt?: string;
     };
+    __OHMNI_BUILD_SHA__?: string;
   }
 }
 
