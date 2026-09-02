@@ -51,7 +51,7 @@ describe("WebMCP Hypothesis Synthesis Tools (Milestone 6)", () => {
   });
 
   describe("Tool Registration & Annotations", () => {
-    it("registers all 7 hypothesis synthesis tools on document.modelContext", async () => {
+    it("registers all 9 hypothesis synthesis tools on document.modelContext", async () => {
       const tools = await modelContext.getTools();
       const names = tools.map((t) => t.name);
 
@@ -60,9 +60,11 @@ describe("WebMCP Hypothesis Synthesis Tools (Milestone 6)", () => {
       expect(names).toContain("link_evidence");
       expect(names).toContain("reject_hypothesis");
       expect(names).toContain("confirm_hypothesis");
+      expect(names).toContain("record_conclusion");
+      expect(names).toContain("request_human_intervention");
       expect(names).toContain("list_hypotheses");
       expect(names).toContain("get_hypothesis");
-      expect(tools.length).toBe(7);
+      expect(tools.length).toBe(9);
     });
 
     it("applies strict readOnlyHint annotations according to WebMCP standard", async () => {

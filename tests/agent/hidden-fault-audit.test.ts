@@ -45,7 +45,7 @@ describe("Milestone 7.6 — Trust Audit & Hidden Payload Leak Prevention", () =>
     await registerHypothesisTools(modelContext, hypothesisStore);
 
     const tools = await modelContext.getTools();
-    expect(tools.length).toBe(17);
+    expect(tools.length).toBe(19);
 
     const geminiDeclarations = translateRegisteredTools(tools);
     const serializedTools = JSON.stringify(geminiDeclarations).toLowerCase();

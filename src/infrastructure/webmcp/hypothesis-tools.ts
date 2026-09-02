@@ -1,11 +1,11 @@
 /**
  * WebMCP Hypothesis Synthesis & Management Tools.
- * Exposes hypothesis creation, evidence linking, confidence updates, and inspection tools
- * over document.modelContext.
+ * Exposes hypothesis creation, evidence linking, confidence updates, inspection tools,
+ * diagnostic conclusion recording, and human intervention requests over document.modelContext.
  *
  * Core Invariants:
  * 1. Read-Only Annotations: list_hypotheses and get_hypothesis are marked readOnlyHint: true.
- * 2. Mutation Annotations: propose_hypothesis, update_hypothesis, link_evidence, reject_hypothesis are marked readOnlyHint: false.
+ * 2. Mutation Annotations: propose_hypothesis, update_hypothesis, link_evidence, reject_hypothesis, confirm_hypothesis, record_conclusion, request_human_intervention are marked readOnlyHint: false.
  * 3. Evidence Immutability: Synthesis tools link to factual evidence, but cannot create, modify, or delete EvidenceRecords.
  * 4. Citation Validation: All cited evidence IDs must exist in EvidenceStore.
  * 5. Qualitative Confidence: Quantitative probabilities (e.g. 87.3%) are strictly forbidden.
@@ -38,7 +38,7 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
           type: "string",
           minLength: 3,
           maxLength: 120,
-          description: "Concise explanatory title of the hypothesis (e.g. 'Relay-induced supply brownout').",
+          description: "Concise explanatory title of the hypothesis (e.g. 'Supply rail voltage sag under load').",
         },
         description: {
           type: "string",
@@ -288,6 +288,7 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
       };
     },
   };
+
   const confirmHypothesisTool: ModelContextTool = {
     name: "confirm_hypothesis",
     title: "Confirm and Verify Diagnostic Hypothesis",
@@ -354,6 +355,133 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     },
   };
 
+  const recordConclusionTool: ModelContextTool = {
+    name: "record_conclusion",
+    title: "Record Diagnostic Conclusion",
+    description:
+      "Record the final diagnostic conclusion, identified root cause, and supporting verification evidence for the hardware investigation.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        hypothesis_id: {
+          type: "string",
+          description: "Identifier of the confirmed hypothesis (e.g. H-001).",
+        },
+        root_cause: {
+          type: "string",
+          minLength: 5,
+          maxLength: 300,
+          description: "Specific root cause identified from empirical investigation.",
+        },
+        summary: {
+          type: "string",
+          minLength: 10,
+          maxLength: 800,
+          description: "Comprehensive summary of the problem, investigation evidence, repair, and verification.",
+        },
+        verification_evidence_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Array of evidence IDs proving successful post-repair verification.",
+        },
+      },
+      required: ["hypothesis_id", "root_cause", "summary"],
+      additionalProperties: false,
+    },
+    annotations: {
+      readOnlyHint: false,
+    },
+    execute: async (input) => {
+      const hypothesisId = String(input.hypothesis_id || "").trim();
+      const rootCause = String(input.root_cause || "").trim();
+      const summary = String(input.summary || "").trim();
+      const verificationEvidenceIds = Array.isArray(input.verification_evidence_ids)
+        ? (input.verification_evidence_ids as string[]).map((id) => String(id).trim())
+        : [];
+
+      if (!hypothesisId) {
+        throw new Error("Missing required parameter: hypothesis_id");
+      }
+      const existing = hypothesisStore.get(hypothesisId);
+      if (!existing) {
+        throw new Error(`Hypothesis with ID '${hypothesisId}' not found.`);
+      }
+
+      return {
+        ok: true,
+        hypothesisId,
+        rootCause,
+        summary,
+        verificationEvidenceIds,
+        message: `Diagnostic conclusion successfully recorded for hypothesis ${hypothesisId}: ${rootCause}`,
+      };
+    },
+  };
+
+  const requestHumanInterventionTool: ModelContextTool = {
+    name: "request_human_intervention",
+    title: "Request Physical Human Intervention",
+    description:
+      "Request human assistance to physically inspect, move jumpers, toggle switches, or reconnect cables on the board. Does not mutate hardware automatically; human physical action is the consent boundary.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        target: {
+          type: "string",
+          description: "Target hardware intervention point identifier.",
+        },
+        instruction: {
+          type: "string",
+          minLength: 5,
+          maxLength: 500,
+          description: "Clear, step-by-step physical instruction for the human.",
+        },
+        rationale: {
+          type: "string",
+          minLength: 5,
+          maxLength: 800,
+          description: "Scientific rationale explaining why this physical change is necessary to test or repair the fault.",
+        },
+        evidence_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional array of evidence IDs motivating this intervention request.",
+        },
+      },
+      required: ["target", "instruction", "rationale"],
+      additionalProperties: false,
+    },
+    annotations: {
+      readOnlyHint: false,
+    },
+    execute: async (input) => {
+      const target = String(input.target || "").trim();
+      const instruction = String(input.instruction || "").trim();
+      const rationale = String(input.rationale || "").trim();
+      const evidenceIds = Array.isArray(input.evidence_ids)
+        ? (input.evidence_ids as string[]).map((id) => String(id).trim())
+        : [];
+
+      if (!target) {
+        throw new Error("Missing required parameter: target");
+      }
+      if (!instruction) {
+        throw new Error("Missing required parameter: instruction");
+      }
+      if (!rationale) {
+        throw new Error("Missing required parameter: rationale");
+      }
+
+      return {
+        status: "REQUESTED",
+        target,
+        instruction,
+        rationale,
+        evidenceIds,
+        message: `Human intervention requested on "${target}": ${instruction}`,
+      };
+    },
+  };
 
   const listHypothesesTool: ModelContextTool = {
     name: "list_hypotheses",
@@ -422,6 +550,8 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     linkEvidenceTool,
     rejectHypothesisTool,
     confirmHypothesisTool,
+    recordConclusionTool,
+    requestHumanInterventionTool,
     listHypothesesTool,
     getHypothesisTool,
   ];
