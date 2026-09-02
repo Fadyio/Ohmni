@@ -307,18 +307,41 @@ async function runChromeTests(): Promise<void> {
         },
       },
       {
-        name: "Amber Tool Invocation & Brownout Fault Reproduction",
+        name: "Amber Tool Invocation & Brownout Fault Reproduction (Milestone 3 ExperimentRunner)",
         fn: async () => {
           const res = await cdpClient!.evaluate(`(async () => {
             const tools = await document.modelContext.getTools();
             const relayTool = tools.find(t => t.name === "run_relay_stress_test");
             const raw = await document.modelContext.executeTool(relayTool, JSON.stringify({ cycles: 3, duration_ms: 20 }));
-            return JSON.parse(raw);
+            let parsed;
+            try { parsed = JSON.parse(raw); } catch (e) { parsed = { rawString: raw }; }
+            const localRecord = window.__experimentStore ? window.__experimentStore.getExperiment(parsed.experiment_id) : undefined;
+            return {
+              raw,
+              parsed,
+              hasTracesInResult: "traces" in parsed,
+              hasEventsInResult: "events" in parsed,
+              hasLocalRecord: !!localRecord,
+              localTraceSampleCount: localRecord?.traces?.supply_voltage?.samples?.length ?? 0,
+            };
           })()`);
-          if (!res.faultReproduced || !res.resetOccurred || res.resetReason !== "BROWNOUT") {
-            throw new Error(`Failed to reproduce brownout fault: ${JSON.stringify(res)}`);
+          const { raw, parsed, hasTracesInResult, hasEventsInResult, hasLocalRecord, localTraceSampleCount } = res;
+          if (!parsed.experiment_id || !parsed.experiment_id.startsWith("exp_")) {
+            throw new Error(`Expected experiment_id starting with 'exp_', got parsed: ${JSON.stringify(parsed)} (raw: ${JSON.stringify(raw)})`);
           }
-          return `Brownout fault reproduced: voltage sagged to ${res.minVoltage}V, reset reason: ${res.resetReason}`;
+          if (!parsed.faultReproduced || !parsed.resetOccurred || parsed.resetReason !== "BROWNOUT") {
+            throw new Error(`Failed to reproduce brownout fault: ${JSON.stringify(parsed)}`);
+          }
+          if (!parsed.supply_voltage || parsed.supply_voltage.minimum_v >= 2.80) {
+            throw new Error(`Expected voltage sag below 2.80V in supply_voltage summary: ${JSON.stringify(parsed.supply_voltage)}`);
+          }
+          if (hasTracesInResult || hasEventsInResult) {
+            throw new Error("Raw trace arrays must not be returned in concise WebMCP result");
+          }
+          if (!hasLocalRecord || localTraceSampleCount === 0) {
+            throw new Error(`Expected experiment record in window.__experimentStore with traces, got count: ${localTraceSampleCount}`);
+          }
+          return `Experiment ${parsed.experiment_id} returned concise summary: ${parsed.supply_voltage.baseline_v}V -> ${parsed.supply_voltage.minimum_v}V (-${parsed.supply_voltage.drop_v}V), local traces stored (${localTraceSampleCount} samples)`;
         },
       },
       {

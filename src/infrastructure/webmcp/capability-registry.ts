@@ -2,27 +2,37 @@
  * Trusted Browser-Owned Capability Registry.
  * Maps validated DeviceCapability names to secure, trusted WebMCP tool definitions.
  * Prevents untrusted devices from registering arbitrary, unvetted tool implementations.
+ *
+ * Routes experimental actuation tools (e.g. run_relay_stress_test) through
+ * ExperimentRunner to correlate high-frequency telemetry and synthesize concise summaries.
  */
 
 import type { DeviceAdapter } from "@/domain/device/adapter";
 import type { ModelContextTool } from "./types";
+import { ExperimentRunner } from "@/domain/experiment/runner";
 
-export type ToolFactory = (adapter: DeviceAdapter) => ModelContextTool;
+export type ToolFactory = (adapter: DeviceAdapter, runner?: ExperimentRunner) => ModelContextTool;
 
 export class CapabilityRegistry {
+  private readonly runner: ExperimentRunner;
   private readonly factories: Map<string, ToolFactory> = new Map();
 
-  constructor() {
+  constructor(runner?: ExperimentRunner) {
+    this.runner = runner ?? new ExperimentRunner();
     this.registerDefaultFactories();
+  }
+
+  public getRunner(): ExperimentRunner {
+    return this.runner;
   }
 
   private registerDefaultFactories(): void {
     // 1. read_device_info (Green / ReadOnly)
     this.registerFactory("read_device_info", (adapter) => ({
       name: "read_device_info",
-      title: "Read Device Info",
+      title: "Read Device Information",
       description:
-        "Read hardware model, chip architecture, and firmware revision of the connected controller.",
+        "Read hardware identity, firmware build metadata, MCU architecture, and MAC address from the connected device.",
       inputSchema: {
         type: "object",
         properties: {},
@@ -31,8 +41,8 @@ export class CapabilityRegistry {
       annotations: {
         readOnlyHint: true,
       },
-      execute: async (_input, options) => {
-        const result = await adapter.executeCapability("read_device_info", {}, options?.signal);
+      execute: async (_input, _options) => {
+        const result = await adapter.executeCapability("read_device_info");
         return result.data;
       },
     }));
@@ -42,7 +52,7 @@ export class CapabilityRegistry {
       name: "read_reset_history",
       title: "Read Reset History",
       description:
-        "Read chronological reset causes reported by the connected controller. Use this when investigating unexpected restarts or determining whether failures are caused by brownout, watchdog, software, or external reset conditions.",
+        "Retrieve the hardware boot and reset event history log to identify past brownouts, watchdogs, software resets, and reset causes.",
       inputSchema: {
         type: "object",
         properties: {},
@@ -51,8 +61,8 @@ export class CapabilityRegistry {
       annotations: {
         readOnlyHint: true,
       },
-      execute: async (_input, options) => {
-        const result = await adapter.executeCapability("read_reset_history", {}, options?.signal);
+      execute: async (_input, _options) => {
+        const result = await adapter.executeCapability("read_reset_history");
         return result.data;
       },
     }));
@@ -62,7 +72,7 @@ export class CapabilityRegistry {
       name: "read_system_health",
       title: "Read System Health",
       description:
-        "Read runtime telemetry including free heap memory, CPU temperature, task watchdog status, and uptime.",
+        "Read current operational diagnostics: heap memory, internal core temperature, and system uptime.",
       inputSchema: {
         type: "object",
         properties: {},
@@ -71,8 +81,8 @@ export class CapabilityRegistry {
       annotations: {
         readOnlyHint: true,
       },
-      execute: async (_input, options) => {
-        const result = await adapter.executeCapability("read_system_health", {}, options?.signal);
+      execute: async (_input, _options) => {
+        const result = await adapter.executeCapability("read_system_health");
         return result.data;
       },
     }));
@@ -82,7 +92,7 @@ export class CapabilityRegistry {
       name: "measure_supply_voltage",
       title: "Measure Supply Voltage",
       description:
-        "Sample instantaneous voltage on the primary 3.3V rail to assess supply rail stability and noise.",
+        "Sample the internal analog-to-digital converter (ADC) to measure instantaneous VDD rail voltage.",
       inputSchema: {
         type: "object",
         properties: {},
@@ -91,14 +101,14 @@ export class CapabilityRegistry {
       annotations: {
         readOnlyHint: true,
       },
-      execute: async (_input, options) => {
-        const result = await adapter.executeCapability("measure_supply_voltage", {}, options?.signal);
+      execute: async (_input, _options) => {
+        const result = await adapter.executeCapability("measure_supply_voltage");
         return result.data;
       },
     }));
 
-    // 5. run_relay_stress_test (Amber / Actuation)
-    this.registerFactory("run_relay_stress_test", (adapter) => ({
+    // 5. run_relay_stress_test (Amber / Actuation — ExperimentRunner)
+    this.registerFactory("run_relay_stress_test", (adapter, runner) => ({
       name: "run_relay_stress_test",
       title: "Run Relay Stress Test",
       description:
@@ -128,12 +138,15 @@ export class CapabilityRegistry {
         const cycles = typeof input.cycles === "number" ? input.cycles : 3;
         const durationMs = typeof input.duration_ms === "number" ? input.duration_ms : 50;
 
-        const result = await adapter.executeCapability(
+        const effectiveRunner = runner ?? this.runner;
+        const summary = await effectiveRunner.runExperiment(
+          adapter,
           "run_relay_stress_test",
           { cycles, durationMs },
           options?.signal
         );
-        return result.data;
+
+        return summary;
       },
     }));
   }
@@ -146,11 +159,15 @@ export class CapabilityRegistry {
     return this.factories.has(capabilityName);
   }
 
-  public createTool(capabilityName: string, adapter: DeviceAdapter): ModelContextTool | undefined {
+  public createTool(
+    capabilityName: string,
+    adapter: DeviceAdapter,
+    runner?: ExperimentRunner
+  ): ModelContextTool | undefined {
     const factory = this.factories.get(capabilityName);
     if (!factory) {
       return undefined;
     }
-    return factory(adapter);
+    return factory(adapter, runner ?? this.runner);
   }
 }
