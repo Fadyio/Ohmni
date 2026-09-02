@@ -2,20 +2,22 @@
  * State 3 — Human Intervention & Repair Verification Scene.
  * Full focus shift for physical repair action:
  * - Interactive physical jumper selector controlling VirtualDeviceAdapter state directly.
+ * - Human physical change produces a first-class human observation for the Bench Agent.
  * - Split-scope comparison deriving BEFORE and AFTER measurements strictly from ExperimentRecords.
- * - Verification retest executes the real run_relay_stress_test capability via WebMCP ModelContext.
- * - Automatically elevates and confirms hypothesis upon verified nominal retest.
+ * - Zero presentation fallback truth (no ?? 2.72 or ?? 3.18).
+ * - React NEVER automatically executes the verification experiment or confirms the hypothesis.
+ * - Gemini independently decides to retest, requests human authorization, reads new evidence, and confirms.
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Wrench, CheckCircle2, Zap, ArrowRight, ShieldCheck, Activity, RotateCcw, AlertTriangle } from "lucide-react";
+import React, { useState, useCallback, useMemo } from "react";
+import { Wrench, CheckCircle2, Zap, ArrowRight, ShieldCheck, Activity, RotateCcw, AlertTriangle, Send, Bot, ShieldAlert } from "lucide-react";
 import type { DeviceAdapter } from "@/domain/device/adapter";
 import type { ExperimentStore } from "@/domain/experiment/store";
 import type { EvidenceStore } from "@/domain/evidence/store";
 import type { HypothesisStore } from "@/domain/hypothesis/store";
 import type { Hypothesis } from "@/domain/hypothesis/types";
 import type { ExperimentRecord } from "@/domain/experiment/types";
-import type { ModelContext, RegisteredTool } from "@/infrastructure/webmcp/types";
+import type { BenchAgentState } from "@/presentation/hooks/useBenchAgent";
 
 interface InteractiveDeviceAdapter extends DeviceAdapter {
   getInterventionPoint?(point: string): string | undefined;
@@ -28,6 +30,10 @@ export interface RepairVerificationSceneProps {
   readonly evidenceStore?: EvidenceStore;
   readonly hypothesisStore?: HypothesisStore;
   readonly hypothesis?: Hypothesis | null;
+  readonly agentState?: BenchAgentState;
+  readonly onSendObservation?: (observation: string) => void;
+  readonly onApproveTest?: () => void;
+  readonly onDenyTest?: () => void;
   readonly onReturnToInvestigation: () => void;
 }
 
@@ -37,6 +43,10 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
   evidenceStore,
   hypothesisStore,
   hypothesis,
+  agentState,
+  onSendObservation,
+  onApproveTest,
+  onDenyTest,
   onReturnToInvestigation,
 }) => {
   const resolvedAdapter = useMemo<InteractiveDeviceAdapter | undefined>(() => {
@@ -60,15 +70,13 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
     resolvedAdapter?.getInterventionPoint?.("relay_power_jumper") === "5v" ? "5V" : "3V3";
 
   const [jumperPosition, setJumperPosition] = useState<"3V3" | "5V">(initialJumper);
-  const [isVerifying, setIsVerifying] = useState<boolean>(false);
-  const [retestError, setRetestError] = useState<string | null>(null);
-  const [storeRevision, setStoreRevision] = useState<number>(0);
+  const [observationSent, setObservationSent] = useState<boolean>(false);
 
   // Read all experiment records
   const allExperiments = useMemo<readonly ExperimentRecord[]>(() => {
     if (!resolvedExperimentStore) return [];
     return resolvedExperimentStore.getExperiments();
-  }, [resolvedExperimentStore, storeRevision]);
+  }, [resolvedExperimentStore, hypothesis]);
 
   // Derive BEFORE failed experiment (first failure or brownout)
   const beforeExperiment = useMemo(() => {
@@ -98,6 +106,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
   const handleSelectJumper = useCallback(
     (pos: "3V3" | "5V") => {
       setJumperPosition(pos);
+      setObservationSent(false);
       if (resolvedAdapter?.setInterventionPoint) {
         resolvedAdapter.setInterventionPoint("relay_power_jumper", pos === "5V" ? "5v" : "3v3");
       }
@@ -105,85 +114,38 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
     [resolvedAdapter]
   );
 
-  // Execute verification experiment strictly through WebMCP ModelContext
-  const handleRunVerificationTest = useCallback(async () => {
-    setIsVerifying(true);
-    setRetestError(null);
-    try {
-      const mc: ModelContext | undefined =
-        (typeof document !== "undefined" ? document.modelContext : undefined) ??
-        (typeof window !== "undefined" ? (window.__modelContext as ModelContext) : undefined);
-
-      if (!mc) {
-        throw new Error("WebMCP ModelContext is unavailable for verification tool execution");
-      }
-
-      const tools: readonly RegisteredTool[] = await mc.getTools();
-      const stressTool = tools.find((t) => t.name === "run_relay_stress_test");
-      if (!stressTool) {
-        throw new Error("run_relay_stress_test tool not registered in WebMCP ModelContext");
-      }
-
-      await mc.executeTool(stressTool, {
-        cycles: 3,
-        durationMs: 0,
-      });
-
-      // Check verification results from store
-      if (resolvedExperimentStore && resolvedEvidenceStore && resolvedHypothesisStore) {
-        const records = resolvedExperimentStore.getExperiments();
-        const latestExp = records[records.length - 1];
-        if (latestExp) {
-          const isVerifiedNominal =
-            latestExp.metadata.status === "completed" &&
-            (latestExp.summary?.unexpected_resets === 0 || !latestExp.summary?.unexpected_resets) &&
-            (latestExp.summary?.supply_voltage?.minimum_v ?? 0) >= 2.80;
-
-          if (isVerifiedNominal) {
-            const activeHyp = hypothesis ?? resolvedHypothesisStore.getAll()[0];
-            if (activeHyp) {
-              const postEvidence = resolvedEvidenceStore.getByExperiment(latestExp.metadata.id);
-              const postEvidenceIds = postEvidence.map((e) => e.id);
-              const citeIds =
-                postEvidenceIds.length > 0
-                  ? postEvidenceIds
-                  : resolvedEvidenceStore.getAll().map((e) => e.id);
-
-              try {
-                resolvedHypothesisStore.confirm({
-                  hypothesisId: activeHyp.id,
-                  rationale: `Physical repair moving relay jumper to isolated 5V auxiliary rail empirically verified via WebMCP retest ${latestExp.metadata.id}: minimum supply voltage maintained at ${(latestExp.summary?.supply_voltage?.minimum_v ?? 3.18).toFixed(2)}V across all cycles with 0 brownout resets.`,
-                  evidenceIds: citeIds,
-                  verifiedExperimentId: latestExp.metadata.id,
-                });
-              } catch (confirmErr) {
-                console.warn("[Ohmni] Hypothesis confirmation note:", confirmErr);
-              }
-            }
-          }
-        }
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Verification re-test execution failed";
-      setRetestError(msg);
-    } finally {
-      setIsVerifying(false);
-      setStoreRevision((r) => r + 1);
+  // Notify Bench Agent of human observation
+  const handleNotifyAgent = useCallback(() => {
+    const observationText =
+      jumperPosition === "5V"
+        ? "Human observation: Relay power jumper moved from shared 3.3V rail to external 5V rail."
+        : "Human observation: Relay power jumper moved back to shared 3.3V rail.";
+    setObservationSent(true);
+    if (onSendObservation) {
+      onSendObservation(observationText);
     }
-  }, [resolvedExperimentStore, resolvedEvidenceStore, resolvedHypothesisStore, hypothesis]);
+  }, [jumperPosition, onSendObservation]);
 
-  const beforeMinVoltage = beforeExperiment?.summary?.supply_voltage?.minimum_v ?? 2.72;
+  const beforeMinVoltage = beforeExperiment?.summary?.supply_voltage?.minimum_v;
   const afterMinVoltage = afterExperiment?.summary?.supply_voltage?.minimum_v;
-  const hasVerified = Boolean(afterExperiment);
+  
+  // Real domain-driven verification state: hypothesis verified status OR confirmed status from domain store
+  const isHypothesisVerified =
+    hypothesis?.verificationStatus === "VERIFIED" ||
+    hypothesis?.status === "CONFIRMED";
+  const hasVerified = Boolean(afterExperiment && isHypothesisVerified);
+
+  const isAgentInvestigating = agentState?.status === "investigating";
+  const isAgentApproval = agentState?.status === "approval";
 
   // Dynamic instruction & rationale derived from actual hypothesis state
   const interventionTitle =
     hypothesis?.description ||
-    "I need your hands. Move relay power from the shared 3.3 V rail to external 5 V.";
+    "Move relay power from shared 3.3 V rail to external 5 V.";
   const rootCauseText =
     hypothesis?.rationale ||
     hypothesis?.description ||
-    "The relay coil draws peak inrush current from the same voltage regulator feeding the ESP32-S3 microcontroller. Moving the jumper isolator to the 5 V auxiliary rail eliminates the supply sag.";
+    "The relay coil draws peak inrush current from the same voltage regulator feeding the microcontroller. Moving the jumper to the 5 V auxiliary rail eliminates the supply collapse.";
 
   return (
     <div
@@ -313,7 +275,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                   cursor: "pointer",
                 }}
               >
-                3.3 V (Faulty)
+                Shared 3.3 V
               </button>
 
               <span style={{ color: "#64748B", fontSize: "16px" }}>→</span>
@@ -323,7 +285,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                 aria-checked={jumperPosition === "5V"}
                 onClick={() => handleSelectJumper("5V")}
                 style={{
-                  background: jumperPosition === "5V" ? "var(--ohmni-success)" : "#1E293B",
+                  background: jumperPosition === "5V" ? "var(--ohmni-brand)" : "#1E293B",
                   color: "#FFFFFF",
                   border: "none",
                   padding: "10px 18px",
@@ -331,61 +293,135 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                   fontSize: "14px",
                   fontWeight: 700,
                   cursor: "pointer",
-                  boxShadow: jumperPosition === "5V" ? "0 0 16px rgba(37, 138, 96, 0.4)" : "none",
+                  boxShadow: jumperPosition === "5V" ? "0 0 16px rgba(85, 112, 255, 0.4)" : "none",
                 }}
               >
-                5.0 V (Repaired)
+                External 5 V
               </button>
             </div>
 
-            <div style={{ fontSize: "12px", color: jumperPosition === "5V" ? "var(--ohmni-success)" : "#94A3B8" }}>
+            <div style={{ fontSize: "12px", color: jumperPosition === "5V" ? "#E2E8F0" : "#94A3B8" }}>
               {jumperPosition === "5V"
-                ? "Physical configuration changed: Jumper moved to external 5V rail. Verification required."
+                ? (hasVerified
+                    ? "CONFIGURATION CHANGED • EMPIRICALLY VERIFIED"
+                    : "CONFIGURATION CHANGED — NOT YET VERIFIED")
                 : "Jumper connected to shared 3.3V microcontroller rail."}
             </div>
 
+            {/* Agent-driven Continuation / Approval Section */}
             {jumperPosition === "5V" && (
-              <button
-                onClick={handleRunVerificationTest}
-                disabled={isVerifying}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  background: hasVerified ? "rgba(37, 138, 96, 0.2)" : "var(--ohmni-brand)",
-                  color: hasVerified ? "var(--ohmni-success)" : "#FFFFFF",
-                  border: hasVerified ? "1px solid var(--ohmni-success)" : "none",
-                  padding: "8px 16px",
-                  borderRadius: "var(--radius-md)",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  cursor: isVerifying ? "wait" : "pointer",
-                  marginTop: "4px",
-                }}
-              >
+              <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
                 {hasVerified ? (
-                  <>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      background: "rgba(37, 138, 96, 0.2)",
+                      color: "var(--ohmni-success)",
+                      border: "1px solid var(--ohmni-success)",
+                      padding: "8px 16px",
+                      borderRadius: "var(--radius-md)",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                    }}
+                  >
                     <CheckCircle2 size={14} />
-                    <span>Re-test Verified: {afterMinVoltage ? `${afterMinVoltage.toFixed(2)}V Stable` : "Nominal"}</span>
-                  </>
-                ) : isVerifying ? (
-                  <>
+                    <span>Empirically Verified by Bench Agent (VERIFIED)</span>
+                  </div>
+                ) : isAgentApproval ? (
+                  /* Amber Safety Authorization Gate requested by Gemini */
+                  <div
+                    style={{
+                      background: "rgba(244, 184, 96, 0.12)",
+                      border: "1px solid var(--ohmni-warning)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "10px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-warning)", fontSize: "12px", fontWeight: 700 }}>
+                      <ShieldAlert size={14} />
+                      <span>Gemini Requested Retest: {agentState.approval.tool.name}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                      <button
+                        onClick={onApproveTest}
+                        className="btn-primary"
+                        data-testid="repair-approve-btn"
+                        style={{
+                          background: "var(--ohmni-warning)",
+                          borderColor: "var(--ohmni-warning)",
+                          color: "#000000",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          padding: "6px 14px",
+                        }}
+                      >
+                        Authorize & Energize
+                      </button>
+                      <button
+                        onClick={onDenyTest}
+                        className="btn-secondary"
+                        style={{
+                          fontSize: "12px",
+                          padding: "6px 12px",
+                          color: "#FFFFFF",
+                        }}
+                      >
+                        Deny
+                      </button>
+                    </div>
+                  </div>
+                ) : isAgentInvestigating ? (
+                  /* Agent actively running retest / reading evidence */
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      background: "rgba(85, 112, 255, 0.15)",
+                      color: "var(--ohmni-brand)",
+                      border: "1px solid var(--ohmni-brand)",
+                      padding: "8px 16px",
+                      borderRadius: "var(--radius-md)",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                    }}
+                  >
                     <Activity size={14} className="animate-spin" />
-                    <span>Actuating Relay on 5V Rail via WebMCP...</span>
-                  </>
+                    <span>Gemini is evaluating physical repair & executing verification...</span>
+                  </div>
                 ) : (
-                  <>
-                    <Activity size={14} />
-                    <span>Re-run Verification Stress Test (WebMCP)</span>
-                  </>
+                  /* Human Observation CTA: Tell Gemini I changed it */
+                  <button
+                    onClick={handleNotifyAgent}
+                    className="btn-primary"
+                    data-testid="tell-gemini-repair-btn"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      background: "var(--ohmni-brand)",
+                      color: "#FFFFFF",
+                      border: "none",
+                      padding: "10px 18px",
+                      borderRadius: "var(--radius-md)",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      boxShadow: "0 0 12px rgba(85, 112, 255, 0.4)",
+                    }}
+                  >
+                    <Send size={14} />
+                    <span>Tell Gemini I changed it</span>
+                  </button>
                 )}
-              </button>
-            )}
-
-            {retestError && (
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-fault)", fontSize: "12px", marginTop: "4px" }}>
-                <AlertTriangle size={13} />
-                <span>{retestError}</span>
               </div>
             )}
           </div>
@@ -417,7 +453,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span className="font-mono" style={{ fontSize: "13px", fontWeight: 800, color: "#F43F5E" }}>
-                  BEFORE REPAIR (3.3V Rail)
+                  BEFORE REPAIR (Shared 3.3V Rail)
                 </span>
                 <span
                   style={{
@@ -440,13 +476,15 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                   <path d="M 20 40 L 90 40 L 140 95 L 180 95 L 230 40 L 280 40" fill="none" stroke="#F43F5E" strokeWidth="2.5" />
                   <circle cx="160" cy="95" r="4" fill="#F43F5E" />
                   <text x="160" y="112" textAnchor="middle" fill="#F43F5E" fontSize="10" fontFamily="var(--font-mono)" fontWeight="700">
-                    MIN {beforeMinVoltage.toFixed(2)} V
+                    MIN {beforeMinVoltage !== undefined ? `${beforeMinVoltage.toFixed(2)} V` : "-- V"}
                   </text>
                 </svg>
               </div>
 
               <div style={{ fontSize: "12.5px", color: "#94A3B8", textAlign: "center" }}>
-                {typeof beforeExperiment?.summary?.message === "string" ? beforeExperiment.summary.message : "Relay actuation causes 590 mV collapse, breaching brownout threshold."}
+                {typeof beforeExperiment?.summary?.message === "string"
+                  ? beforeExperiment.summary.message
+                  : "Relay actuation draws excessive inrush current on shared rail, breaching brownout threshold."}
               </div>
             </div>
 
@@ -481,14 +519,14 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
               </div>
 
               <div style={{ height: "140px", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                {hasVerified ? (
+                {hasVerified && afterMinVoltage !== undefined ? (
                   <svg viewBox="0 0 300 120" style={{ width: "100%", height: "100%" }}>
                     <line x1="20" y1="60" x2="280" y2="60" stroke="#F59E0B" strokeWidth="1" strokeDasharray="3 3" />
                     <text x="280" y="55" textAnchor="end" fill="#F59E0B" fontSize="9" fontFamily="var(--font-mono)">2.80V SAFE LIMIT</text>
                     <path d="M 20 40 L 90 40 L 140 46 L 180 46 L 230 40 L 280 40" fill="none" stroke="#22D3EE" strokeWidth="2.5" />
                     <circle cx="160" cy="46" r="4" fill="#22D3EE" />
                     <text x="160" y="32" textAnchor="middle" fill="#22D3EE" fontSize="10" fontFamily="var(--font-mono)" fontWeight="700">
-                      MIN {(afterMinVoltage ?? 3.18).toFixed(2)} V
+                      MIN {afterMinVoltage.toFixed(2)} V
                     </text>
                   </svg>
                 ) : (
@@ -500,8 +538,10 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
 
               <div style={{ fontSize: "12.5px", color: "#94A3B8", textAlign: "center" }}>
                 {hasVerified
-                  ? (typeof afterExperiment?.summary?.message === "string" ? afterExperiment.summary.message : "Supply remains securely above safe limit during full fan actuation.")
-                  : "Move jumper and run verification test to record empirical telemetry."}
+                  ? (typeof afterExperiment?.summary?.message === "string"
+                      ? afterExperiment.summary.message
+                      : "Supply remains securely above safe limit during full fan actuation.")
+                  : "Move jumper and notify Bench Agent to record empirical verification telemetry."}
               </div>
             </div>
           </div>

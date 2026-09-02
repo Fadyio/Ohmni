@@ -83,6 +83,7 @@ export interface UseBenchAgentResult {
   readonly state: BenchAgentState;
   readonly setGoal: (goal: string) => void;
   readonly start: () => void;
+  readonly sendObservation: (observation: string) => void;
   readonly stop: () => void;
   readonly approve: () => void;
   readonly deny: () => void;
@@ -200,7 +201,7 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
   const pendingApprovalRef = useRef<PendingApproval | null>(null);
   const nextRunIdRef = useRef(0);
   const activeRunIdRef = useRef(0);
-
+  const lastInteractionIdRef = useRef<string | undefined>(undefined);
   const commit = useCallback((next: BenchAgentState) => {
     stateRef.current = next;
     if (mountedRef.current) {
@@ -385,6 +386,9 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
         activeRunIdRef.current = 0;
         controllerRef.current = null;
         pendingApprovalRef.current = null;
+        if (result.interactionId) {
+          lastInteractionIdRef.current = result.interactionId;
+        }
         commit(resultState(stateRef.current, result));
       })
       .catch((error: unknown) => {
@@ -416,6 +420,131 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
       });
   }, [commit, provider]);
 
+  const sendObservation = useCallback(
+    (observation: string) => {
+      const trimmed = observation.trim();
+      const previous = stateRef.current;
+      const modelContext = document.modelContext;
+      if (!trimmed || !previous.providerAvailable || isActive(previous)) return;
+
+      if (!modelContext) {
+        commit({
+          status: "failed",
+          goal: previous.goal,
+          activity: previous.activity,
+          providerAvailable: true,
+          steps: stepCount(previous.activity),
+          message: "WebMCP model context is unavailable.",
+        });
+        return;
+      }
+
+      const runId = ++nextRunIdRef.current;
+      activeRunIdRef.current = runId;
+      const controller = new AbortController();
+      controllerRef.current = controller;
+      pendingApprovalRef.current = null;
+
+      commit({
+        status: "investigating",
+        goal: previous.goal,
+        runGoal: trimmed,
+        activity: previous.activity,
+        providerAvailable: true,
+        steps: stepCount(previous.activity),
+      });
+
+      const onEvent = (event: BenchAgentEvent) => {
+        if (activeRunIdRef.current !== runId) return;
+        const current = stateRef.current;
+        if (!isActive(current)) return;
+        const activity = updateActivity(current.activity, event);
+        if (event.type === "approval-requested") {
+          commit({
+            status: "approval",
+            goal: current.goal,
+            runGoal: current.runGoal,
+            activity,
+            providerAvailable: true,
+            steps: stepCount(activity),
+            approval: { call: event.call, tool: event.tool },
+          });
+          return;
+        }
+        commit({ ...current, activity, steps: stepCount(activity) });
+      };
+
+      void runBenchAgent({
+        goal: trimmed,
+        previousInteractionId: lastInteractionIdRef.current,
+        modelContext,
+        provider,
+        signal: controller.signal,
+        onEvent,
+        requestApproval: ({ call, tool }) => {
+          if (activeRunIdRef.current !== runId || controller.signal.aborted) {
+            return Promise.resolve(false);
+          }
+
+          return new Promise<boolean>((resolve) => {
+            const previousPending = pendingApprovalRef.current;
+            pendingApprovalRef.current = { runId, resolve };
+            previousPending?.resolve(false);
+
+            const current = stateRef.current;
+            commit({
+              status: "approval",
+              goal: current.goal,
+              runGoal: current.runGoal,
+              activity: current.activity,
+              providerAvailable: true,
+              steps: stepCount(current.activity),
+              approval: { call, tool },
+            });
+          });
+        },
+      })
+        .then((result) => {
+          if (activeRunIdRef.current !== runId) return;
+          activeRunIdRef.current = 0;
+          controllerRef.current = null;
+          pendingApprovalRef.current = null;
+          if (result.interactionId) {
+            lastInteractionIdRef.current = result.interactionId;
+          }
+          commit(resultState(stateRef.current, result));
+        })
+        .catch((error: unknown) => {
+          if (activeRunIdRef.current !== runId) return;
+          activeRunIdRef.current = 0;
+          controllerRef.current = null;
+          pendingApprovalRef.current = null;
+          const current = stateRef.current;
+          if (controller.signal.aborted) {
+            commit({
+              status: "stopped",
+              goal: current.goal,
+              runGoal: current.runGoal,
+              activity: current.activity,
+              providerAvailable: true,
+              steps: stepCount(current.activity),
+            });
+            return;
+          }
+          commit({
+            status: "failed",
+            goal: current.goal,
+            runGoal: current.runGoal,
+            activity: current.activity,
+            providerAvailable: true,
+            steps: stepCount(current.activity),
+            message: error instanceof Error ? error.message : "Bench Agent failed.",
+          });
+        });
+    },
+    [commit, provider],
+  );
+
   useEffect(() => {
     if (!isConnected && isActive(stateRef.current)) {
       stop();
@@ -439,6 +568,7 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
     state,
     setGoal,
     start,
+    sendObservation,
     stop,
     approve: () => settleApproval(true),
     deny: () => settleApproval(false),

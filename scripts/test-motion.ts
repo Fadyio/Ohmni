@@ -602,10 +602,9 @@ async function runMotionTests(): Promise<void> {
     }
 
     if (!relayActuationVerified) {
-      const hasReset = await cdpClient.evaluate<boolean>(`Boolean(window.__evidenceStore && window.__evidenceStore.getAll().length >= 1)`);
-      if (!hasReset) {
-        throw new Error("[Assertion Failed] Relay armature SVG transform / state did not actuate during relay stress test");
-      }
+      throw new Error(
+        `[Assertion Failed] Relay armature SVG transform / state did not actuate during relay stress test: stateBefore=${relayBefore.state}, y2Before=${relayBefore.y2}`
+      );
     }
 
     console.info(`  ✅ PASS: 3. Human authorization gate & tactile relay actuation transform verified`);
@@ -614,31 +613,39 @@ async function runMotionTests(): Promise<void> {
     // TEST 4: Oscilloscope 60fps Canvas Render Verification
     // -----------------------------------------------------------------
     console.info("4. Oscilloscope Canvas Multi-Frame Render...");
-    const totalFramesRendered = maxFrameCount;
-    if (totalFramesRendered <= 0) {
+    const frameDelta = maxFrameCount - frameCountBefore;
+    if (frameDelta < 5) {
       throw new Error(
-        `[Assertion Failed] Oscilloscope canvas render loop stalled: zero frames rendered during experiment execution`
+        `[Assertion Failed] Oscilloscope canvas render loop stalled: only ${frameDelta} new frames rendered during experiment acquisition (before=${frameCountBefore}, after=${maxFrameCount}, required >= 5)`
       );
     }
-    console.info(`  ✅ PASS: 4. 60fps Oscilloscope telemetry captured real voltage frames (${totalFramesRendered} frames rendered across experiment acquisition)`);
+    console.info(`  ✅ PASS: 4. 60fps Oscilloscope telemetry captured real voltage frames (${frameDelta} new frames rendered during actuation; maxFrameCount=${maxFrameCount})`);
     // -----------------------------------------------------------------
     // TEST 5: Evidence Store & Grounded Hypothesis Synthesis
     // -----------------------------------------------------------------
     console.info("5. Evidence Extraction & Hypothesis Motion...");
     let hypothesisFound = false;
+    let evidenceTokenDetected = false;
+
     for (let i = 0; i < 40; i++) {
       const check = await cdpClient.evaluate<{
         hasHypothesisCard: boolean;
         hasStoredHypothesis: boolean;
         hasApproval: boolean;
+        hasEvidenceToken: boolean;
       }>(`({
         hasHypothesisCard: document.querySelector("[data-testid='hypothesis-card']") !== null || document.body.innerText.includes("H-001"),
         hasStoredHypothesis: Boolean(window.__hypothesisStore && window.__hypothesisStore.getAll().length >= 1),
         hasApproval: document.querySelector("[data-testid='bench-agent-approve']") !== null,
+        hasEvidenceToken: document.querySelector(".evidence-token-card") !== null || Boolean(window.__evidenceStore && window.__evidenceStore.getAll().length >= 1),
       })`);
 
       if (check.hasApproval) {
         await cdpClient.evaluate(`document.querySelector("[data-testid='bench-agent-approve']")?.click()`);
+      }
+
+      if (check.hasEvidenceToken) {
+        evidenceTokenDetected = true;
       }
 
       if (check.hasHypothesisCard || check.hasStoredHypothesis) {
@@ -648,11 +655,14 @@ async function runMotionTests(): Promise<void> {
       await new Promise((r) => setTimeout(r, 250));
     }
 
+    if (!evidenceTokenDetected) {
+      throw new Error("[Assertion Failed] No evidence tokens were extracted or displayed in the evidence ledger");
+    }
+
     if (!hypothesisFound) {
       throw new Error("[Assertion Failed] Root cause hypothesis card failed to appear upon completion");
     }
     console.info(`  ✅ PASS: 5. Evidence token ledger & root cause hypothesis synthesized successfully`);
-
     console.info("\n==================================================================");
     console.info("🎉 ALL REAL GOOGLE CHROME MOTION TESTS PASSED SUCCESSFULLY!");
     console.info("==================================================================");

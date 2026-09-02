@@ -90,6 +90,7 @@ export async function runBenchAgent(
     onEvent,
     signal,
     maxSteps = MAX_AGENT_STEPS,
+    previousInteractionId: initialInteractionId,
   } = options;
   const requestedStepLimit = Number.isFinite(maxSteps)
     ? Math.floor(maxSteps)
@@ -100,8 +101,8 @@ export async function runBenchAgent(
   );
   let steps = 0;
   let input: string | readonly AgentFunctionResult[] = goal;
-  let previousInteractionId: string | undefined;
-
+  let previousInteractionId: string | undefined = initialInteractionId;
+  let lastInteractionId: string | undefined = initialInteractionId;
   try {
     throwIfAborted(signal);
 
@@ -123,7 +124,7 @@ export async function runBenchAgent(
         ),
         signal
       );
-      throwIfAborted(signal);
+      lastInteractionId = turn.interactionId;
 
       if (!Array.isArray(turn.functionCalls)) {
         throw new Error("Bench agent provider returned invalid function calls.");
@@ -135,13 +136,13 @@ export async function runBenchAgent(
             "Bench agent provider returned neither function calls nor text."
           );
         }
-        return { status: "completed", steps, text: turn.text };
+        return { status: "completed", steps, text: turn.text, interactionId: turn.interactionId };
       }
 
       const results: AgentFunctionResult[] = [];
       for (const call of turn.functionCalls) {
         if (steps >= stepLimit) {
-          return { status: "step-limit", steps };
+          return { status: "step-limit", steps, interactionId: lastInteractionId };
         }
         steps += 1;
         onEvent({ type: "tool-requested", call });
@@ -239,12 +240,13 @@ export async function runBenchAgent(
     }
   } catch (error) {
     if (isAbort(error, signal)) {
-      return { status: "stopped", steps };
+      return { status: "stopped", steps, interactionId: lastInteractionId };
     }
     return {
       status: "failed",
       steps,
       message: errorMessage(error, "Bench agent failed unexpectedly."),
+      interactionId: lastInteractionId,
     };
   }
 }

@@ -112,40 +112,44 @@ export const App: React.FC<AppProps> = ({
   } = useExperimentTimeline(resolvedBus);
 
   const { ringBufferRef, markersRef } = useOscilloscopeBuffer(resolvedBus);
-  const { state: agentState, setGoal, start: startAgent, stop: stopAgent, approve: approveAgent, deny: denyAgent } = useBenchAgent(isConnected);
+  const { state: agentState, setGoal, start: startAgent, sendObservation: sendAgentObservation, stop: stopAgent, approve: approveAgent, deny: denyAgent } = useBenchAgent(isConnected);
   const { records: evidenceRecords } = useEvidenceStore(resolvedEvidenceStore);
   const { hypotheses } = useHypothesisStore(resolvedHypothesisStore);
 
   const activeHypothesis = hypotheses.length > 0 ? hypotheses[0] : null;
 
   // Actions
-  const handleStartDemo = useCallback(async () => {
-    try {
+  const handleStartDemo = useCallback(() => {
+    setGoal("The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.");
+
+    // Initiate hardware connection in background concurrently with the transition
+    const connectPromise = (async () => {
       await connect();
       if (resolvedAdapter && resolvedRegistrar) {
         await resolvedRegistrar.registerDevice(resolvedAdapter);
       }
-      setGoal("The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.");
+    })();
 
-      // Execute GSAP Welcome -> Lab choreographic timeline
-      playTransition(
-        {
-          rootContainerRef,
-          heroTextRef,
-          hardwareVisualRef,
-          ctaButtonRef,
-          labChromeRef,
-          labMainSceneRef,
-          agentRailRef,
-        },
-        () => {
-          setViewMode("investigation");
+    // Execute GSAP Welcome -> Lab choreographic timeline immediately at t=0
+    playTransition(
+      {
+        rootContainerRef,
+        heroTextRef,
+        hardwareVisualRef,
+        ctaButtonRef,
+        labChromeRef,
+        labMainSceneRef,
+        agentRailRef,
+      },
+      async () => {
+        try {
+          await connectPromise;
+        } catch (err) {
+          console.error("Failed to connect hardware during transition:", err);
         }
-      );
-    } catch (err) {
-      console.error("Failed to start virtual diagnosis:", err);
-      setViewMode("investigation");
-    }
+        setViewMode("investigation");
+      }
+    );
   }, [connect, resolvedAdapter, resolvedRegistrar, setGoal, playTransition]);
 
   const handleConnectHardware = useCallback(async () => {
@@ -234,6 +238,10 @@ export const App: React.FC<AppProps> = ({
             evidenceStore={resolvedEvidenceStore}
             hypothesisStore={resolvedHypothesisStore}
             hypothesis={activeHypothesis}
+            agentState={agentState}
+            onSendObservation={sendAgentObservation}
+            onApproveTest={approveAgent}
+            onDenyTest={denyAgent}
             onReturnToInvestigation={() => setViewMode("investigation")}
           />
         </div>

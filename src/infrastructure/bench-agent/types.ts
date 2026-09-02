@@ -81,19 +81,23 @@ export type BenchAgentRunResult =
       readonly status: "completed";
       readonly steps: number;
       readonly text: string;
+      readonly interactionId?: string;
     }
   | {
       readonly status: "stopped";
       readonly steps: number;
+      readonly interactionId?: string;
     }
   | {
       readonly status: "step-limit";
       readonly steps: number;
+      readonly interactionId?: string;
     }
   | {
       readonly status: "failed";
       readonly steps: number;
       readonly message: string;
+      readonly interactionId?: string;
     };
 
 export interface BenchAgentApprovalRequest {
@@ -111,6 +115,7 @@ export interface RunBenchAgentOptions {
   readonly onEvent: (event: BenchAgentEvent) => void;
   readonly signal?: AbortSignal;
   readonly maxSteps?: number;
+  readonly previousInteractionId?: string;
 }
 
 export interface BenchAgentAvailability {

@@ -260,6 +260,76 @@ async function main(): Promise<void> {
   console.info(`↳ Actuation avoided: ${!resultC.toolSequence.includes("run_relay_stress_test")}`);
 
   // -------------------------------------------------------------
+  // Test D: Full Investigate -> Human Intervention -> Empirical Retest -> Verify Loop
+  // -------------------------------------------------------------
+  console.info("\n--- EXECUTING TEST D: Full Investigate -> Human Intervention -> Retest -> Verify ---");
+  const envD = createWorkbenchEnvironment();
+  await envD.virtualDevice.connect();
+  await envD.toolRegistrar.registerDevice(envD.virtualDevice);
+
+  const providerD = new TrackingGeminiProvider(apiKey, model);
+  const toolSeqD1: string[] = [];
+  const onEventD1 = (event: BenchAgentEvent) => {
+    if (event.type === "tool-requested") toolSeqD1.push(event.call.name);
+  };
+
+  // Step 1: Initial Diagnosis
+  console.info("Step 1: Starting initial fault diagnosis...");
+  const promptD1 = "The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments. Do not guess. Verify any physical repair experimentally.";
+  const runD1 = await runBenchAgent({
+    goal: promptD1,
+    modelContext: envD.modelContext,
+    provider: providerD,
+    onEvent: onEventD1,
+    requestApproval: async () => true,
+  });
+  console.info(`↳ Diagnosis steps: ${runD1.steps} | Tools: [${toolSeqD1.join(" -> ")}]`);
+
+  // Step 2: Human Physical Intervention
+  console.info("Step 2: Performing human physical intervention (moving jumper to 5V rail)...");
+  envD.virtualDevice.setInterventionPoint("relay_power_jumper", "5v");
+
+  // Step 3: Human Observation Continuation Turn
+  console.info("Step 3: Notifying Bench Agent of human physical observation...");
+  const toolSeqD2: string[] = [];
+  const onEventD2 = (event: BenchAgentEvent) => {
+    if (event.type === "tool-requested") toolSeqD2.push(event.call.name);
+  };
+  const promptD2 = "Human observation: Relay power jumper moved from shared 3.3V rail to external 5V rail.";
+  const runD2 = await runBenchAgent({
+    goal: promptD2,
+    previousInteractionId: runD1.interactionId,
+    modelContext: envD.modelContext,
+    provider: providerD,
+    onEvent: onEventD2,
+    requestApproval: async () => true,
+  });
+  console.info(`↳ Retest steps: ${runD2.steps} | Tools: [${toolSeqD2.join(" -> ")}]`);
+
+  const topHypD = envD.hypothesisStore.getAll()[0];
+  const isHypConfirmed = topHypD?.status === "CONFIRMED" || topHypD?.verificationStatus === "VERIFIED";
+  const retestExecuted = toolSeqD2.includes("run_relay_stress_test");
+  const confirmCalled = toolSeqD2.includes("confirm_hypothesis");
+
+  const resultD: LiveTestResult = {
+    testName: "Test D: End-to-End Agent Verification Loop",
+    prompt: `${promptD1} -> [Human: Jumper 5V] -> ${promptD2}`,
+    interactionIds: providerD.interactionIds,
+    toolSequence: [...toolSeqD1, "[HUMAN INTERVENTION]", ...toolSeqD2],
+    steps: runD1.steps + runD2.steps,
+    finalDiagnosis: runD2.status === "completed" ? runD2.text : runD1.status === "completed" ? runD1.text : "",
+    evidenceCited: envD.evidenceStore.getAll().map((e) => e.id),
+    hypothesisSummary: topHypD ? {
+      id: topHypD.id,
+      title: topHypD.title,
+      confidence: topHypD.confidence,
+      citations: topHypD.supportingEvidenceIds,
+    } : undefined,
+    nonexistentToolCalls: [],
+    verifiedClaimMade: false,
+    passed: retestExecuted && (confirmCalled || isHypConfirmed),
+  };
+  results.push(resultD);
   // Final Live Acceptance Report
   // -------------------------------------------------------------
   console.info("\n==================================================================");

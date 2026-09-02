@@ -95,9 +95,9 @@ export const VirtualBenchControls: React.FC<VirtualBenchControlsProps> = ({
         failures: resultData.faultReproduced ? 1 : 0,
         unexpected_resets: resultData.resetOccurred ? 1 : 0,
         supply_voltage: {
-          baseline_v: (resultData.baselineVoltage as number) ?? 3.31,
-          minimum_v: (resultData.minVoltage as number) ?? 2.72,
-          drop_v: ((resultData.baselineVoltage as number) ?? 3.31) - ((resultData.minVoltage as number) ?? 2.72),
+          baseline_v: typeof resultData.baselineVoltage === "number" ? resultData.baselineVoltage : (typeof resultData.nominalVoltage === "number" ? resultData.nominalVoltage : 3.31),
+          minimum_v: typeof resultData.minVoltage === "number" ? resultData.minVoltage : (typeof resultData.minimum_v === "number" ? resultData.minimum_v : 0),
+          drop_v: typeof resultData.vDrop === "number" ? resultData.vDrop : (typeof resultData.minVoltage === "number" ? ((typeof resultData.baselineVoltage === "number" ? resultData.baselineVoltage : 3.31) - resultData.minVoltage) : 0),
         },
         faultReproduced: Boolean(resultData.faultReproduced),
         resetOccurred: Boolean(resultData.resetOccurred),

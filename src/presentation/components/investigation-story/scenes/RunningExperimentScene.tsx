@@ -245,28 +245,94 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
         </div>
       </div>
 
-      {/* Scope Instrument Canvas */}
+      {/* Scope Instrument & Tactile Relay Module */}
       <div
         style={{
-          background: "var(--ohmni-lab-raised)",
-          border: "1px solid var(--ohmni-lab-border)",
-          borderRadius: "var(--radius-xl)",
-          padding: "1.25rem",
-          boxShadow: "0 0 32px rgba(0, 0, 0, 0.4)",
+          display: "grid",
+          gridTemplateColumns: "1fr 280px",
+          gap: "1.25rem",
+          alignItems: "stretch",
         }}
       >
-        <canvas
-          data-testid="oscilloscope-canvas"
-          ref={canvasRef}
-          width={800}
-          height={260}
+        {/* Scope Canvas */}
+        <div
           style={{
-            width: "100%",
-            height: "260px",
-            display: "block",
-            borderRadius: "var(--radius-md)",
+            background: "var(--ohmni-lab-raised)",
+            border: "1px solid var(--ohmni-lab-border)",
+            borderRadius: "var(--radius-xl)",
+            padding: "1.25rem",
+            boxShadow: "0 0 32px rgba(0, 0, 0, 0.4)",
           }}
-        />
+        >
+          <canvas
+            data-testid="oscilloscope-canvas"
+            ref={canvasRef}
+            width={800}
+            height={260}
+            style={{
+              width: "100%",
+              height: "260px",
+              display: "block",
+              borderRadius: "var(--radius-md)",
+            }}
+          />
+        </div>
+
+        {/* Live Physical Relay Module & Armature Contact */}
+        <div
+          id="relay-module-group"
+          data-testid="relay-module-group"
+          data-relay-state={isClosed ? "closed" : "open"}
+          style={{
+            background: "var(--ohmni-lab-raised)",
+            border: `1.5px solid ${isClosed ? "var(--ohmni-lab-action)" : "var(--ohmni-lab-border)"}`,
+            borderRadius: "var(--radius-xl)",
+            padding: "1.25rem",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "space-between",
+            boxShadow: isClosed ? "0 0 24px rgba(255, 181, 74, 0.25)" : "none",
+            transition: "all 0.2s ease",
+          }}
+        >
+          <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: isClosed ? "var(--ohmni-lab-action)" : "var(--ohmni-lab-muted)" }}>
+            TACTILE RELAY ARMATURE
+          </div>
+
+          <svg viewBox="0 0 160 120" style={{ width: "100%", height: "110px" }}>
+            {/* Coil block */}
+            <rect x="20" y="30" width="40" height="50" rx="4" fill={isClosed ? "rgba(255, 181, 74, 0.2)" : "#1E293B"} stroke={isClosed ? "var(--ohmni-lab-action)" : "#475569"} strokeWidth="1.5" />
+            <path d="M 28 40 Q 40 35 52 40 M 28 50 Q 40 45 52 50 M 28 60 Q 40 55 52 60 M 28 70 Q 40 65 52 70" stroke={isClosed ? "var(--ohmni-lab-action)" : "#64748B"} strokeWidth="2" fill="none" />
+            <text x="40" y="95" textAnchor="middle" fill="#94A3B8" fontSize="8" fontFamily="var(--font-mono)">COIL</text>
+
+            {/* Armature switch contacts */}
+            <circle cx="85" cy="55" r="4" fill="#D4AF37" />
+            <circle cx="130" cy="35" r="4" fill="#D4AF37" />
+            <circle cx="130" cy="75" r="4" fill="#D4AF37" />
+            <text x="80" y="45" fill="#94A3B8" fontSize="8" fontFamily="var(--font-mono)">COM</text>
+            <text x="138" y="38" fill="#94A3B8" fontSize="8" fontFamily="var(--font-mono)">NO</text>
+            <text x="138" y="78" fill="#94A3B8" fontSize="8" fontFamily="var(--font-mono)">NC</text>
+
+            {/* Moving Armature Lever */}
+            <line
+              id="relay-armature-lever"
+              data-testid="relay-armature-lever"
+              data-relay-state={isClosed ? "closed" : "open"}
+              x1="85"
+              y1="55"
+              x2={isClosed ? "128" : "126"}
+              y2={isClosed ? "36" : "70"}
+              stroke={isClosed ? "var(--ohmni-lab-action)" : "#F5F7FA"}
+              strokeWidth="3.5"
+              strokeLinecap="round"
+            />
+          </svg>
+
+          <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: isClosed ? "var(--ohmni-lab-action)" : "var(--ohmni-lab-muted)" }}>
+            {isClosed ? "⚡ COIL ENERGIZED" : "COIL INERT"}
+          </div>
+        </div>
       </div>
     </motion.div>
   );

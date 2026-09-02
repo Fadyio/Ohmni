@@ -109,31 +109,73 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
           </div>
 
           {/* Safety Bounds Box */}
+          {/* Safety Bounds & Target Relay Preview */}
           <div
             style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 140px",
+              gap: "12px",
               background: "var(--ohmni-lab-soft-raised)",
               border: "1px solid var(--ohmni-lab-border)",
               borderRadius: "var(--radius-lg)",
               padding: "1rem 1.25rem",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
+              alignItems: "center",
             }}
           >
-            <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-lab-text)", textTransform: "uppercase" }}>
-              CONTROLLED SAFETY ENVELOPE
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-lab-text)", textTransform: "uppercase" }}>
+                CONTROLLED SAFETY ENVELOPE
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
+                <Clock size={13} color="var(--ohmni-lab-action)" />
+                <span>500 ms maximum actuation</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
+                <AlertTriangle size={13} color="var(--ohmni-lab-fault)" />
+                <span>Automatic abort on reset</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
+                <Activity size={13} color="var(--ohmni-lab-signal)" />
+                <span>Live voltage monitoring</span>
+              </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
-              <Clock size={13} color="var(--ohmni-lab-action)" />
-              <span>500 ms maximum actuation</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
-              <AlertTriangle size={13} color="var(--ohmni-lab-fault)" />
-              <span>Automatic abort on reset</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
-              <Activity size={13} color="var(--ohmni-lab-signal)" />
-              <span>Live voltage monitoring</span>
+
+            {/* Relay Armature Open State Preview */}
+            <div
+              id="relay-module-group"
+              data-testid="relay-module-group"
+              data-relay-state={isApproved ? "closed" : "open"}
+              style={{
+                background: "var(--ohmni-lab-canvas)",
+                border: "1px solid var(--ohmni-lab-border)",
+                borderRadius: "var(--radius-md)",
+                padding: "6px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+              }}
+            >
+              <svg viewBox="0 0 160 120" style={{ width: "100%", height: "70px" }}>
+                <rect x="20" y="30" width="40" height="50" rx="4" fill={isApproved ? "rgba(255, 181, 74, 0.2)" : "#1E293B"} stroke={isApproved ? "var(--ohmni-lab-action)" : "#475569"} strokeWidth="1.5" />
+                <circle cx="85" cy="55" r="4" fill="#D4AF37" />
+                <circle cx="130" cy="35" r="4" fill="#D4AF37" />
+                <circle cx="130" cy="75" r="4" fill="#D4AF37" />
+                <line
+                  id="relay-armature-lever"
+                  data-testid="relay-armature-lever"
+                  data-relay-state={isApproved ? "closed" : "open"}
+                  x1="85"
+                  y1="55"
+                  x2={isApproved ? "128" : "126"}
+                  y2={isApproved ? "36" : "70"}
+                  stroke={isApproved ? "var(--ohmni-lab-action)" : "#F5F7FA"}
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className="font-mono" style={{ fontSize: "9px", color: isApproved ? "var(--ohmni-lab-action)" : "#94A3B8" }}>
+                {isApproved ? "ENERGIZING" : "ARMED"}
+              </span>
             </div>
           </div>
         </div>

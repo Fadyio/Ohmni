@@ -789,4 +789,76 @@ describe("runBenchAgent", () => {
     expect(terminal).toMatchObject({ status: "failed" });
     expect(JSON.stringify(terminal)).toContain("deterministic provider failure");
   });
+
+  it("preserves previousInteractionId and returns interactionId across multi-turn human observation continuation", async () => {
+    const modelContext = new InMemoryModelContext();
+    const events: unknown[] = [];
+    let toolCallCount = 0;
+
+    await modelContext.registerTool({
+      name: "run_retest",
+      description: "Run empirical retest.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      annotations: { readOnlyHint: false },
+      execute: async () => {
+        toolCallCount += 1;
+        return { success: true, voltage: 3.18 };
+      },
+    });
+
+    const provider = new DeterministicProvider([
+      // Turn 1: Initial diagnosis
+      {
+        interactionId: "interaction-initial-diag",
+        functionCalls: [],
+        text: "Diagnosis: Move relay jumper to 5V rail.",
+      },
+      // Turn 2: Retest after human observation
+      {
+        interactionId: "interaction-retest-step",
+        functionCalls: [
+          {
+            id: "call-retest-1",
+            name: "run_retest",
+            arguments: {},
+          },
+        ],
+      },
+      // Turn 3: Confirmation
+      {
+        interactionId: "interaction-confirmed",
+        functionCalls: [],
+        text: "Empirical verification complete: nominal 3.18V verified.",
+      },
+    ]);
+
+    // Run 1: Initial turn
+    const result1 = await runBenchAgent({
+      goal: "Diagnose unexpected brownout reset",
+      modelContext,
+      provider,
+      requestApproval: async () => true,
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(result1.status).toBe("completed");
+    expect(result1.interactionId).toBe("interaction-initial-diag");
+    expect(provider.requests[0]?.previousInteractionId).toBeUndefined();
+
+    // Run 2: Continuation with human observation
+    const result2 = await runBenchAgent({
+      goal: "Human observation: Relay power jumper moved from shared 3.3V rail to external 5V rail.",
+      previousInteractionId: result1.interactionId,
+      modelContext,
+      provider,
+      requestApproval: async () => true,
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(result2.status).toBe("completed");
+    expect(result2.interactionId).toBe("interaction-confirmed");
+    expect(toolCallCount).toBe(1);
+    expect(provider.requests[1]?.previousInteractionId).toBe("interaction-initial-diag");
+    expect(provider.requests[2]?.previousInteractionId).toBe("interaction-retest-step");
+  });
 });

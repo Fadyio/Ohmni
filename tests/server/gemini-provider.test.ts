@@ -1,27 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { GeminiBenchAgentProvider } from "../../server/bench-agent/gemini-provider";
+import {
+  GeminiBenchAgentProvider,
+  BENCH_AGENT_SYSTEM_INSTRUCTION as SYSTEM_INSTRUCTION,
+} from "../../server/bench-agent/gemini-provider";
 
 const API_KEY = "server-only-gemini-secret";
 const DEFAULT_MODEL = "gemini-3.7-flash";
-const SYSTEM_INSTRUCTION = `You are Ohmni's diagnostic bench agent.
-
-Investigate hardware failures empirically.
-
-Use available WebMCP instruments rather than guessing.
-
-Distinguish observations from hypotheses.
-
-Use evidence tools to inspect factual records.
-
-Create or update hypotheses only when supported by evidence.
-
-Do not claim a root cause is verified until the workbench contains a successful verification experiment.
-
-Do not invent hardware capabilities.
-
-If a required physical action cannot be performed with available tools, explain what human action is needed.
-
-Prefer the smallest informative next experiment.`;
 const REQUEST_TIMEOUT_MS = 30_000;
 
 const VOLTAGE_TOOL = {

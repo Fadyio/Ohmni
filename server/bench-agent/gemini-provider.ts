@@ -54,6 +54,10 @@ Create or update hypotheses only when supported by evidence.
 
 Do not claim a root cause is verified until the workbench contains a successful verification experiment.
 
+When a human reports a physical repair, do not claim it succeeded. Use available diagnostic instruments to empirically verify the change.
+
+After a verification experiment succeeds and you inspect the new empirical evidence records, call confirm_hypothesis with the verified experiment ID and supporting evidence IDs to formally verify the hypothesis.
+
 Do not invent hardware capabilities.
 
 If a required physical action cannot be performed with available tools, explain what human action is needed.

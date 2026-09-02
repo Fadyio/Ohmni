@@ -85,7 +85,7 @@ export function useLandingToLabTransition() {
         );
       }
 
-      // 50–650ms: Hardware visual scales 1.0 -> 1.4 and moves toward center
+      // 0–550ms: Hardware visual scales 1.0 -> 1.4 and moves toward center
       if (hardwareVisualRef.current) {
         tl.to(
           hardwareVisualRef.current,
@@ -96,7 +96,7 @@ export function useLandingToLabTransition() {
             duration: 0.55,
             ease: "power2.inOut",
           },
-          0.05
+          0
         );
       }
 
