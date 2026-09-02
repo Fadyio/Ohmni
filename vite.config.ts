@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { fileURLToPath, URL } from "node:url";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import react from "@vitejs/plugin-react";
@@ -143,6 +144,14 @@ function benchAgentPlugin(handler: BenchAgentHandler): Plugin {
 
 export default defineConfig(({ mode }) => {
   const env = { ...process.env, ...loadEnv(mode, process.cwd(), "") };
+  let buildSha = env.VERCEL_GIT_COMMIT_SHA || env.VITE_BUILD_SHA || "";
+  if (!buildSha) {
+    try {
+      buildSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+    } catch {
+      buildSha = "unknown";
+    }
+  }
   const handler = createBenchAgentHandler({
     env: {
       GEMINI_API_KEY: env.GEMINI_API_KEY,
@@ -151,6 +160,9 @@ export default defineConfig(({ mode }) => {
   });
 
   return {
+    define: {
+      "import.meta.env.VITE_BUILD_SHA": JSON.stringify(buildSha),
+    },
     plugins: [react(), benchAgentPlugin(handler)],
     resolve: {
       alias: {

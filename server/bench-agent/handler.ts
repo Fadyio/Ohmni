@@ -1,6 +1,7 @@
 import {
   DEFAULT_GEMINI_MODEL,
   GeminiBenchAgentProvider,
+  sanitizeErrorMessage,
   type AgentFunctionResult,
   type AgentTurnRequest,
   type AgentTurnResult,
@@ -15,7 +16,7 @@ export type {
   BenchAgentProvider,
   GeminiFunctionDeclaration,
 } from "./gemini-provider.ts";
-export { DEFAULT_GEMINI_MODEL } from "./gemini-provider.ts";
+export { DEFAULT_GEMINI_MODEL, sanitizeErrorMessage } from "./gemini-provider.ts";
 
 export const MAX_REQUEST_BODY_BYTES = 128 * 1024;
 export const MAX_TOOLS = 64;
@@ -253,21 +254,83 @@ export function createBenchAgentHandler(
   const sessions = new Map<string, SessionRateState>();
 
   return async (request: Request): Promise<Response> => {
+    const requestId = "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+    let url: URL;
+    try {
+      url = new URL(request.url);
+    } catch {
+      url = new URL("http://localhost/api/bench-agent");
+    }
+
+    const isHealthCheck =
+      url.pathname.endsWith("/health") ||
+      url.searchParams.get("health") === "1" ||
+      url.searchParams.has("health");
+
+    if (isHealthCheck) {
+      if (apiKey.length === 0 || provider === undefined) {
+        return jsonResponse(
+          {
+            ok: false,
+            error: "BENCH_AGENT_UNAVAILABLE",
+            message: "Gemini API key is not configured.",
+            requestId,
+          },
+          503,
+        );
+      }
+      try {
+        if (typeof provider.canary === "function") {
+          const canaryResult = await provider.canary({ signal: request.signal });
+          return jsonResponse({ ...canaryResult, requestId });
+        }
+        const turnResult = await provider.turn(
+          { input: "Reply with exactly OK.", tools: [] },
+          { signal: request.signal },
+        );
+        return jsonResponse({
+          ok: true,
+          message: turnResult.text ?? "OK",
+          model,
+          requestId,
+        });
+      } catch (err: unknown) {
+        const safeMessage = sanitizeErrorMessage(err);
+        console.error("[BenchAgent Canary Failure]", {
+          requestId,
+          errorMessage: safeMessage,
+          model,
+        });
+        return jsonResponse(
+          {
+            ok: false,
+            error: "CANARY_FAILED",
+            message: safeMessage,
+            requestId,
+          },
+          502,
+        );
+      }
+    }
+
     if (request.method === "GET") {
-      return jsonResponse({ available: apiKey.length > 0, model });
+      return jsonResponse({
+        available: apiKey.length > 0,
+        model,
+      });
     }
     if (request.method !== "POST") {
       return jsonResponse(
-        { error: "METHOD NOT ALLOWED", message: "Use GET or POST." },
+        { error: "METHOD NOT ALLOWED", message: "Use GET or POST.", requestId },
         405,
         { allow: "GET, POST" },
       );
     }
 
     const origin = request.headers.get("origin");
-    if (origin === null || origin !== new URL(request.url).origin) {
+    if (origin === null || origin !== url.origin) {
       return jsonResponse(
-        { error: "FORBIDDEN", message: "Cross-origin requests are not allowed." },
+        { error: "FORBIDDEN", message: "Cross-origin requests are not allowed.", requestId },
         403,
       );
     }
@@ -275,8 +338,9 @@ export function createBenchAgentHandler(
     if (apiKey.length === 0 || provider === undefined) {
       return jsonResponse(
         {
-          error: "BENCH AGENT UNAVAILABLE",
+          error: "BENCH_AGENT_UNAVAILABLE",
           message: "Gemini API key is not configured.",
+          requestId,
         },
         503,
       );
@@ -285,7 +349,7 @@ export function createBenchAgentHandler(
     const contentType = request.headers.get("content-type") ?? "";
     if (contentType.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
       return jsonResponse(
-        { error: "INVALID REQUEST", message: "Expected application/json." },
+        { error: "INVALID REQUEST", message: "Expected application/json.", requestId },
         400,
       );
     }
@@ -297,7 +361,7 @@ export function createBenchAgentHandler(
       encoder.encode(sessionId).byteLength > MAX_SESSION_ID_BYTES
     ) {
       return jsonResponse(
-        { error: "INVALID REQUEST", message: "A valid agent session is required." },
+        { error: "INVALID REQUEST", message: "A valid agent session is required.", requestId },
         400,
       );
     }
@@ -305,21 +369,61 @@ export function createBenchAgentHandler(
     const parsedBody = await readJsonBody(request);
     if (parsedBody.kind === "too-large") {
       return jsonResponse(
-        { error: "PAYLOAD TOO LARGE", message: "Request body exceeds 128 KiB." },
+        { error: "PAYLOAD TOO LARGE", message: "Request body exceeds 128 KiB.", requestId },
         413,
       );
     }
     if (parsedBody.kind === "invalid") {
       return jsonResponse(
-        { error: "INVALID REQUEST", message: "Request body must be valid JSON." },
+        { error: "INVALID REQUEST", message: "Request body must be valid JSON.", requestId },
         400,
       );
+    }
+
+    // Check for canary inside body
+    if (
+      typeof parsedBody.value === "object" &&
+      parsedBody.value !== null &&
+      (parsedBody.value as Record<string, unknown>).canary === true
+    ) {
+      try {
+        if (typeof provider.canary === "function") {
+          const canaryResult = await provider.canary({ signal: request.signal });
+          return jsonResponse({ ...canaryResult, requestId });
+        }
+        const turnResult = await provider.turn(
+          { input: "Reply with exactly OK.", tools: [] },
+          { signal: request.signal },
+        );
+        return jsonResponse({
+          ok: true,
+          message: turnResult.text ?? "OK",
+          model,
+          requestId,
+        });
+      } catch (err: unknown) {
+        const safeMessage = sanitizeErrorMessage(err);
+        console.error("[BenchAgent Canary Failure]", {
+          requestId,
+          errorMessage: safeMessage,
+          model,
+        });
+        return jsonResponse(
+          {
+            ok: false,
+            error: "CANARY_FAILED",
+            message: safeMessage,
+            requestId,
+          },
+          502,
+        );
+      }
     }
 
     const turnRequest = parseTurnRequest(parsedBody.value);
     if (turnRequest === undefined) {
       return jsonResponse(
-        { error: "INVALID REQUEST", message: "Request body has an invalid shape." },
+        { error: "INVALID REQUEST", message: "Request body has an invalid shape.", requestId },
         400,
       );
     }
@@ -339,7 +443,7 @@ export function createBenchAgentHandler(
         ),
       );
       return jsonResponse(
-        { error: "RATE LIMITED", message: "Too many agent turns." },
+        { error: "RATE LIMITED", message: "Too many agent turns.", requestId },
         429,
         { "retry-after": String(retryAfterSeconds) },
       );
@@ -358,10 +462,27 @@ export function createBenchAgentHandler(
       const result: AgentTurnResult = await provider.turn(turnRequest, {
         signal: request.signal,
       });
-      return jsonResponse(result);
-    } catch {
+      return jsonResponse({ ...result, requestId });
+    } catch (err: unknown) {
+      const safeMessage = sanitizeErrorMessage(err);
+      const errorObj = err as Record<string, unknown> | undefined;
+      const errorName = errorObj?.name ?? (err instanceof Error ? err.name : "Error");
+      const statusCode = (errorObj?.status ?? errorObj?.statusCode ?? (err as any)?.code) as number | undefined;
+
+      console.error("[BenchAgent Server Failure]", {
+        requestId,
+        errorName,
+        errorMessage: safeMessage,
+        statusCode,
+        model,
+      });
+
       return jsonResponse(
-        { error: "BENCH AGENT FAILED", message: "Gemini request failed." },
+        {
+          error: "BENCH_AGENT_FAILED",
+          message: safeMessage,
+          requestId,
+        },
         502,
       );
     }

@@ -45,7 +45,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
 
   // Local state for editable goal input
   const [goalText, setGoalText] = useState(currentGoal);
-
+  const [copied, setCopied] = useState(false);
   const handleGoalChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement> | React.FormEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     const val = (e.target as HTMLTextAreaElement | HTMLInputElement).value;
     setGoalText(val);
@@ -243,6 +243,81 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               <Play size={15} />
               <span>Begin investigation</span>
             </button>
+          </div>
+        )}
+        {/* Failure Diagnostic Block */}
+        {agentState.status === "failed" && (
+          <div
+            data-testid="bench-agent-failed-diagnostic"
+            style={{
+              background: "rgba(255, 89, 95, 0.08)",
+              border: "1px solid var(--ohmni-lab-fault)",
+              borderRadius: "var(--radius-md)",
+              padding: "1.25rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-fault)", fontSize: "12px", fontWeight: 700 }}>
+              <ShieldAlert size={15} />
+              <span>AGENT FAILED</span>
+            </div>
+            <div style={{ fontSize: "13px", color: "var(--ohmni-lab-text)", lineHeight: 1.5, wordBreak: "break-word" }}>
+              {agentState.message || "An unexpected error occurred during investigation."}
+            </div>
+            {agentState.requestId && (
+              <div className="font-mono" style={{ fontSize: "11px", color: "var(--ohmni-lab-muted)" }}>
+                Request ID: {agentState.requestId}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+              <button
+                data-testid="bench-agent-retry-btn"
+                onClick={onStartAgent}
+                className="btn-primary"
+                style={{
+                  padding: "8px 14px",
+                  fontSize: "12px",
+                  background: "var(--ohmni-lab-brand)",
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <RotateCcw size={13} />
+                <span>Retry</span>
+              </button>
+              <button
+                data-testid="bench-agent-copy-diagnostic-btn"
+                onClick={() => {
+                  const details = JSON.stringify(
+                    {
+                      error: "BENCH_AGENT_FAILED",
+                      message: agentState.message,
+                      requestId: agentState.requestId,
+                      steps: agentState.steps,
+                      timestamp: new Date().toISOString(),
+                    },
+                    null,
+                    2,
+                  );
+                  void navigator.clipboard.writeText(details);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="btn-secondary"
+                style={{
+                  padding: "8px 12px",
+                  fontSize: "12px",
+                  borderColor: "var(--ohmni-lab-border)",
+                  color: "var(--ohmni-lab-text)",
+                }}
+              >
+                <span>{copied ? "Copied" : "Copy diagnostic details"}</span>
+              </button>
+            </div>
           </div>
         )}
 

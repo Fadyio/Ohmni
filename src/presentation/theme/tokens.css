@@ -43,40 +43,40 @@
   --ohmni-brand-subtle: #EEF2FE;
 
   /* =========================================================================
-     WORLD 2 — LAB MODE (Dark Focused Technical Workbench)
+     WORLD 2 — LAB MODE (Light Editorial Instrument Workbench)
      ========================================================================= */
-  --ohmni-lab-canvas: #090B10;
-  --ohmni-lab-raised: #11141B;
-  --ohmni-lab-soft-raised: #171B24;
-  --ohmni-lab-border: rgba(255, 255, 255, 0.08);
-  --ohmni-lab-border-subtle: rgba(255, 255, 255, 0.04);
-  --ohmni-lab-border-focus: #5570FF;
-  --ohmni-lab-text: #F5F6F8;
-  --ohmni-lab-muted: #8C94A3;
-  --ohmni-lab-brand: #5570FF;
-  --ohmni-lab-brand-hover: #4360EF;
-  --ohmni-lab-brand-subtle: rgba(85, 112, 255, 0.12);
-  --ohmni-lab-signal: #45B8FF;
-  --ohmni-lab-action: #FFB54A;
-  --ohmni-lab-action-hover: #EAA035;
-  --ohmni-lab-fault: #FF595F;
-  --ohmni-lab-fault-hover: #EE444A;
-  --ohmni-lab-verified: #4FD19A;
-  --ohmni-lab-verified-hover: #3EB885;
+  --ohmni-lab-canvas: #F6F7F9;
+  --ohmni-lab-raised: #FFFFFF;
+  --ohmni-lab-soft-raised: #F0F2F5;
+  --ohmni-lab-border: rgba(16, 17, 20, 0.08);
+  --ohmni-lab-border-subtle: rgba(16, 17, 20, 0.04);
+  --ohmni-lab-border-focus: #3B5BFF;
+  --ohmni-lab-text: #111318;
+  --ohmni-lab-muted: #6B6E76;
+  --ohmni-lab-brand: #3B5BFF;
+  --ohmni-lab-brand-hover: #2B4BEE;
+  --ohmni-lab-brand-subtle: rgba(59, 91, 255, 0.08);
+  --ohmni-lab-signal: #0284C7;
+  --ohmni-lab-action: #D97706;
+  --ohmni-lab-action-hover: #B45309;
+  --ohmni-lab-fault: #DC2626;
+  --ohmni-lab-fault-hover: #B91C1C;
+  --ohmni-lab-verified: #059669;
+  --ohmni-lab-verified-hover: #047857;
 
   /* Aliases for Lab Mode Instruments */
-  --ohmni-agent: #5570FF;
-  --ohmni-agent-hover: #4360EF;
-  --ohmni-agent-subtle: rgba(85, 112, 255, 0.12);
-  --ohmni-warning: #FFB54A;
-  --ohmni-warning-hover: #EAA035;
-  --ohmni-warning-subtle: rgba(255, 181, 74, 0.12);
-  --ohmni-fault: #FF595F;
-  --ohmni-fault-hover: #EE444A;
-  --ohmni-fault-subtle: rgba(255, 89, 95, 0.12);
-  --ohmni-success: #4FD19A;
-  --ohmni-success-hover: #3EB885;
-  --ohmni-success-subtle: rgba(79, 209, 154, 0.12);
+  --ohmni-agent: #3B5BFF;
+  --ohmni-agent-hover: #2B4BEE;
+  --ohmni-agent-subtle: rgba(59, 91, 255, 0.08);
+  --ohmni-warning: #D97706;
+  --ohmni-warning-hover: #B45309;
+  --ohmni-warning-subtle: rgba(217, 119, 6, 0.08);
+  --ohmni-fault: #DC2626;
+  --ohmni-fault-hover: #B91C1C;
+  --ohmni-fault-subtle: rgba(220, 38, 38, 0.08);
+  --ohmni-success: #059669;
+  --ohmni-success-hover: #047857;
+  --ohmni-success-subtle: rgba(5, 150, 105, 0.08);
 
   /* Scope Visualizer Tokens */
   --ohmni-scope-bg: #0C1017;
@@ -85,7 +85,6 @@
   --ohmni-scope-trace-bright: #38BDF8;
   --ohmni-scope-trace-fault: #FF595F;
   --ohmni-scope-threshold: #FFB54A;
-
   /* Radius System */
   --radius-xs: 3px;
   --radius-sm: 6px;

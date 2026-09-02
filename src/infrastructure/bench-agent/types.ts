@@ -41,6 +41,11 @@ export interface BenchAgentProvider {
     request: AgentTurnRequest,
     options?: { signal?: AbortSignal }
   ): Promise<AgentTurnResult>;
+  canary?(options?: { signal?: AbortSignal }): Promise<{
+    readonly ok: boolean;
+    readonly message: string;
+    readonly model: string;
+  }>;
 }
 
 export type BenchAgentEvent =
@@ -97,6 +102,7 @@ export type BenchAgentRunResult =
       readonly status: "failed";
       readonly steps: number;
       readonly message: string;
+      readonly requestId?: string;
       readonly interactionId?: string;
     };
 

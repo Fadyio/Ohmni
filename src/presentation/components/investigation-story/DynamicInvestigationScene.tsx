@@ -9,7 +9,8 @@
  */
 
 import React from "react";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { AlertTriangle, RotateCcw } from "lucide-react";
 import { ObservingScene } from "./scenes/ObservingScene";
 import { TestRequestScene } from "./scenes/TestRequestScene";
 import { RunningExperimentScene } from "./scenes/RunningExperimentScene";
@@ -34,6 +35,7 @@ export interface DynamicInvestigationSceneProps {
   readonly onApproveTest: () => void;
   readonly onDenyTest: () => void;
   readonly onProceedToRepair?: () => void;
+  readonly onStartAgent?: () => void;
   readonly activeSceneOverride?: "observing" | "test-request" | "running" | "evidence" | "hypothesis" | null;
 }
 
@@ -50,6 +52,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   onApproveTest,
   onDenyTest,
   onProceedToRepair,
+  onStartAgent,
   activeSceneOverride,
 }) => {
   // Reset history must only be considered inspected if successfully completed
@@ -106,6 +109,60 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
         padding: "0.5rem",
       }}
     >
+      {agentState.status === "failed" && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            background: "rgba(220, 38, 38, 0.05)",
+            border: "1px solid rgba(220, 38, 38, 0.25)",
+            borderRadius: "var(--radius-lg)",
+            padding: "1.75rem 2rem",
+            marginBottom: "1.5rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--ohmni-lab-fault)", fontSize: "13px", fontWeight: 700 }}>
+            <AlertTriangle size={18} />
+            <span>AGENT CONNECTION ERROR</span>
+          </div>
+          <h3 style={{ fontSize: "20px", fontWeight: 700, margin: 0, color: "var(--ohmni-lab-text)" }}>
+            Could not start Gemini investigation.
+          </h3>
+          <p style={{ margin: 0, fontSize: "14px", color: "var(--ohmni-lab-muted)", lineHeight: 1.5 }}>
+            {agentState.message || "Gemini request failed."}
+          </p>
+          {agentState.requestId && (
+            <div className="font-mono" style={{ fontSize: "11px", color: "var(--ohmni-lab-muted)" }}>
+              Request ID: {agentState.requestId}
+            </div>
+          )}
+          {onStartAgent && (
+            <div style={{ display: "flex", gap: "10px", marginTop: "6px" }}>
+              <button
+                onClick={onStartAgent}
+                className="btn-primary"
+                style={{
+                  padding: "8px 16px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  background: "var(--ohmni-lab-brand)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  width: "fit-content",
+                }}
+              >
+                <RotateCcw size={14} />
+                <span>Retry</span>
+              </button>
+            </div>
+          )}
+        </motion.div>
+      )}
+
       <AnimatePresence mode="wait">
         {currentScene === "observing" && (
           <ObservingScene

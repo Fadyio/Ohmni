@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { createBenchAgentHandler, type BenchAgentHandler } from "../server/bench-agent/handler";
+import { createBenchAgentHandler, type BenchAgentHandler } from "../../server/bench-agent/handler";
 
 const webHandler: BenchAgentHandler = createBenchAgentHandler({
   env: {
@@ -11,7 +11,7 @@ const webHandler: BenchAgentHandler = createBenchAgentHandler({
 async function nodeToWebRequest(req: IncomingMessage): Promise<Request> {
   const host = req.headers.host || "localhost";
   const protocol = (req.headers["x-forwarded-proto"] as string) || "https";
-  const url = new URL(req.url || "/", `${protocol}://${host}`);
+  const url = new URL(req.url || "/api/bench-agent/health", `${protocol}://${host}`);
 
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
@@ -59,7 +59,7 @@ async function sendWebResponseToNode(webResponse: Response, res: ServerResponse)
   res.end(Buffer.from(arrayBuffer));
 }
 
-export async function universalHandler(
+export async function universalHealthHandler(
   reqOrRequest: IncomingMessage | Request,
   resOrUndefined?: ServerResponse,
 ): Promise<Response | void> {
@@ -71,10 +71,10 @@ export async function universalHandler(
       const webRes = await webHandler(webReq);
       await sendWebResponseToNode(webRes, nodeRes);
     } catch (err) {
-      console.error("[BenchAgent Serverless Error]", err);
+      console.error("[BenchAgent Health Serverless Error]", err);
       nodeRes.statusCode = 500;
       nodeRes.setHeader("content-type", "application/json");
-      nodeRes.end(JSON.stringify({ error: "INTERNAL_SERVER_ERROR", message: "Server error occurred." }));
+      nodeRes.end(JSON.stringify({ ok: false, error: "INTERNAL_SERVER_ERROR", message: "Health check server error." }));
     }
     return;
   }
@@ -82,8 +82,8 @@ export async function universalHandler(
   return webHandler(reqOrRequest as Request);
 }
 
-export default universalHandler;
+export default universalHealthHandler;
 
-export const GET = (request: Request) => universalHandler(request);
-export const POST = (request: Request) => universalHandler(request);
-export const OPTIONS = (request: Request) => universalHandler(request);
+export const GET = (request: Request) => universalHealthHandler(request);
+export const POST = (request: Request) => universalHealthHandler(request);
+export const OPTIONS = (request: Request) => universalHealthHandler(request);

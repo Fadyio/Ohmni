@@ -132,107 +132,98 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
       </div>
 
       {/* 3 Reset Register Metric Display */}
-      {!hasInspectedResetHistory ? (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        {/* Brownout Register */}
         <div
+          data-testid="metric-brownout-card"
           style={{
             background: "var(--ohmni-lab-raised)",
-            border: "1px dashed var(--ohmni-lab-border)",
+            border: hasInspectedResetHistory
+              ? "1px solid rgba(220, 38, 38, 0.25)"
+              : "1px solid var(--ohmni-lab-border)",
             borderRadius: "var(--radius-lg)",
-            padding: "2rem",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--ohmni-lab-muted)",
-            fontSize: "14px",
+            padding: "1.5rem",
+            boxShadow: hasInspectedResetHistory ? "var(--shadow-card)" : "var(--shadow-sm)",
+            position: "relative",
+            overflow: "hidden",
           }}
         >
-          <span>No reset history inspected yet. Agent is preparing observation tool call.</span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: hasInspectedResetHistory ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)" }}>
+              BROWNOUT (BOD)
+            </span>
+            <RotateCcw size={16} color={hasInspectedResetHistory ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)"} />
+          </div>
+
+          <div className="font-mono" style={{ fontSize: "42px", fontWeight: 800, color: hasInspectedResetHistory ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)", margin: "0.75rem 0 0.25rem", letterSpacing: "-0.03em" }}>
+            {displayBrownout}
+          </div>
+
+          <div style={{ fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
+            {hasInspectedResetHistory ? "Supply fell below 2.80V threshold" : "Waiting for agent measurement…"}
+          </div>
         </div>
-      ) : (
+
+        {/* Watchdog Register */}
         <div
+          data-testid="metric-watchdog-card"
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: "14px",
+            background: "var(--ohmni-lab-raised)",
+            border: "1px solid var(--ohmni-lab-border)",
+            borderRadius: "var(--radius-lg)",
+            padding: "1.5rem",
+            boxShadow: "var(--shadow-sm)",
           }}
         >
-          {/* Brownout Register */}
-          <div
-            style={{
-              background: "var(--ohmni-lab-raised)",
-              border: "1px solid rgba(255, 89, 95, 0.35)",
-              borderRadius: "var(--radius-lg)",
-              padding: "1.25rem 1.4rem",
-              boxShadow: "0 0 20px rgba(255, 89, 95, 0.08)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-fault)" }}>
-                BROWNOUT (BOD)
-              </span>
-              <RotateCcw size={16} color="var(--ohmni-lab-fault)" />
-            </div>
-
-            <div className="font-mono" style={{ fontSize: "36px", fontWeight: 800, color: "var(--ohmni-lab-fault)", margin: "0.5rem 0 0.25rem" }}>
-              {displayBrownout}
-            </div>
-
-            <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted)" }}>
-              Supply fell below 2.80V threshold
-            </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-muted)" }}>
+              WATCHDOG TIMER
+            </span>
+            <Clock size={16} color="var(--ohmni-lab-muted)" />
           </div>
 
-          {/* Watchdog Register */}
-          <div
-            style={{
-              background: "var(--ohmni-lab-raised)",
-              border: "1px solid var(--ohmni-lab-border)",
-              borderRadius: "var(--radius-lg)",
-              padding: "1.25rem 1.4rem",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-muted)" }}>
-                WATCHDOG TIMER
-              </span>
-              <Clock size={16} color="var(--ohmni-lab-muted)" />
-            </div>
-
-            <div className="font-mono" style={{ fontSize: "36px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "0.5rem 0 0.25rem" }}>
-              {displayWatchdog}
-            </div>
-
-            <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted)" }}>
-              {displayWatchdog === "—" ? "Register uninspected" : "No execution timeouts recorded"}
-            </div>
+          <div className="font-mono" style={{ fontSize: "42px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "0.75rem 0 0.25rem", letterSpacing: "-0.03em" }}>
+            {displayWatchdog}
           </div>
 
-          {/* Software Reset Register */}
-          <div
-            style={{
-              background: "var(--ohmni-lab-raised)",
-              border: "1px solid var(--ohmni-lab-border)",
-              borderRadius: "var(--radius-lg)",
-              padding: "1.25rem 1.4rem",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-muted)" }}>
-                SOFTWARE PANIC
-              </span>
-              <ShieldCheck size={16} color="var(--ohmni-lab-verified)" />
-            </div>
-
-            <div className="font-mono" style={{ fontSize: "36px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "0.5rem 0 0.25rem" }}>
-              {displaySoftware}
-            </div>
-
-            <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted)" }}>
-              {displaySoftware === "—" ? "Register uninspected" : "No firmware crash assertions"}
-            </div>
+          <div style={{ fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
+            {displayWatchdog === "—" ? "Waiting for agent measurement…" : "No execution timeouts recorded"}
           </div>
         </div>
-      )}
+
+        {/* Software Reset Register */}
+        <div
+          data-testid="metric-software-card"
+          style={{
+            background: "var(--ohmni-lab-raised)",
+            border: "1px solid var(--ohmni-lab-border)",
+            borderRadius: "var(--radius-lg)",
+            padding: "1.5rem",
+            boxShadow: "var(--shadow-sm)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-muted)" }}>
+              SOFTWARE PANIC
+            </span>
+            <ShieldCheck size={16} color={hasInspectedResetHistory ? "var(--ohmni-lab-verified)" : "var(--ohmni-lab-muted)"} />
+          </div>
+
+          <div className="font-mono" style={{ fontSize: "42px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "0.75rem 0 0.25rem", letterSpacing: "-0.03em" }}>
+            {displaySoftware}
+          </div>
+
+          <div style={{ fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
+            {displaySoftware === "—" ? "Waiting for agent measurement…" : "No firmware crash assertions"}
+          </div>
+        </div>
+      </div>
 
       {/* Live Oscilloscope Baseline Strip */}
       <div

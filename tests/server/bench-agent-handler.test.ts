@@ -78,6 +78,7 @@ function createHandler(
 function request(
   method: string,
   options: {
+    url?: string;
     body?: string;
     origin?: string | null;
     session?: string;
@@ -93,7 +94,7 @@ function request(
   }
   headers.set(SESSION_HEADER, options.session ?? "session-a");
 
-  return new Request(ENDPOINT, {
+  return new Request(options.url ?? ENDPOINT, {
     method,
     headers,
     body: options.body,
@@ -160,10 +161,10 @@ describe("createBenchAgentHandler", () => {
       const body = await response.text();
 
       expect(response.status).toBe(503);
-      expect(JSON.parse(body)).toEqual({
-        error: "BENCH AGENT UNAVAILABLE",
-        message: "Gemini API key is not configured.",
-      });
+      const payload = JSON.parse(body);
+      expect(payload.error).toBe("BENCH_AGENT_UNAVAILABLE");
+      expect(payload.message).toBe("Gemini API key is not configured.");
+      expect(payload.requestId).toBeDefined();
       expect(body).not.toContain(API_KEY);
       expect(requests).toHaveLength(0);
     });
@@ -183,7 +184,11 @@ describe("createBenchAgentHandler", () => {
       const body = await response.text();
 
       expect(response.status).toBe(200);
-      expect(JSON.parse(body)).toEqual(PROVIDER_RESULT);
+      const payload = JSON.parse(body);
+      expect(payload.interactionId).toBe(PROVIDER_RESULT.interactionId);
+      expect(payload.text).toBe(PROVIDER_RESULT.text);
+      expect(payload.functionCalls).toEqual(PROVIDER_RESULT.functionCalls);
+      expect(payload.requestId).toBeDefined();
       expect(requests).toEqual([turn]);
       expect(Object.keys(requests[0]).sort()).toEqual([
         "input",
@@ -414,6 +419,28 @@ describe("createBenchAgentHandler", () => {
       );
       expect(otherSession.status).toBe(200);
       expect(requests).toHaveLength(MAX_REQUESTS_PER_SESSION + 1);
+    });
+  });
+
+  describe("health canary", () => {
+    it("returns ok: true when health check query parameter is present", async () => {
+      const { provider } = recordingProvider();
+      const handler = createHandler(provider);
+      const response = await handler(request("GET", { url: `${ENDPOINT}?health=1` }));
+      expect(response.status).toBe(200);
+      const payload = await responseJson(response);
+      expect(payload.ok).toBe(true);
+      expect(payload.requestId).toBeDefined();
+    });
+
+    it("returns ok: true for canary POST request", async () => {
+      const { provider } = recordingProvider();
+      const handler = createHandler(provider);
+      const response = await handler(jsonRequest({ canary: true }));
+      expect(response.status).toBe(200);
+      const payload = await responseJson(response);
+      expect(payload.ok).toBe(true);
+      expect(payload.requestId).toBeDefined();
     });
   });
 });

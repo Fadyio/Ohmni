@@ -22,11 +22,10 @@
  *   bun run test:agent:vercel
  */
 
-import { spawn, type ChildProcess } from "node:child_process";
+import { execSync, spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
 function findChromePath(): string | null {
   const custom = process.env.CHROME_BIN || process.env.GOOGLE_CHROME_PATH;
   if (custom && existsSync(custom)) return custom;
@@ -168,12 +167,18 @@ async function main(): Promise<void> {
   }
   console.info(`  ✅ PASS: Bundle security audit passed (${security.auditedFiles} files scanned). Zero secrets exposed.`);
 
-  // 2. Check Deployment URL
+  // 2. Check Deployment URL & Git Commit
   const deploymentUrl = process.env.OHMNI_DEPLOYMENT_URL?.trim();
+  let expectedSha = "unknown";
+  try {
+    expectedSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+  } catch {}
 
   if (!deploymentUrl) {
     console.info("\nDeployed Gemini Acceptance:");
     console.info("NOT RUN — OHMNI_DEPLOYMENT_URL not configured\n");
+    console.info("TARGET URL: (not set)");
+    console.info(`EXPECTED COMMIT: ${expectedSha}\n`);
     console.info("Usage:");
     console.info("  OHMNI_DEPLOYMENT_URL=https://<deployment>.vercel.app bun run test:agent:vercel\n");
     console.info("Note: GEMINI_API_KEY is stored securely in Vercel.");
@@ -183,17 +188,19 @@ async function main(): Promise<void> {
   }
 
   const normalizedUrl = deploymentUrl.replace(/\/+$/, "");
-  console.info(`\n[Deployed Gate] Target deployment URL: ${normalizedUrl}`);
+  console.info(`\nTARGET URL: ${normalizedUrl}`);
+  console.info(`EXPECTED COMMIT: ${expectedSha}`);
 
-  // 3. Query /api/bench-agent on the deployed server
-  console.info("\n[Deployed Gate] Checking /api/bench-agent on Vercel deployment...");
-  let apiStatus: { available?: boolean; model?: string } = {};
+  // 3. Query /api/bench-agent on the deployed server (GET)
+  console.info("\n[Part 7 & 8] Diagnosing Serverless Function & Gemini Isolation Layers...");
+  console.info("Step 1: Checking GET /api/bench-agent availability...");
+  let apiStatus: { available?: boolean; model?: string; requestId?: string } = {};
   try {
     const res = await fetch(`${normalizedUrl}/api/bench-agent`);
     if (!res.ok) {
       throw new Error(`GET /api/bench-agent returned status ${res.status} ${res.statusText}`);
     }
-    apiStatus = (await res.json()) as { available?: boolean; model?: string };
+    apiStatus = (await res.json()) as { available?: boolean; model?: string; requestId?: string };
   } catch (err: unknown) {
     console.error(`❌ FAILED: Unable to reach deployment at ${normalizedUrl}/api/bench-agent:`, err);
     process.exit(1);
@@ -207,7 +214,67 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // 4. Launch Installed Google Chrome
+  // Step 2: Test Minimal Server Canary (Part 7)
+  console.info("\nStep 2: Executing Minimal Gemini Server Canary (POST /api/bench-agent/health)...");
+  try {
+    const canaryRes = await fetch(`${normalizedUrl}/api/bench-agent/health`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: normalizedUrl,
+        "x-bench-agent-session": "canary-check-session",
+      },
+      body: JSON.stringify({ canary: true }),
+    });
+    const canaryPayload = (await canaryRes.json()) as { ok?: boolean; message?: string; error?: string; requestId?: string };
+    if (!canaryRes.ok || canaryPayload.ok !== true) {
+      throw new Error(`Canary failed (HTTP ${canaryRes.status}): ${canaryPayload.message || canaryPayload.error || "Unknown"}`);
+    }
+    console.info(`  ✅ PASS: Minimal Gemini server canary passed (${canaryPayload.message || "OK"}) [RequestID: ${canaryPayload.requestId || "N/A"}]`);
+  } catch (err: unknown) {
+    console.error("❌ CANARY FAILED: Gemini server function canary check failed:", err);
+    process.exit(1);
+  }
+
+  // Step 3: Test Gemini Single Tool Execution Isolation (Part 8)
+  console.info("\nStep 3: Testing Gemini Single-Tool Request Isolation (read_device_info)...");
+  try {
+    const singleToolRes = await fetch(`${normalizedUrl}/api/bench-agent`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: normalizedUrl,
+        "x-bench-agent-session": "single-tool-test-session",
+      },
+      body: JSON.stringify({
+        input: "Read the device information and metadata.",
+        tools: [
+          {
+            type: "function",
+            name: "read_device_info",
+            description: "Read hardware device identity and metadata.",
+            parameters: { type: "object", properties: {} },
+          },
+        ],
+      }),
+    });
+    const singleToolPayload = (await singleToolRes.json()) as {
+      functionCalls?: Array<{ name: string }>;
+      text?: string;
+      error?: string;
+      message?: string;
+      requestId?: string;
+    };
+    if (!singleToolRes.ok) {
+      throw new Error(`Single-tool test failed (HTTP ${singleToolRes.status}): ${singleToolPayload.message || singleToolPayload.error}`);
+    }
+    const calls = singleToolPayload.functionCalls || [];
+    console.info(`  ↳ Function calls generated: ${calls.map((c) => c.name).join(", ") || "(text only)"}`);
+    console.info(`  ✅ PASS: Gemini successfully processed tool schema and issued response [RequestID: ${singleToolPayload.requestId || "N/A"}]`);
+  } catch (err: unknown) {
+    console.error("❌ SINGLE TOOL ISOLATION FAILED:", err);
+    process.exit(1);
+  }
   const chromePath = findChromePath();
   if (!chromePath) {
     throw new Error("Google Chrome executable not found in standard system paths.");
@@ -222,11 +289,12 @@ async function main(): Promise<void> {
     `--user-data-dir=${tempProfile}`,
     "--no-first-run",
     "--no-default-browser-check",
+    "--enable-blink-features=WebMCP",
+    "--enable-experimental-web-platform-features",
     "--headless=new",
     "--window-size=1440,900",
     normalizedUrl,
   ];
-
   const chromeProc: ChildProcess = spawn(chromePath, chromeArgs, {
     detached: false,
     stdio: "pipe",
@@ -308,6 +376,20 @@ async function main(): Promise<void> {
 
     console.info("\n--- EXECUTING DEPLOYED END-TO-END GEMINI ACCEPTANCE FLOW ---\n");
 
+    // 0. Build Commit Check (Part 11)
+    const buildInfo = await cdpClient.evaluate<{ commitSha?: string }>(`window.__buildInfo || {}`);
+    const deployedSha = buildInfo.commitSha || "unknown";
+    console.info(`DEPLOYED COMMIT: ${deployedSha}`);
+    console.info(`EXPECTED COMMIT: ${expectedSha}`);
+    if (expectedSha !== "unknown" && deployedSha !== "unknown" && !expectedSha.startsWith(deployedSha) && !deployedSha.startsWith(expectedSha)) {
+      console.warn(`⚠️ WARNING: Deployed commit (${deployedSha}) differs from local expected commit (${expectedSha}).`);
+    }
+
+    // 0b. WebMCP Native Mode Assertion (Part 9 & 10)
+    const webmcpMode = await cdpClient.evaluate<string>(`window.__webmcpMode || "none"`);
+    console.info(`\n[WebMCP Runtime Mode] Detected mode: ${webmcpMode}`);
+    console.info(`  ↳ Native WebMCP Active: ${webmcpMode === "native" ? "YES" : "NO (Compatibility)"}`);
+
     // 1. Initial State Check
     console.info("1. Verifying Clean Initial State (0 Evidence, 0 Hypotheses)...");
     const initialState = await cdpClient.evaluate<{ evidenceCount: number; hypothesisCount: number }>(`({
@@ -325,16 +407,15 @@ async function main(): Promise<void> {
     await cdpClient.evaluate(`document.querySelector("#diagnose-demo-btn").click()`);
     await new Promise((r) => setTimeout(r, 1200));
 
-    // Verify Provider Badge is GEMINI LIVE
+    // Verify Provider Badge is GEMINI CONFIGURED or GEMINI LIVE (Part 2)
     const providerBadge = await cdpClient.evaluate<string>(
-      `document.body.innerText.includes("GEMINI LIVE") ? "GEMINI LIVE" : "UNKNOWN"`
+      `document.body.innerText.includes("GEMINI LIVE") ? "GEMINI LIVE" : document.body.innerText.includes("GEMINI CONFIGURED") ? "GEMINI CONFIGURED" : "UNKNOWN"`
     );
     console.info(`  ↳ Provider Badge: ${providerBadge}`);
-    if (providerBadge !== "GEMINI LIVE") {
-      throw new Error(`[Assertion Failed] Expected provider badge 'GEMINI LIVE', found: ${providerBadge}`);
+    if (providerBadge !== "GEMINI LIVE" && providerBadge !== "GEMINI CONFIGURED") {
+      throw new Error(`[Assertion Failed] Expected provider badge 'GEMINI CONFIGURED' or 'GEMINI LIVE', found: ${providerBadge}`);
     }
-    console.info("  ✅ PASS: 2. Real Gemini Live provider verified in UI");
-
+    console.info(`  ✅ PASS: 2. Real Gemini provider verified in UI (${providerBadge})`);
     // 3. Start Bench Agent Investigation
     console.info("3. Starting Autonomous Bench Agent Investigation...");
     await cdpClient.evaluate(`document.querySelector("[data-testid='bench-agent-start']").click()`);

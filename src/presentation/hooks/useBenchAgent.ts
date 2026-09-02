@@ -27,13 +27,19 @@ export interface BenchAgentActivity {
   readonly durationMs?: number;
 }
 
+export type BenchAgentProviderStatus =
+  | "unconfigured"
+  | "configured"
+  | "live"
+  | "error";
+
 interface BenchAgentStateBase {
   readonly goal: string;
   readonly runGoal?: string;
   readonly activity: readonly BenchAgentActivity[];
   readonly providerAvailable: boolean;
+  readonly providerStatus: BenchAgentProviderStatus;
 }
-
 export type BenchAgentState =
   | (BenchAgentStateBase & {
       readonly status: "idle";
@@ -68,6 +74,7 @@ export type BenchAgentState =
       readonly status: "failed";
       readonly steps: number;
       readonly message: string;
+      readonly requestId?: string;
     })
   | (BenchAgentStateBase & {
       readonly status: "step-limit";
@@ -100,6 +107,7 @@ const initialState: BenchAgentState = {
   goal: "",
   activity: [],
   providerAvailable: false,
+  providerStatus: "unconfigured",
 };
 
 function updateActivity(
@@ -164,11 +172,16 @@ function resultState(
   current: BenchAgentState,
   result: BenchAgentRunResult,
 ): BenchAgentState {
+  const isSuccess = result.status === "completed" || result.status === "stopped" || result.status === "step-limit";
+  const nextProviderStatus: BenchAgentProviderStatus =
+    result.status === "failed" ? "error" : isSuccess && result.steps > 0 ? "live" : current.providerStatus;
+
   const common = {
     goal: current.goal,
     runGoal: current.runGoal,
     activity: current.activity,
     providerAvailable: true,
+    providerStatus: nextProviderStatus,
     steps: result.steps,
   };
 
@@ -180,7 +193,12 @@ function resultState(
     case "step-limit":
       return { ...common, status: "step-limit" };
     case "failed":
-      return { ...common, status: "failed", message: result.message };
+      return {
+        ...common,
+        status: "failed",
+        message: result.message,
+        requestId: result.requestId,
+      };
   }
 }
 
@@ -223,6 +241,7 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
             goal: previous.goal,
             activity: [],
             providerAvailable: true,
+            providerStatus: previous.providerStatus === "live" ? "live" : "configured",
           });
           return;
         }
@@ -231,18 +250,22 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
           goal: previous.goal,
           activity: [],
           providerAvailable: false,
+          providerStatus: "unconfigured",
           message: "Gemini API key is not configured.",
         });
       })
       .catch((error: unknown) => {
         if (!current || !mountedRef.current) return;
         const previous = stateRef.current;
+        const requestId = typeof (error as { requestId?: unknown })?.requestId === "string" ? (error as { requestId: string }).requestId : undefined;
         commit({
           status: "failed",
           goal: previous.goal,
           activity: [],
           providerAvailable: false,
+          providerStatus: "error",
           steps: 0,
+          requestId,
           message: error instanceof Error ? error.message : "Unable to check Bench Agent availability.",
         });
       });
@@ -272,6 +295,7 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
           runGoal: current.runGoal,
           activity: current.activity,
           providerAvailable: true,
+          providerStatus: current.providerStatus,
           steps: current.steps,
         });
       }
@@ -295,6 +319,7 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
       runGoal: current.runGoal,
       activity: current.activity,
       providerAvailable: true,
+      providerStatus: current.providerStatus,
       steps: stepCount(current.activity),
     });
   }, [commit]);
@@ -311,12 +336,12 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
         goal: previous.goal,
         activity: [],
         providerAvailable: true,
+        providerStatus: previous.providerStatus,
         steps: 0,
         message: "WebMCP model context is unavailable.",
       });
       return;
     }
-
     const runId = ++nextRunIdRef.current;
     activeRunIdRef.current = runId;
     const controller = new AbortController();
@@ -329,9 +354,9 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
       runGoal: goal,
       activity: [],
       providerAvailable: true,
+      providerStatus: previous.providerStatus === "live" ? "live" : "configured",
       steps: 0,
     });
-
     const onEvent = (event: BenchAgentEvent) => {
       if (activeRunIdRef.current !== runId) return;
       const current = stateRef.current;
@@ -344,14 +369,14 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
           runGoal: current.runGoal,
           activity,
           providerAvailable: true,
+          providerStatus: "live",
           steps: stepCount(activity),
           approval: { call: event.call, tool: event.tool },
         });
         return;
       }
-      commit({ ...current, activity, steps: stepCount(activity) });
+      commit({ ...current, activity, providerStatus: "live", steps: stepCount(activity) });
     };
-
     void runBenchAgent({
       goal,
       modelContext,
@@ -375,6 +400,7 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
             runGoal: current.runGoal,
             activity: current.activity,
             providerAvailable: true,
+            providerStatus: "live",
             steps: stepCount(current.activity),
             approval: { call, tool },
           });
@@ -404,17 +430,21 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
             runGoal: current.runGoal,
             activity: current.activity,
             providerAvailable: true,
+            providerStatus: current.providerStatus,
             steps: stepCount(current.activity),
           });
           return;
         }
+        const reqId = typeof (error as { requestId?: unknown })?.requestId === "string" ? (error as { requestId: string }).requestId : undefined;
         commit({
           status: "failed",
           goal: current.goal,
           runGoal: current.runGoal,
           activity: current.activity,
           providerAvailable: true,
+          providerStatus: "error",
           steps: stepCount(current.activity),
+          requestId: reqId,
           message: error instanceof Error ? error.message : "Bench Agent failed.",
         });
       });
@@ -433,12 +463,12 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
           goal: previous.goal,
           activity: previous.activity,
           providerAvailable: true,
+          providerStatus: previous.providerStatus,
           steps: stepCount(previous.activity),
           message: "WebMCP model context is unavailable.",
         });
         return;
       }
-
       const runId = ++nextRunIdRef.current;
       activeRunIdRef.current = runId;
       const controller = new AbortController();
@@ -451,9 +481,9 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
         runGoal: trimmed,
         activity: previous.activity,
         providerAvailable: true,
+        providerStatus: previous.providerStatus === "live" ? "live" : "configured",
         steps: stepCount(previous.activity),
       });
-
       const onEvent = (event: BenchAgentEvent) => {
         if (activeRunIdRef.current !== runId) return;
         const current = stateRef.current;
@@ -466,12 +496,13 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
             runGoal: current.runGoal,
             activity,
             providerAvailable: true,
+            providerStatus: "live",
             steps: stepCount(activity),
             approval: { call: event.call, tool: event.tool },
           });
           return;
         }
-        commit({ ...current, activity, steps: stepCount(activity) });
+        commit({ ...current, activity, providerStatus: "live", steps: stepCount(activity) });
       };
 
       void runBenchAgent({
@@ -498,6 +529,7 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
               runGoal: current.runGoal,
               activity: current.activity,
               providerAvailable: true,
+              providerStatus: "live",
               steps: stepCount(current.activity),
               approval: { call, tool },
             });
@@ -527,17 +559,21 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
               runGoal: current.runGoal,
               activity: current.activity,
               providerAvailable: true,
+              providerStatus: current.providerStatus,
               steps: stepCount(current.activity),
             });
             return;
           }
+          const reqId = typeof (error as { requestId?: unknown })?.requestId === "string" ? (error as { requestId: string }).requestId : undefined;
           commit({
             status: "failed",
             goal: current.goal,
             runGoal: current.runGoal,
             activity: current.activity,
             providerAvailable: true,
+            providerStatus: "error",
             steps: stepCount(current.activity),
+            requestId: reqId,
             message: error instanceof Error ? error.message : "Bench Agent failed.",
           });
         });

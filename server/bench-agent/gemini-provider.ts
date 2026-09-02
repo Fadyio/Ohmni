@@ -40,6 +40,28 @@ export interface GeminiBenchAgentProviderOptions {
 export const DEFAULT_GEMINI_MODEL = "gemini-3.7-flash";
 export const GEMINI_REQUEST_TIMEOUT_MS = 30_000;
 
+export function sanitizeErrorMessage(error: unknown): string {
+  if (!error) return "Unknown error";
+  let message = error instanceof Error ? error.message : String(error);
+  // Redact any Google API keys (AIza...)
+  message = message.replace(/AIza[0-9A-Za-z-_]{35}/g, "[REDACTED_API_KEY]");
+  // Redact any auth tokens or secrets
+  message = message.replace(/(?:api[_-]?key|secret|token|password|bearer)[=:\s]+["']?([^\s"',;]+)/gi, (match) => {
+    return match.replace(/([=:\s]+["']?)(.+)/, "$1[REDACTED]");
+  });
+  if (message.includes('"message":')) {
+    try {
+      const match = message.match(/"message"\s*:\s*"([^"]+)"/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return message;
+}
+
 export const BENCH_AGENT_SYSTEM_INSTRUCTION = `You are Ohmni's diagnostic bench agent.
 
 Investigate hardware failures empirically.
@@ -134,5 +156,27 @@ export class GeminiBenchAgentProvider implements BenchAgentProvider {
         : {}),
     };
     return result;
+  }
+
+  async canary(
+    options: { signal?: AbortSignal } = {},
+  ): Promise<{ readonly ok: boolean; readonly message: string; readonly model: string }> {
+    const interactionRequest: Record<string, unknown> = {
+      model: this.model,
+      input: "Reply with exactly OK.",
+      store: false,
+    };
+
+    const interaction = await this.interactions.create(interactionRequest, {
+      timeout_ms: 10_000,
+      signal: options.signal,
+    });
+
+    const text = (typeof interaction.output_text === "string" ? interaction.output_text : "").trim();
+    return {
+      ok: true,
+      message: text || "OK",
+      model: this.model,
+    };
   }
 }

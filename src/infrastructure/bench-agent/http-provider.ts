@@ -110,25 +110,32 @@ async function readResponseJson(response: Response): Promise<unknown> {
 function responseError(response: Response, payload: unknown): Error {
   if (payload !== null && typeof payload === "object" && !Array.isArray(payload)) {
     const record = payload as Record<string, unknown>;
+    const requestId = typeof record.requestId === "string" ? record.requestId : undefined;
     if (
       record.protection !== undefined ||
       (typeof record.error === "object" &&
         record.error !== null &&
         (record.error as Record<string, unknown>).message === "Protected deployment")
     ) {
-      return new Error(
-        "Vercel Protected Deployment: Vercel Authentication is enabled on this preview deployment. Disable Vercel Authentication under Project Settings -> Deployment Protection or access with bypass credentials."
+      const err = new Error(
+        "Vercel Protected Deployment: Vercel Authentication is enabled on this preview deployment. Disable Vercel Authentication under Project Settings -> Deployment Protection or access with bypass credentials.",
       );
+      if (requestId) Object.assign(err, { requestId });
+      return err;
     }
     if (typeof record.error === "object" && record.error !== null) {
       const nestedMessage = (record.error as Record<string, unknown>).message;
       if (typeof nestedMessage === "string" && nestedMessage.trim() !== "") {
-        return new Error(nestedMessage);
+        const err = new Error(nestedMessage);
+        if (requestId) Object.assign(err, { requestId });
+        return err;
       }
     }
     const message = record.message;
     if (typeof message === "string" && message.trim() !== "") {
-      return new Error(message);
+      const err = new Error(message);
+      if (requestId) Object.assign(err, { requestId });
+      return err;
     }
   }
   return new Error(`Bench agent request failed with status ${response.status}.`);

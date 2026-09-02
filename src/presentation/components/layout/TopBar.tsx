@@ -143,11 +143,11 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span
               style={{
                 fontSize: "10px",
-                color: "var(--ohmni-text-muted)",
+                color: isNative ? "var(--ohmni-brand)" : "var(--ohmni-text-muted)",
                 paddingLeft: "2px",
               }}
             >
-              • WebMCP
+              • {isNative ? "Native WebMCP" : "Compatibility Mode"}
             </span>
           </button>
 

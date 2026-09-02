@@ -6,6 +6,7 @@
 
 import React from "react";
 import { createRoot } from "react-dom/client";
+import type { ModelContext } from "@/infrastructure/webmcp/types";
 import { VirtualDeviceAdapter } from "@/domain/device/virtual-adapter";
 import { InMemoryModelContext } from "@/infrastructure/webmcp/in-memory-model-context";
 import { DeviceToolRegistrar } from "@/infrastructure/webmcp/device-tool-registrar";
@@ -29,18 +30,26 @@ declare global {
     __experimentRunner?: ExperimentRunner;
     __modelContext?: InMemoryModelContext;
     __scopeFrameCount?: number;
+    __webmcpMode?: "native" | "compatibility";
+    __buildInfo?: {
+      commitSha: string;
+      builtAt?: string;
+    };
   }
 }
 
 console.info("[Ohmni] Hardware Diagnostic Workbench initialized.");
 
-// 1. Initialize or polyfill document.modelContext if not natively present
-const modelContext =
-  typeof document !== "undefined" && document.modelContext
-    ? document.modelContext
-    : new InMemoryModelContext();
+// 1. Detect native WebMCP capability before fallback
+const isNativeWebMCP =
+  typeof document !== "undefined" &&
+  Boolean((document as unknown as { modelContext?: unknown }).modelContext);
 
-if (typeof document !== "undefined" && !document.modelContext) {
+const modelContext = isNativeWebMCP
+  ? (document as unknown as { modelContext: ModelContext }).modelContext
+  : new InMemoryModelContext();
+
+if (typeof document !== "undefined" && !isNativeWebMCP) {
   Object.defineProperty(document, "modelContext", {
     value: modelContext,
     writable: false,
@@ -48,6 +57,12 @@ if (typeof document !== "undefined" && !document.modelContext) {
   });
 }
 
+if (typeof window !== "undefined") {
+  window.__webmcpMode = isNativeWebMCP ? "native" : "compatibility";
+  window.__buildInfo = {
+    commitSha: (import.meta.env.VITE_BUILD_SHA as string) || "development",
+  };
+}
 // 2. Initialize Telemetry & Experiment Pipeline
 const telemetryBus = new TelemetryEventBus();
 const experimentStore = new InMemoryExperimentStore();

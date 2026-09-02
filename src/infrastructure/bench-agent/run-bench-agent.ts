@@ -242,10 +242,15 @@ export async function runBenchAgent(
     if (isAbort(error, signal)) {
       return { status: "stopped", steps, interactionId: lastInteractionId };
     }
+    const requestId =
+      typeof (error as { requestId?: unknown })?.requestId === "string"
+        ? (error as { requestId: string }).requestId
+        : undefined;
     return {
       status: "failed",
       steps,
       message: errorMessage(error, "Bench agent failed unexpectedly."),
+      requestId,
       interactionId: lastInteractionId,
     };
   }
