@@ -88,7 +88,7 @@ export async function runBenchAgent(
     modelContext,
     provider,
     requestApproval,
-    onEvent,
+    onEvent = () => undefined,
     signal,
     maxSteps = MAX_AGENT_STEPS,
     previousInteractionId: initialInteractionId,

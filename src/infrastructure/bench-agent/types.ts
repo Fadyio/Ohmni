@@ -118,7 +118,7 @@ export interface RunBenchAgentOptions {
   readonly requestApproval: (
     request: BenchAgentApprovalRequest
   ) => Promise<boolean>;
-  readonly onEvent: (event: BenchAgentEvent) => void;
+  readonly onEvent?: (event: BenchAgentEvent) => void;
   readonly signal?: AbortSignal;
   readonly maxSteps?: number;
   readonly previousInteractionId?: string;
