@@ -13,14 +13,16 @@ import { CapabilityRegistry } from "@/infrastructure/webmcp/capability-registry"
 import { TelemetryEventBus } from "@/domain/telemetry/bus";
 import { InMemoryExperimentStore } from "@/domain/experiment/store";
 import { ExperimentRunner } from "@/domain/experiment/runner";
+import type { EvidenceStore } from "@/domain/evidence/store";
+import { registerEvidenceTools } from "@/infrastructure/webmcp/evidence-tools";
 import { App } from "@/presentation/App";
-
 declare global {
   interface Window {
     __virtualDevice?: VirtualDeviceAdapter;
     __toolRegistrar?: DeviceToolRegistrar;
     __telemetryBus?: TelemetryEventBus;
     __experimentStore?: InMemoryExperimentStore;
+    __evidenceStore?: EvidenceStore;
     __experimentRunner?: ExperimentRunner;
     __modelContext?: InMemoryModelContext;
   }
@@ -49,6 +51,12 @@ const experimentRunner = new ExperimentRunner({
   eventBus: telemetryBus,
   store: experimentStore,
 });
+const evidenceStore = experimentRunner.getEvidenceStore();
+
+// Register read-only investigation evidence tools (list_evidence, get_evidence)
+registerEvidenceTools(modelContext, evidenceStore).catch((err) => {
+  console.error("[Ohmni] Failed to register WebMCP evidence tools:", err);
+});
 
 // 3. Initialize Virtual Device & Tool Registrar
 const virtualDevice = new VirtualDeviceAdapter();
@@ -60,6 +68,7 @@ if (typeof window !== "undefined") {
   window.__toolRegistrar = toolRegistrar;
   window.__telemetryBus = telemetryBus;
   window.__experimentStore = experimentStore;
+  window.__evidenceStore = evidenceStore;
   window.__experimentRunner = experimentRunner;
   if (modelContext instanceof InMemoryModelContext) {
     window.__modelContext = modelContext;
@@ -78,6 +87,7 @@ if (typeof document !== "undefined") {
           toolRegistrar={toolRegistrar}
           telemetryBus={telemetryBus}
           experimentRunner={experimentRunner}
+          evidenceStore={evidenceStore}
         />
       </React.StrictMode>
     );

@@ -10,11 +10,13 @@ import type { TimelineEventItem, WebMCPCallInfo } from "../../hooks/useExperimen
 interface EventTimelineProps {
   readonly events: readonly TimelineEventItem[];
   readonly lastCallInfo: WebMCPCallInfo | null;
+  readonly highlightedExperimentId?: string | null;
 }
 
 export const EventTimeline: React.FC<EventTimelineProps> = ({
   events,
   lastCallInfo,
+  highlightedExperimentId,
 }) => {
   return (
     <div
@@ -50,17 +52,39 @@ export const EventTimeline: React.FC<EventTimelineProps> = ({
         >
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span
+              className="label-technical"
               style={{
-                width: "6px",
-                height: "6px",
-                borderRadius: "50%",
-                background: "var(--ohmni-accent)",
+                color: "var(--ohmni-text-muted)",
+                letterSpacing: "0.08em",
               }}
-            />
-            <span className="label-technical">CHRONOLOGICAL EVENT TIMELINE</span>
+            >
+              EVENT STREAM
+            </span>
+            {highlightedExperimentId && (
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: "0.5625rem",
+                  padding: "1px 5px",
+                  borderRadius: "var(--radius-sm)",
+                  background: "rgba(56, 189, 248, 0.12)",
+                  color: "var(--ohmni-accent)",
+                  border: "1px solid rgba(56, 189, 248, 0.3)",
+                }}
+              >
+                FOCUS: {highlightedExperimentId.slice(0, 12)}...
+              </span>
+            )}
           </div>
-          <span className="font-mono" style={{ fontSize: "0.625rem", color: "var(--ohmni-text-muted)" }}>
-            {events.length} {events.length === 1 ? "EVENT" : "EVENTS"} LOGGED
+
+          <span
+            className="font-mono"
+            style={{
+              fontSize: "0.6875rem",
+              color: "var(--ohmni-text-muted)",
+            }}
+          >
+            {events.length} {events.length === 1 ? "EVENT" : "EVENTS"}
           </span>
         </div>
 

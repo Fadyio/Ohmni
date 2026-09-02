@@ -41,7 +41,7 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
         style={{
           flex: 1,
           display: "grid",
-          gridTemplateColumns: "260px 1fr 300px",
+          gridTemplateColumns: "260px 1fr 320px",
           minHeight: 0,
           overflow: "hidden",
         }}

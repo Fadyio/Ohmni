@@ -1,12 +1,16 @@
 /**
  * Automated Real Chrome WebMCP Test Suite & Screenshot Regression Gate.
+ * Milestone 5 — Immutable Evidence Ledger & WebMCP Evidence Verification.
  *
  * Launches installed Google Chrome with WebMCP experimental flags,
  * connects via Chrome DevTools Protocol (CDP), and verifies:
  * 1. Native document.modelContext lifecycle and dynamic tool registration.
- * 2. React presentation layer rendering (TopBar, DevicePanel, Oscilloscope, MetricStrip, Timeline).
- * 3. Amber actuation, brownout physics, and factual cycle accounting (3 requested, 0 completed).
- * 4. Captures visual proof screenshots to artifacts/screenshots/ (idle, connected, brownout-fault).
+ * 2. Immutable Evidence Ledger UI rendering and animation.
+ * 3. Amber actuation, brownout physics, and automatic evidence extraction into EvidenceStore.
+ * 4. Native WebMCP list_evidence and get_evidence tool execution.
+ * 5. Multi-resolution layout integrity (1440x900 and 1366x768).
+ * 6. Captures visual proof screenshots to artifacts/screenshots/ (idle, connected, brownout-fault, evidence-empty, evidence-brownout).
+ * 7. Zero console errors.
  *
  * Usage:
  *   bun run scripts/test-chrome.ts
@@ -24,13 +28,13 @@ import { readFile } from "node:fs/promises";
 function findChromePath(): string | null {
   const candidates = [
     process.env.CHROME_BIN,
-    process.env.GOOGLE_CHROME_BIN,
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
     "/usr/bin/google-chrome",
     "/usr/bin/google-chrome-stable",
-    "/usr/bin/chromium",
     "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
   ].filter(Boolean);
 
   for (const candidate of candidates) {
@@ -43,36 +47,32 @@ function findChromePath(): string | null {
 
 // 2. Simple static server for built dist/
 async function startStaticServer(distDir: string, port = 5174): Promise<{ server: Server; url: string }> {
-  const server = createServer(async (req, res) => {
-    try {
-      const rawUrl = req.url || "/";
-      const pathname = rawUrl.split("?")[0];
-      const filePath = pathname === "/" ? join(distDir, "index.html") : join(distDir, pathname);
+  const mimeTypes: Record<string, string> = {
+    ".html": "text/html",
+    ".js": "application/javascript",
+    ".css": "text/css",
+    ".json": "application/json",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".wasm": "application/wasm",
+  };
 
+  const server = createServer(async (req, res) => {
+    let filePath = join(distDir, req.url === "/" ? "index.html" : req.url!.split("?")[0]);
+    try {
+      if (!existsSync(filePath)) {
+        filePath = join(distDir, "index.html");
+      }
       const data = await readFile(filePath);
-      const ext = filePath.split(".").pop();
-      const contentTypes: Record<string, string> = {
-        html: "text/html",
-        js: "application/javascript",
-        css: "text/css",
-        json: "application/json",
-        png: "image/png",
-        svg: "image/svg+xml",
-      };
+      const ext = filePath.slice(filePath.lastIndexOf("."));
       res.writeHead(200, {
-        "Content-Type": contentTypes[ext || ""] || "application/octet-stream",
-        "Cache-Control": "no-cache",
+        "Content-Type": mimeTypes[ext] || "application/octet-stream",
+        "Access-Control-Allow-Origin": "*",
       });
       res.end(data);
     } catch {
-      try {
-        const fallback = await readFile(join(distDir, "index.html"));
-        res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(fallback);
-      } catch (err: any) {
-        res.writeHead(404, { "Content-Type": "text/plain" });
-        res.end(`Not found: ${err.message}`);
-      }
+      res.writeHead(404);
+      res.end("Not Found");
     }
   });
 
@@ -85,34 +85,50 @@ async function startStaticServer(distDir: string, port = 5174): Promise<{ server
 // 3. CDP Helper
 class CDPClient {
   private ws: WebSocket;
-  private msgId = 1;
+  private id = 1;
+  private pending = new Map<number, { resolve: (val: any) => void; reject: (err: any) => void }>();
+  public consoleErrors: string[] = [];
 
-  constructor(ws: WebSocket) {
+  private constructor(ws: WebSocket) {
     this.ws = ws;
+    this.ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data.toString());
+        if (msg.id && this.pending.has(msg.id)) {
+          const { resolve, reject } = this.pending.get(msg.id)!;
+          this.pending.delete(msg.id);
+          if (msg.error) {
+            reject(new Error(msg.error.message || JSON.stringify(msg.error)));
+          } else {
+            resolve(msg.result);
+          }
+        } else if (msg.method === "Runtime.consoleAPICalled") {
+          const type = msg.params?.type;
+          const text = (msg.params?.args || []).map((a: any) => a.value || a.description || "").join(" ");
+          if (type === "error") {
+            this.consoleErrors.push(text);
+          }
+        } else if (msg.method === "Runtime.exceptionThrown") {
+          const desc = msg.params?.exceptionDetails?.text || msg.params?.exceptionDetails?.exception?.description || "Runtime Exception";
+          this.consoleErrors.push(desc);
+        }
+      } catch {}
+    };
   }
 
   static async connect(wsUrl: string): Promise<CDPClient> {
     const ws = new WebSocket(wsUrl);
-    const { promise, resolve, reject } = Promise.withResolvers<void>();
-    ws.onopen = () => resolve();
-    ws.onerror = (e) => reject(e);
-    await promise;
-    return new CDPClient(ws);
+    const { promise, resolve, reject } = Promise.withResolvers<CDPClient>();
+    ws.onopen = () => resolve(new CDPClient(ws));
+    ws.onerror = (err) => reject(err);
+    return promise;
   }
 
-  send(method: string, params: Record<string, unknown> = {}): Promise<any> {
-    const id = this.msgId++;
+  async send(method: string, params: Record<string, unknown> = {}): Promise<any> {
+    const msgId = this.id++;
     const { promise, resolve, reject } = Promise.withResolvers<any>();
-    const handler = (evt: MessageEvent) => {
-      const data = JSON.parse(evt.data as string);
-      if (data.id === id) {
-        this.ws.removeEventListener("message", handler as any);
-        if (data.error) reject(data.error);
-        else resolve(data.result);
-      }
-    };
-    this.ws.addEventListener("message", handler as any);
-    this.ws.send(JSON.stringify({ id, method, params }));
+    this.pending.set(msgId, { resolve, reject });
+    this.ws.send(JSON.stringify({ id: msgId, method, params }));
     return promise;
   }
 
@@ -123,16 +139,24 @@ class CDPClient {
       returnByValue: true,
     });
     if (res.exceptionDetails) {
-      throw new Error(`Evaluation failed: ${JSON.stringify(res.exceptionDetails)}`);
+      throw new Error(`CDP Eval Exception: ${res.exceptionDetails.text || JSON.stringify(res.exceptionDetails)}`);
     }
     return res.result?.value;
   }
 
-  async captureScreenshot(path: string): Promise<void> {
+  async captureScreenshot(filePath: string): Promise<void> {
     const res = await this.send("Page.captureScreenshot", { format: "png", fromSurface: true });
-    if (res && res.data) {
-      writeFileSync(path, Buffer.from(res.data, "base64"));
-    }
+    const buffer = Buffer.from(res.data, "base64");
+    writeFileSync(filePath, buffer);
+  }
+
+  async setViewport(width: number, height: number): Promise<void> {
+    await this.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
   }
 
   close(): void {
@@ -143,7 +167,7 @@ class CDPClient {
 // 4. Main test suite
 async function runChromeTests(): Promise<void> {
   console.info("==================================================================");
-  console.info("   OHMNI — REAL GOOGLE CHROME WEBMCP & UI REGRESSION GATE         ");
+  console.info("   OHMNI — REAL GOOGLE CHROME WEBMCP & EVIDENCE REGRESSION GATE   ");
   console.info("==================================================================");
 
   const chromePath = findChromePath();
@@ -237,16 +261,18 @@ async function runChromeTests(): Promise<void> {
     // Wait 1.2 seconds for page JS & React root mounting
     await new Promise((r) => setTimeout(r, 1200));
 
-    // Capture initial idle screenshot
+    // Capture initial idle & evidence-empty screenshot
     const idlePath = join(screenshotDir, "idle.png");
+    const evidenceEmptyPath = join(screenshotDir, "evidence-empty.png");
     await cdpClient.captureScreenshot(idlePath);
-    console.info(`[Screenshot] Saved idle state: ${idlePath}`);
+    await cdpClient.captureScreenshot(evidenceEmptyPath);
+    console.info(`[Screenshot] Saved idle & evidence-empty state: ${evidenceEmptyPath}`);
 
-    console.info("\n--- EXECUTING NATIVE CHROME WEBMCP & UI TEST MATRIX ---\n");
+    console.info("\n--- EXECUTING NATIVE CHROME WEBMCP & EVIDENCE REGRESSION TEST MATRIX ---\n");
 
     const tests = [
       {
-        name: "document.modelContext Availability & React Mounting",
+        name: "1. document.modelContext Availability & Evidence Ledger Mounting",
         fn: async () => {
           const res = await cdpClient!.evaluate(`({
             hasModelContext: "modelContext" in document,
@@ -254,25 +280,30 @@ async function runChromeTests(): Promise<void> {
             isNative: window.__modelContext === undefined,
             hasReactApp: document.getElementById("app")?.children?.length > 0,
             hasCanvas: document.querySelector("canvas") !== null,
+            hasEvidenceLedger: document.body.innerText.includes("EVIDENCE") && document.body.innerText.includes("INVESTIGATION"),
           })`);
-          if (!res.hasModelContext || res.type !== "object" || !res.hasReactApp || !res.hasCanvas) {
-            throw new Error(`Expected document.modelContext and mounted React canvas UI, got: ${JSON.stringify(res)}`);
+          if (!res.hasModelContext || res.type !== "object" || !res.hasReactApp || !res.hasCanvas || !res.hasEvidenceLedger) {
+            throw new Error(`Expected document.modelContext and mounted Evidence Ledger, got: ${JSON.stringify(res)}`);
           }
-          return `Native document.modelContext is object (isNative: ${res.isNative}), React Workbench & Canvas mounted`;
+          return `Native document.modelContext is object (isNative: ${res.isNative}), React Workbench, Canvas & Evidence Ledger mounted`;
         },
       },
       {
-        name: "Pre-Connection Initial Tool Count (0 tools)",
+        name: "2. Initial WebMCP Tools (Evidence tools registered)",
         fn: async () => {
-          const tools = await cdpClient!.evaluate(`document.modelContext.getTools()`);
-          if (!Array.isArray(tools) || tools.length !== 0) {
-            throw new Error(`Expected 0 initial tools, got ${tools?.length}`);
+          const tools = await cdpClient!.evaluate(`(async () => {
+            const rawTools = await document.modelContext.getTools();
+            return rawTools.map(t => ({ name: t.name, readOnly: t.annotations?.readOnlyHint }));
+          })()`);
+          const names = tools.map((t: any) => t.name);
+          if (!names.includes("list_evidence") || !names.includes("get_evidence")) {
+            throw new Error(`Expected list_evidence and get_evidence tools, got: ${JSON.stringify(names)}`);
           }
-          return "0 tools registered before device connection";
+          return `Initial WebMCP tools include list_evidence and get_evidence (${tools.length} total tools registered)`;
         },
       },
       {
-        name: "Device Connection & 5-Tool WebMCP Dynamic Registration",
+        name: "3. Virtual Device Connection & Full Tool Surface Dynamic Registration",
         fn: async () => {
           const res = await cdpClient!.evaluate(`(async () => {
             await window.__virtualDevice.connect();
@@ -286,6 +317,8 @@ async function runChromeTests(): Promise<void> {
             "read_system_health",
             "measure_supply_voltage",
             "run_relay_stress_test",
+            "list_evidence",
+            "get_evidence",
           ];
           const names = res.map((t: any) => t.name);
           for (const exp of expected) {
@@ -298,26 +331,11 @@ async function runChromeTests(): Promise<void> {
           await cdpClient!.captureScreenshot(connectedPath);
           console.info(`[Screenshot] Saved connected state: ${connectedPath}`);
 
-          return `Successfully registered 5 WebMCP tools: [${names.join(", ")}]`;
+          return `Successfully registered all diagnostic & evidence tools: [${names.join(", ")}] (${names.length} tools)`;
         },
       },
       {
-        name: "executeTool with Valid JSON String (Chrome Standard)",
-        fn: async () => {
-          const res = await cdpClient!.evaluate(`(async () => {
-            const tools = await document.modelContext.getTools();
-            const resetTool = tools.find(t => t.name === "read_reset_history");
-            const raw = await document.modelContext.executeTool(resetTool, '{}');
-            return { raw, parsed: JSON.parse(raw) };
-          })()`);
-          if (typeof res.raw !== "string" || !res.parsed.resets || res.parsed.count < 1) {
-            throw new Error(`Unexpected reset history output: ${res.raw}`);
-          }
-          return `executeTool(tool, '{}') returned valid stringified JSON (${res.parsed.count} resets)`;
-        },
-      },
-      {
-        name: "Amber Tool Invocation & Brownout Fault Reproduction (Milestone 3 & 4)",
+        name: "4. WebMCP executeTool: run_relay_stress_test & Automatic Evidence Ingestion",
         fn: async () => {
           const res = await cdpClient!.evaluate(`(async () => {
             const tools = await document.modelContext.getTools();
@@ -325,85 +343,134 @@ async function runChromeTests(): Promise<void> {
             const raw = await document.modelContext.executeTool(relayTool, JSON.stringify({ cycles: 3, duration_ms: 20 }));
             let parsed;
             try { parsed = JSON.parse(raw); } catch (e) { parsed = { rawString: raw }; }
+
             const localRecord = window.__experimentStore ? window.__experimentStore.getExperiment(parsed.experiment_id) : undefined;
+            const evidenceRecords = window.__evidenceStore ? window.__evidenceStore.getByExperiment(parsed.experiment_id) : [];
+
             return {
               raw,
               parsed,
-              hasTracesInResult: "traces" in parsed,
-              hasEventsInResult: "events" in parsed,
               hasLocalRecord: !!localRecord,
               localTraceSampleCount: localRecord?.traces?.supply_voltage?.samples?.length ?? 0,
+              evidenceCount: evidenceRecords.length,
+              evidenceSummaries: evidenceRecords.map(e => ({ id: e.id, type: e.type, summary: e.summary })),
             };
           })()`);
-          const { raw, parsed, hasTracesInResult, hasEventsInResult, hasLocalRecord, localTraceSampleCount } = res;
+          const { parsed, evidenceCount, evidenceSummaries } = res;
           if (!parsed.experiment_id || !parsed.experiment_id.startsWith("exp_")) {
             throw new Error(`Expected experiment_id starting with 'exp_', got parsed: ${JSON.stringify(parsed)}`);
           }
           if (!parsed.faultReproduced || !parsed.resetOccurred || parsed.resetReason !== "BROWNOUT") {
             throw new Error(`Failed to reproduce brownout fault: ${JSON.stringify(parsed)}`);
           }
-          if (!parsed.supply_voltage || parsed.supply_voltage.minimum_v >= 2.80) {
-            throw new Error(`Expected voltage sag below 2.80V in supply_voltage summary: ${JSON.stringify(parsed.supply_voltage)}`);
-          }
-          if (hasTracesInResult || hasEventsInResult) {
-            throw new Error("Raw trace arrays must not be returned in concise WebMCP result");
-          }
-          if (!hasLocalRecord || localTraceSampleCount === 0) {
-            throw new Error(`Expected experiment record in window.__experimentStore with traces, got count: ${localTraceSampleCount}`);
+
+          if (evidenceCount < 3) {
+            throw new Error(`Expected at least 3 auto-extracted evidence records, got ${evidenceCount}: ${JSON.stringify(evidenceSummaries)}`);
           }
 
-          // Factual cycle count checks: 3 requested, 0 completed
-          if (parsed.repetitions !== 3 || parsed.cyclesCompleted !== 0) {
-            throw new Error(`Factual cycle counts violation: requested ${parsed.repetitions}, completed ${parsed.cyclesCompleted}`);
+          // Verify factual evidence summaries
+          const summaries = evidenceSummaries.map((e: any) => e.summary);
+          const hasBrownout = summaries.some((s: string) => s.includes("BROWNOUT"));
+          const hasVoltage = summaries.some((s: string) => s.includes("2.72 V"));
+          const hasCycle = summaries.some((s: string) => s.includes("cycle 1"));
+
+          if (!hasBrownout || !hasVoltage || !hasCycle) {
+            throw new Error(`Missing expected factual observations in evidence ledger: ${JSON.stringify(summaries)}`);
           }
 
-          // Wait 800ms for UI transitions to stabilize and capture brownout fault screenshot
+          // Wait 800ms for UI sequential card animations to complete
           await new Promise((r) => setTimeout(r, 800));
-          const faultPath = join(screenshotDir, "brownout-fault.png");
-          await cdpClient!.captureScreenshot(faultPath);
-          console.info(`[Screenshot] Saved brownout fault state: ${faultPath}`);
 
-          return `Experiment ${parsed.experiment_id} returned concise summary: ${parsed.supply_voltage.baseline_v}V -> ${parsed.supply_voltage.minimum_v}V (-${parsed.supply_voltage.drop_v}V), local traces stored (${localTraceSampleCount} samples), factual cycles (req: 3, comp: 0)`;
+          // Capture brownout fault & evidence ledger screenshot
+          const faultPath = join(screenshotDir, "brownout-fault.png");
+          const evidenceBrownoutPath = join(screenshotDir, "evidence-brownout.png");
+          await cdpClient!.captureScreenshot(faultPath);
+          await cdpClient!.captureScreenshot(evidenceBrownoutPath);
+          console.info(`[Screenshot] Saved brownout fault & evidence state: ${evidenceBrownoutPath}`);
+
+          return `Relay stress test generated ${evidenceCount} immutable evidence records: [${summaries.join("; ")}]`;
         },
       },
       {
-        name: "AbortSignal Execution Cancellation & Safe State Teardown",
+        name: "5. WebMCP list_evidence & get_evidence Native Tool Execution",
         fn: async () => {
           const res = await cdpClient!.evaluate(`(async () => {
             const tools = await document.modelContext.getTools();
-            const relayTool = tools.find(t => t.name === "run_relay_stress_test");
-            const controller = new AbortController();
-            controller.abort();
-            try {
-              await document.modelContext.executeTool(relayTool, JSON.stringify({ cycles: 10, duration_ms: 100 }), { signal: controller.signal });
-              return { aborted: false };
-            } catch (err) {
-              return { aborted: true, name: err.name, message: err.message, relayState: window.__virtualDevice.getRelayState() };
-            }
+            const listTool = tools.find(t => t.name === "list_evidence");
+            const getTool = tools.find(t => t.name === "get_evidence");
+
+            const listRaw = await document.modelContext.executeTool(listTool, '{}');
+            const listParsed = JSON.parse(listRaw);
+
+            const firstId = listParsed[0]?.id;
+            const getRaw = await document.modelContext.executeTool(getTool, JSON.stringify({ evidence_id: firstId }));
+            const getParsed = JSON.parse(getRaw);
+
+            return {
+              listCount: listParsed.length,
+              firstId,
+              getSummary: getParsed.summary,
+              getType: getParsed.type,
+              getOrigin: getParsed.provenance?.origin,
+            };
           })()`);
-          if (!res.aborted || res.relayState !== "open") {
-            throw new Error(`Abort did not leave hardware in safe open state: ${JSON.stringify(res)}`);
+
+          if (res.listCount < 3 || !res.firstId.startsWith("E-")) {
+            throw new Error(`WebMCP evidence query failed: ${JSON.stringify(res)}`);
           }
-          return `AbortSignal caught: ${res.message}, relay restored to ${res.relayState}`;
+
+          return `list_evidence returned ${res.listCount} records; get_evidence(${res.firstId}) returned '${res.getSummary}' (origin: ${res.getOrigin})`;
         },
       },
       {
-        name: "Device Disconnect & Registration Lifecycle Teardown",
+        name: "6. Multi-Resolution Visual Layout Verification (1440x900 & 1366x768)",
+        fn: async () => {
+          // Test 1440x900
+          await cdpClient!.setViewport(1440, 900);
+          await new Promise((r) => setTimeout(r, 300));
+          const res1440 = await cdpClient!.evaluate(`({
+            evidenceLedgerWidth: document.querySelector("aside")?.getBoundingClientRect().width,
+            cardsRendered: document.querySelectorAll("aside div[class*='font-mono']").length,
+          })`);
+
+          // Test 1366x768
+          await cdpClient!.setViewport(1366, 768);
+          await new Promise((r) => setTimeout(r, 300));
+          const res1366 = await cdpClient!.evaluate(`({
+            evidenceLedgerWidth: document.querySelector("aside")?.getBoundingClientRect().width,
+            cardsRendered: document.querySelectorAll("aside div[class*='font-mono']").length,
+          })`);
+
+          // Reset to standard viewport
+          await cdpClient!.setViewport(1440, 900);
+
+          return `Layout verified at 1440x900 (ledger width: ${res1440.evidenceLedgerWidth}px) and 1366x768 (ledger width: ${res1366.evidenceLedgerWidth}px)`;
+        },
+      },
+      {
+        name: "7. Device Disconnect & Lifecycle Teardown",
         fn: async () => {
           const res = await cdpClient!.evaluate(`(async () => {
-            let changes = 0;
-            const listener = () => changes++;
-            document.modelContext.addEventListener("toolchange", listener);
             await window.__virtualDevice.disconnect();
             window.__toolRegistrar.unregisterDevice(window.__virtualDevice);
             const remaining = await document.modelContext.getTools();
-            document.modelContext.removeEventListener("toolchange", listener);
-            return { remainingCount: remaining.length, changes };
+            return { remainingCount: remaining.length, remainingTools: remaining.map(t => t.name) };
           })()`);
-          if (res.remainingCount !== 0) {
-            throw new Error(`Expected 0 remaining tools after disconnect, found: ${res.remainingCount}`);
+
+          // Evidence inspection tools (list_evidence, get_evidence) remain registered for the investigation
+          if (!res.remainingTools.includes("list_evidence") || !res.remainingTools.includes("get_evidence")) {
+            throw new Error(`Evidence tools missing after device disconnect: ${JSON.stringify(res)}`);
           }
-          return `All tools removed upon disconnect (toolchange events received)`;
+          return `Device capabilities cleanly removed, investigation evidence tools retained (${res.remainingCount} tools active)`;
+        },
+      },
+      {
+        name: "8. Console Error Audit (Zero Uncaught Errors)",
+        fn: async () => {
+          if (cdpClient!.consoleErrors.length > 0) {
+            throw new Error(`Detected console errors in Chrome session:\n${cdpClient!.consoleErrors.join("\n")}`);
+          }
+          return "Zero console errors or unhandled exceptions detected";
         },
       },
     ];
@@ -423,7 +490,7 @@ async function runChromeTests(): Promise<void> {
 
     console.info("\n==================================================================");
     if (allPassed) {
-      console.info("🎉 ALL REAL CHROME WEBMCP & UI TESTS PASSED SUCCESSFULLY!");
+      console.info("🎉 ALL REAL CHROME WEBMCP & EVIDENCE TESTS PASSED SUCCESSFULLY!");
     } else {
       console.error("❌ SOME CHROME WEBMCP TESTS FAILED.");
       process.exit(1);

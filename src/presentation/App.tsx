@@ -8,6 +8,7 @@ import type { DeviceAdapter } from "@/domain/device/adapter";
 import type { DeviceToolRegistrar } from "@/infrastructure/webmcp/device-tool-registrar";
 import type { ITelemetryEventBus } from "@/domain/telemetry/bus";
 import type { ExperimentRunner } from "@/domain/experiment/runner";
+import type { EvidenceStore } from "@/domain/evidence/store";
 
 import { WorkbenchLayout } from "./components/layout/WorkbenchLayout";
 import { TopBar } from "./components/layout/TopBar";
@@ -16,9 +17,8 @@ import { Oscilloscope } from "./components/instruments/Oscilloscope";
 import { MetricStrip } from "./components/instruments/MetricStrip";
 import { ExperimentStatusCard } from "./components/instruments/ExperimentStatusCard";
 import { EventTimeline } from "./components/timeline/EventTimeline";
-import { InvestigationPlaceholder } from "./components/investigation/InvestigationPlaceholder";
+import { EvidenceLedger } from "./components/investigation/EvidenceLedger";
 import { VirtualBenchControls } from "./components/controls/VirtualBenchControls";
-
 import { useDeviceState } from "./hooks/useDeviceState";
 import { useExperimentTimeline } from "./hooks/useExperimentTimeline";
 import { useOscilloscopeBuffer } from "./hooks/useOscilloscopeBuffer";
@@ -30,12 +30,15 @@ export interface AppProps {
   readonly toolRegistrar?: DeviceToolRegistrar;
   readonly telemetryBus?: ITelemetryEventBus;
   readonly experimentRunner?: ExperimentRunner;
+  readonly evidenceStore?: EvidenceStore;
 }
 
 export const App: React.FC<AppProps> = ({
   deviceAdapter,
   toolRegistrar,
   telemetryBus,
+  experimentRunner,
+  evidenceStore,
 }) => {
   // Resolve instances from props or window globals
   const resolvedAdapter = useMemo(() => {
@@ -50,6 +53,16 @@ export const App: React.FC<AppProps> = ({
     return telemetryBus ?? (typeof window !== "undefined" ? window.__telemetryBus : undefined);
   }, [telemetryBus]);
 
+  const resolvedEvidenceStore = useMemo(() => {
+    return (
+      evidenceStore ??
+      experimentRunner?.getEvidenceStore() ??
+      (typeof window !== "undefined" ? (window as unknown as { __evidenceStore?: EvidenceStore }).__evidenceStore : undefined)
+    );
+  }, [evidenceStore, experimentRunner]);
+
+  const [selectedEvidenceId, setSelectedEvidenceId] = React.useState<string | null>(null);
+  const [highlightedExperimentId, setHighlightedExperimentId] = React.useState<string | null>(null);
   // Hook subscriptions
   const {
     isConnected,
@@ -144,11 +157,25 @@ export const App: React.FC<AppProps> = ({
           />
         </>
       }
-      rightPanel={<InvestigationPlaceholder />}
+      rightPanel={
+        <EvidenceLedger
+          evidenceStore={resolvedEvidenceStore}
+          selectedEvidenceId={selectedEvidenceId}
+          onSelectEvidence={(record) => {
+            setSelectedEvidenceId(record ? record.id : null);
+            if (record?.experimentId) {
+              setHighlightedExperimentId(record.experimentId);
+            }
+          }}
+          highlightedExperimentId={highlightedExperimentId}
+          onHighlightExperiment={setHighlightedExperimentId}
+        />
+      }
       bottomTimeline={
         <EventTimeline
           events={events}
           lastCallInfo={lastCallInfo}
+          highlightedExperimentId={highlightedExperimentId}
         />
       }
     />

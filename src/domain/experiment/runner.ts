@@ -29,19 +29,27 @@ import {
 } from "./types";
 import { type ExperimentStore, InMemoryExperimentStore } from "./store";
 import { type ITelemetryEventBus, TelemetryEventBus } from "../telemetry/bus";
+import { type EvidenceStore, InMemoryEvidenceStore as DefaultEvidenceStore } from "../evidence/store";
+import { EvidenceExtractor } from "../evidence/extractor";
 
 export interface ExperimentRunnerOptions {
   readonly eventBus?: ITelemetryEventBus;
   readonly store?: ExperimentStore;
+  readonly evidenceStore?: EvidenceStore;
+  readonly evidenceExtractor?: EvidenceExtractor;
 }
 
 export class ExperimentRunner {
   private readonly eventBus: ITelemetryEventBus;
   private readonly store: ExperimentStore;
+  private readonly evidenceStore: EvidenceStore;
+  private readonly evidenceExtractor: EvidenceExtractor;
 
   constructor(options: ExperimentRunnerOptions = {}) {
     this.eventBus = options.eventBus ?? new TelemetryEventBus();
     this.store = options.store ?? new InMemoryExperimentStore();
+    this.evidenceStore = options.evidenceStore ?? new DefaultEvidenceStore();
+    this.evidenceExtractor = options.evidenceExtractor ?? new EvidenceExtractor();
   }
 
   public getEventBus(): ITelemetryEventBus {
@@ -50,6 +58,14 @@ export class ExperimentRunner {
 
   public getStore(): ExperimentStore {
     return this.store;
+  }
+
+  public getEvidenceStore(): EvidenceStore {
+    return this.evidenceStore;
+  }
+
+  public getEvidenceExtractor(): EvidenceExtractor {
+    return this.evidenceExtractor;
   }
 
   /**
@@ -102,6 +118,7 @@ export class ExperimentRunner {
       };
 
       this.store.save(record);
+      this.evidenceExtractor.extractAndStore(record, this.evidenceStore);
       throw new Error(`Tool execution aborted for '${capabilityName}'`);
     }
 
@@ -213,6 +230,8 @@ export class ExperimentRunner {
     // Save full trace & event record in local experiment store
     this.store.save(record);
 
+    // Automatically extract factual evidence into immutable EvidenceStore
+    this.evidenceExtractor.extractAndStore(record, this.evidenceStore);
     if (executionError) {
       throw executionError;
     }

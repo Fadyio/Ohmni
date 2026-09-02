@@ -79,8 +79,15 @@ describe("Slice 3D: ExperimentRunner", () => {
     // Summary itself does NOT contain the raw traces array
     expect((summary as any).traces).toBeUndefined();
     expect((summary as any).events).toBeUndefined();
-  });
 
+    // 5. Evidence is automatically extracted into EvidenceStore
+    const evidence = runner.getEvidenceStore().getByExperiment(summary.experiment_id);
+    expect(evidence.length).toBeGreaterThanOrEqual(3);
+    const evidenceSummaries = evidence.map((e) => e.summary);
+    expect(evidenceSummaries.some((s) => s.includes("BROWNOUT"))).toBe(true);
+    expect(evidenceSummaries.some((s) => s.includes("2.72 V"))).toBe(true);
+    expect(evidenceSummaries.some((s) => s.includes("cycle 1"))).toBe(true);
+  });
   it("produces passing summary after physical jumper repair to 5V", async () => {
     await adapter.connect();
     adapter.setInterventionPoint("relay_power_jumper", "5v");
@@ -135,6 +142,10 @@ describe("Slice 3D: ExperimentRunner", () => {
       durationMs: 5,
     });
     expect(nextSummary.status).toBe("completed");
+
+    const abortedEvidence = runner.getEvidenceStore().getByExperiment(latest?.metadata.id ?? "");
+    expect(abortedEvidence.length).toBeGreaterThan(0);
+    expect(abortedEvidence.some((e) => e.summary.toLowerCase().includes("aborted"))).toBe(true);
   });
 
   it("handles pre-aborted signal cleanly", async () => {
