@@ -1,0 +1,128 @@
+/**
+ * OHMNI Design System — Semantic Design Tokens
+ * Premium hardware diagnostic workbench & spacecraft test console aesthetic.
+ * Layered dark neutrals, restrained semantic accents, and tabular technical typography.
+ */
+
+:root {
+  /* Color Scheme */
+  color-scheme: dark;
+
+  /* Layered Dark Neutrals (No pure blacks, subtle depth) */
+  --ohmni-bg: #090b0e;
+  --ohmni-surface: #0e1217;
+  --ohmni-surface-raised: #141922;
+  --ohmni-surface-overlay: #1a222e;
+  
+  /* Borders & Dividers */
+  --ohmni-border: #1e2633;
+  --ohmni-border-subtle: #161d27;
+  --ohmni-border-focus: #38bdf8;
+  --ohmni-border-accent: rgba(56, 189, 248, 0.4);
+
+  /* Typography Colors */
+  --ohmni-text-primary: #f1f5f9;
+  --ohmni-text-secondary: #94a3b8;
+  --ohmni-text-muted: #64748b;
+  --ohmni-text-disabled: #475569;
+
+  /* Semantic Status Colors */
+  --ohmni-accent: #38bdf8;         /* Active instrumentation / selected */
+  --ohmni-accent-dim: #0284c7;
+  --ohmni-accent-glow: rgba(56, 189, 248, 0.15);
+  
+  --ohmni-warning: #f59e0b;        /* Amber physical actuation / notice */
+  --ohmni-warning-dim: #d97706;
+  --ohmni-warning-glow: rgba(245, 158, 11, 0.15);
+
+  --ohmni-fault: #ef4444;          /* Red fault / brownout / reset / violation */
+  --ohmni-fault-dim: #dc2626;
+  --ohmni-fault-glow: rgba(239, 68, 68, 0.18);
+
+  --ohmni-success: #10b981;        /* Verified healthy state / nominal */
+  --ohmni-success-dim: #059669;
+  --ohmni-success-glow: rgba(16, 185, 129, 0.15);
+
+  /* Grid & Scope Visuals */
+  --ohmni-grid: rgba(148, 163, 184, 0.06);
+  --ohmni-grid-major: rgba(148, 163, 184, 0.12);
+  --ohmni-scope-trace: #38bdf8;
+  --ohmni-scope-trace-fault: #ef4444;
+  --ohmni-scope-threshold: #f59e0b;
+  --ohmni-scope-bg: #07090c;
+
+  /* Typography Stack */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+  /* Sizing & Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --duration-micro: 140ms;
+  --duration-panel: 220ms;
+  --duration-focus: 360ms;
+  --ease-workbench: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Global Reset & Base Styles */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  background-color: var(--ohmni-bg);
+  color: var(--ohmni-text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Monospace Utilities for Telemetry, Hex, IDs */
+.font-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+/* Technical Labeling */
+.label-technical {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ohmni-text-muted);
+}
+
+/* Focus Rings */
+:focus-visible {
+  outline: 2px solid var(--ohmni-border-focus);
+  outline-offset: 2px;
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

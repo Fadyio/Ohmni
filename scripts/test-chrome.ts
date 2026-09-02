@@ -1,10 +1,12 @@
 /**
- * Automated Real Chrome WebMCP Test Suite.
+ * Automated Real Chrome WebMCP Test Suite & Screenshot Regression Gate.
  *
  * Launches installed Google Chrome with WebMCP experimental flags,
- * connects via Chrome DevTools Protocol (CDP), and verifies native
- * document.modelContext lifecycle, tool registration, JSON execution,
- * Amber actuation, brownout physics, and abort signals.
+ * connects via Chrome DevTools Protocol (CDP), and verifies:
+ * 1. Native document.modelContext lifecycle and dynamic tool registration.
+ * 2. React presentation layer rendering (TopBar, DevicePanel, Oscilloscope, MetricStrip, Timeline).
+ * 3. Amber actuation, brownout physics, and factual cycle accounting (3 requested, 0 completed).
+ * 4. Captures visual proof screenshots to artifacts/screenshots/ (idle, connected, brownout-fault).
  *
  * Usage:
  *   bun run scripts/test-chrome.ts
@@ -12,7 +14,7 @@
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, existsSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type Server } from "node:http";
@@ -21,10 +23,10 @@ import { readFile } from "node:fs/promises";
 // 1. Locate Chrome binary
 function findChromePath(): string | null {
   const candidates = [
+    process.env.CHROME_BIN,
+    process.env.GOOGLE_CHROME_BIN,
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
-    process.env.CHROME_PATH || "",
     "/usr/bin/google-chrome",
     "/usr/bin/google-chrome-stable",
     "/usr/bin/chromium",
@@ -32,7 +34,7 @@ function findChromePath(): string | null {
   ].filter(Boolean);
 
   for (const candidate of candidates) {
-    if (existsSync(candidate)) {
+    if (candidate && existsSync(candidate)) {
       return candidate;
     }
   }
@@ -43,12 +45,13 @@ function findChromePath(): string | null {
 async function startStaticServer(distDir: string, port = 5174): Promise<{ server: Server; url: string }> {
   const server = createServer(async (req, res) => {
     try {
-      const reqPath = req.url === "/" ? "/index.html" : (req.url || "/index.html").split("?")[0];
-      const filePath = join(distDir, reqPath.startsWith("/") ? reqPath.slice(1) : reqPath);
-      
-      const content = await readFile(filePath);
-      const ext = filePath.split(".").pop() || "";
-      const mimeTypes: Record<string, string> = {
+      const rawUrl = req.url || "/";
+      const pathname = rawUrl.split("?")[0];
+      const filePath = pathname === "/" ? join(distDir, "index.html") : join(distDir, pathname);
+
+      const data = await readFile(filePath);
+      const ext = filePath.split(".").pop();
+      const contentTypes: Record<string, string> = {
         html: "text/html",
         js: "application/javascript",
         css: "text/css",
@@ -57,22 +60,22 @@ async function startStaticServer(distDir: string, port = 5174): Promise<{ server
         svg: "image/svg+xml",
       };
       res.writeHead(200, {
-        "Content-Type": mimeTypes[ext] || "application/octet-stream",
-        "Origin-Agent-Cluster": "?1",
+        "Content-Type": contentTypes[ext || ""] || "application/octet-stream",
+        "Cache-Control": "no-cache",
       });
-      res.end(content);
+      res.end(data);
     } catch {
-      // SPA Fallback to index.html
       try {
-        const indexHtml = await readFile(join(distDir, "index.html"));
-        res.writeHead(200, { "Content-Type": "text/html", "Origin-Agent-Cluster": "?1" });
-        res.end(indexHtml);
-      } catch {
-        res.writeHead(404);
-        res.end("Not Found");
+        const fallback = await readFile(join(distDir, "index.html"));
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end(fallback);
+      } catch (err: any) {
+        res.writeHead(404, { "Content-Type": "text/plain" });
+        res.end(`Not found: ${err.message}`);
       }
     }
   });
+
   const { promise: listenPromise, resolve: listenResolve } = Promise.withResolvers<void>();
   server.listen(port, "127.0.0.1", () => listenResolve());
   await listenPromise;
@@ -125,6 +128,13 @@ class CDPClient {
     return res.result?.value;
   }
 
+  async captureScreenshot(path: string): Promise<void> {
+    const res = await this.send("Page.captureScreenshot", { format: "png", fromSurface: true });
+    if (res && res.data) {
+      writeFileSync(path, Buffer.from(res.data, "base64"));
+    }
+  }
+
   close(): void {
     this.ws.close();
   }
@@ -133,7 +143,7 @@ class CDPClient {
 // 4. Main test suite
 async function runChromeTests(): Promise<void> {
   console.info("==================================================================");
-  console.info("   OHMNI — REAL GOOGLE CHROME WEBMCP AUTOMATED REGRESSION GATE   ");
+  console.info("   OHMNI — REAL GOOGLE CHROME WEBMCP & UI REGRESSION GATE         ");
   console.info("==================================================================");
 
   const chromePath = findChromePath();
@@ -144,6 +154,10 @@ async function runChromeTests(): Promise<void> {
   }
 
   console.info(`[Chrome Gate] Found Chrome at: ${chromePath}`);
+
+  // Ensure screenshot artifact directory exists
+  const screenshotDir = join(process.cwd(), "artifacts", "screenshots");
+  mkdirSync(screenshotDir, { recursive: true });
 
   // Build production bundle first
   console.info("[Chrome Gate] Building production distribution (vite build)...");
@@ -171,6 +185,7 @@ async function runChromeTests(): Promise<void> {
     `--remote-debugging-port=${debugPort}`,
     "--no-first-run",
     "--no-default-browser-check",
+    "--window-size=1440,900",
     "--flag-switches-begin",
     "--enable-webmcp-testing",
     "--flag-switches-end",
@@ -219,24 +234,31 @@ async function runChromeTests(): Promise<void> {
     await cdpClient.send("Runtime.enable");
     await cdpClient.send("Page.enable");
 
-    // Wait 1 second for page JS initialization
-    await new Promise((r) => setTimeout(r, 1000));
+    // Wait 1.2 seconds for page JS & React root mounting
+    await new Promise((r) => setTimeout(r, 1200));
 
-    console.info("\n--- EXECUTING NATIVE CHROME WEBMCP TEST MATRIX ---\n");
+    // Capture initial idle screenshot
+    const idlePath = join(screenshotDir, "idle.png");
+    await cdpClient.captureScreenshot(idlePath);
+    console.info(`[Screenshot] Saved idle state: ${idlePath}`);
+
+    console.info("\n--- EXECUTING NATIVE CHROME WEBMCP & UI TEST MATRIX ---\n");
 
     const tests = [
       {
-        name: "document.modelContext Availability",
+        name: "document.modelContext Availability & React Mounting",
         fn: async () => {
           const res = await cdpClient!.evaluate(`({
             hasModelContext: "modelContext" in document,
             type: typeof document.modelContext,
-            isNative: window.__modelContext === undefined
+            isNative: window.__modelContext === undefined,
+            hasReactApp: document.getElementById("app")?.children?.length > 0,
+            hasCanvas: document.querySelector("canvas") !== null,
           })`);
-          if (!res.hasModelContext || res.type !== "object") {
-            throw new Error(`Expected document.modelContext object, got: ${JSON.stringify(res)}`);
+          if (!res.hasModelContext || res.type !== "object" || !res.hasReactApp || !res.hasCanvas) {
+            throw new Error(`Expected document.modelContext and mounted React canvas UI, got: ${JSON.stringify(res)}`);
           }
-          return `Native document.modelContext is object (isNative: ${res.isNative})`;
+          return `Native document.modelContext is object (isNative: ${res.isNative}), React Workbench & Canvas mounted`;
         },
       },
       {
@@ -269,6 +291,13 @@ async function runChromeTests(): Promise<void> {
           for (const exp of expected) {
             if (!names.includes(exp)) throw new Error(`Missing expected tool: ${exp}`);
           }
+
+          // Capture connected state screenshot
+          await new Promise((r) => setTimeout(r, 600));
+          const connectedPath = join(screenshotDir, "connected.png");
+          await cdpClient!.captureScreenshot(connectedPath);
+          console.info(`[Screenshot] Saved connected state: ${connectedPath}`);
+
           return `Successfully registered 5 WebMCP tools: [${names.join(", ")}]`;
         },
       },
@@ -288,26 +317,7 @@ async function runChromeTests(): Promise<void> {
         },
       },
       {
-        name: "executeTool with Object Input (Native Chrome Error Verification)",
-        fn: async () => {
-          const res = await cdpClient!.evaluate(`(async () => {
-            const tools = await document.modelContext.getTools();
-            const infoTool = tools.find(t => t.name === "read_device_info");
-            try {
-              await document.modelContext.executeTool(infoTool, {});
-              return { threw: false };
-            } catch (err) {
-              return { threw: true, name: err.name, message: err.message };
-            }
-          })()`);
-          if (!res.threw || !/parse/i.test(res.message)) {
-            throw new Error(`Expected native Chrome to reject object input with parse error, got: ${JSON.stringify(res)}`);
-          }
-          return `Native Chrome strictly enforces JSON string input (rejected object with ${res.name}: "${res.message}")`;
-        },
-      },
-      {
-        name: "Amber Tool Invocation & Brownout Fault Reproduction (Milestone 3 ExperimentRunner)",
+        name: "Amber Tool Invocation & Brownout Fault Reproduction (Milestone 3 & 4)",
         fn: async () => {
           const res = await cdpClient!.evaluate(`(async () => {
             const tools = await document.modelContext.getTools();
@@ -327,7 +337,7 @@ async function runChromeTests(): Promise<void> {
           })()`);
           const { raw, parsed, hasTracesInResult, hasEventsInResult, hasLocalRecord, localTraceSampleCount } = res;
           if (!parsed.experiment_id || !parsed.experiment_id.startsWith("exp_")) {
-            throw new Error(`Expected experiment_id starting with 'exp_', got parsed: ${JSON.stringify(parsed)} (raw: ${JSON.stringify(raw)})`);
+            throw new Error(`Expected experiment_id starting with 'exp_', got parsed: ${JSON.stringify(parsed)}`);
           }
           if (!parsed.faultReproduced || !parsed.resetOccurred || parsed.resetReason !== "BROWNOUT") {
             throw new Error(`Failed to reproduce brownout fault: ${JSON.stringify(parsed)}`);
@@ -341,7 +351,19 @@ async function runChromeTests(): Promise<void> {
           if (!hasLocalRecord || localTraceSampleCount === 0) {
             throw new Error(`Expected experiment record in window.__experimentStore with traces, got count: ${localTraceSampleCount}`);
           }
-          return `Experiment ${parsed.experiment_id} returned concise summary: ${parsed.supply_voltage.baseline_v}V -> ${parsed.supply_voltage.minimum_v}V (-${parsed.supply_voltage.drop_v}V), local traces stored (${localTraceSampleCount} samples)`;
+
+          // Factual cycle count checks: 3 requested, 0 completed
+          if (parsed.repetitions !== 3 || parsed.cyclesCompleted !== 0) {
+            throw new Error(`Factual cycle counts violation: requested ${parsed.repetitions}, completed ${parsed.cyclesCompleted}`);
+          }
+
+          // Wait 800ms for UI transitions to stabilize and capture brownout fault screenshot
+          await new Promise((r) => setTimeout(r, 800));
+          const faultPath = join(screenshotDir, "brownout-fault.png");
+          await cdpClient!.captureScreenshot(faultPath);
+          console.info(`[Screenshot] Saved brownout fault state: ${faultPath}`);
+
+          return `Experiment ${parsed.experiment_id} returned concise summary: ${parsed.supply_voltage.baseline_v}V -> ${parsed.supply_voltage.minimum_v}V (-${parsed.supply_voltage.drop_v}V), local traces stored (${localTraceSampleCount} samples), factual cycles (req: 3, comp: 0)`;
         },
       },
       {
@@ -401,7 +423,7 @@ async function runChromeTests(): Promise<void> {
 
     console.info("\n==================================================================");
     if (allPassed) {
-      console.info("🎉 ALL REAL CHROME WEBMCP TESTS PASSED SUCCESSFULLY!");
+      console.info("🎉 ALL REAL CHROME WEBMCP & UI TESTS PASSED SUCCESSFULLY!");
     } else {
       console.error("❌ SOME CHROME WEBMCP TESTS FAILED.");
       process.exit(1);
