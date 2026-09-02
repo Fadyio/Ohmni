@@ -3,3 +3,8 @@ dist
 .vercel
 *.local
 .DS_Store
+.agents
+.codex
+skills-lock.json
+*.log
+.env*
