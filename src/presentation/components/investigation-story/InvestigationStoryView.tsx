@@ -71,7 +71,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   labMainSceneRef,
   agentRailRef,
 }) => {
-  const [activeSceneOverride, setActiveSceneOverride] = useState<"ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | null>(null);
+  const [activeSceneOverride, setActiveSceneOverride] = useState<"ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isNativeMode = typeof window !== "undefined" && window.__webmcpMode === "native";

@@ -22,21 +22,7 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
   onProceedToRepair,
 }) => {
   if (!hypothesis) {
-    return (
-      <div
-        style={{
-          background: "var(--ohmni-lab-raised)",
-          border: "1px dashed var(--ohmni-lab-border)",
-          borderRadius: "var(--radius-lg)",
-          padding: "2rem",
-          textAlign: "center",
-          color: "var(--ohmni-lab-muted)",
-          fontSize: "14px",
-        }}
-      >
-        No root cause hypothesis synthesized yet.
-      </div>
-    );
+    return null;
   }
 
   const { id, title, confidence, supportingEvidenceIds } = hypothesis;

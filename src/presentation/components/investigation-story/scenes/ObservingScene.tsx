@@ -14,18 +14,19 @@ import { motion } from "motion/react";
 import { RotateCcw, AlertTriangle, ShieldCheck, Activity, Clock, Terminal } from "lucide-react";
 
 export interface ObservingSceneProps {
-  readonly resetCount: number;
+  readonly resetCount?: number;
   readonly railVoltage: number;
   readonly hasInspectedResetHistory?: boolean;
+  readonly isParseError?: boolean;
   readonly watchdogCount?: number | string;
   readonly softwarePanicCount?: number | string;
   readonly brownoutCount?: number | string;
 }
 
 export const ObservingScene: React.FC<ObservingSceneProps> = ({
-  resetCount,
   railVoltage,
   hasInspectedResetHistory = false,
+  isParseError = false,
   watchdogCount,
   softwarePanicCount,
   brownoutCount,
@@ -36,23 +37,23 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
   const displayBrownout =
     brownoutCount !== undefined
       ? brownoutCount
-      : hasInspectedResetHistory
-      ? resetCount
       : "—";
 
   const displayWatchdog =
     watchdogCount !== undefined
       ? watchdogCount
-      : hasInspectedResetHistory
-      ? 0
       : "—";
 
   const displaySoftware =
     softwarePanicCount !== undefined
       ? softwarePanicCount
-      : hasInspectedResetHistory
-      ? 0
       : "—";
+
+  const hasBrownout =
+    hasInspectedResetHistory &&
+    !isParseError &&
+    displayBrownout !== "—" &&
+    Number(displayBrownout) > 0;
 
   useEffect(() => {
     let animationFrameId: number;
@@ -126,9 +127,11 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
           Microcontroller Reset History
         </h2>
         <p style={{ margin: "6px 0 0", fontSize: "14.5px", color: "var(--ohmni-lab-muted)" }}>
-          {hasInspectedResetHistory
+          {isParseError
+            ? "Unable to interpret reset-history response."
+            : hasInspectedResetHistory
             ? "Diagnostic registers read via read_reset_history."
-            : "No reset history inspected yet."}
+            : "Reset history not inspected yet."}
         </p>
       </div>
 
@@ -145,29 +148,33 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
           data-testid="metric-brownout-card"
           style={{
             background: "var(--ohmni-lab-raised)",
-            border: hasInspectedResetHistory
+            border: hasBrownout
               ? "1px solid rgba(220, 38, 38, 0.25)"
               : "1px solid var(--ohmni-lab-border)",
             borderRadius: "var(--radius-lg)",
             padding: "1.5rem",
-            boxShadow: hasInspectedResetHistory ? "var(--shadow-card)" : "var(--shadow-sm)",
+            boxShadow: hasBrownout ? "var(--shadow-card)" : "var(--shadow-sm)",
             position: "relative",
             overflow: "hidden",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: hasInspectedResetHistory ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)" }}>
+            <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: hasBrownout ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)" }}>
               BROWNOUT (BOD)
             </span>
-            <RotateCcw size={16} color={hasInspectedResetHistory ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)"} />
+            <RotateCcw size={16} color={hasBrownout ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)"} />
           </div>
 
-          <div className="font-mono" style={{ fontSize: "42px", fontWeight: 800, color: hasInspectedResetHistory ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)", margin: "0.75rem 0 0.25rem", letterSpacing: "-0.03em" }}>
+          <div className="font-mono" style={{ fontSize: "42px", fontWeight: 800, color: hasBrownout ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)", margin: "0.75rem 0 0.25rem", letterSpacing: "-0.03em" }}>
             {displayBrownout}
           </div>
 
           <div style={{ fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
-            {hasInspectedResetHistory ? "Supply fell below 2.80V threshold" : "Waiting for agent measurement…"}
+            {isParseError
+              ? "Unable to interpret reset-history response."
+              : hasInspectedResetHistory && displayBrownout !== "—"
+              ? (Number(displayBrownout) > 0 ? "Supply fell below 2.80V threshold" : "No brownout events recorded")
+              : "Waiting for agent measurement…"}
           </div>
         </div>
 
@@ -194,7 +201,11 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
           </div>
 
           <div style={{ fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
-            {displayWatchdog === "—" ? "Waiting for agent measurement…" : "No execution timeouts recorded"}
+            {isParseError
+              ? "Unable to interpret reset-history response."
+              : hasInspectedResetHistory && displayWatchdog !== "—"
+              ? "No execution timeouts recorded"
+              : "Waiting for agent measurement…"}
           </div>
         </div>
 
@@ -221,7 +232,11 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
           </div>
 
           <div style={{ fontSize: "12.5px", color: "var(--ohmni-lab-muted)" }}>
-            {displaySoftware === "—" ? "Waiting for agent measurement…" : "No firmware crash assertions"}
+            {isParseError
+              ? "Unable to interpret reset-history response."
+              : hasInspectedResetHistory && displaySoftware !== "—"
+              ? "No firmware crash assertions"
+              : "Waiting for agent measurement…"}
           </div>
         </div>
       </div>

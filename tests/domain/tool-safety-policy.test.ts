@@ -6,7 +6,7 @@ import {
   type ToolExecutionClass,
 } from "@/domain/safety/tool-safety-policy";
 
-describe("ToolSafetyPolicy (Milestone 7.14)", () => {
+describe("ToolSafetyPolicy (Milestone 7.15 — Truthful Classification)", () => {
   const policy = new DefaultToolSafetyPolicy();
 
   describe("Observe tools (read-only telemetry & inspection)", () => {
@@ -52,14 +52,24 @@ describe("ToolSafetyPolicy (Milestone 7.14)", () => {
     }
   });
 
-  describe("Physical tools (hardware actuation & physical intervention)", () => {
-    const physicalTools = [
-      "run_relay_stress_test",
-      "request_human_intervention",
-    ];
+  describe("Human Request tools (human action is consent boundary, no pre-approval)", () => {
+    const humanRequestTools = ["request_human_intervention"];
+
+    for (const tool of humanRequestTools) {
+      it(`classifies '${tool}' as 'human_request' and does NOT require human approval modal`, () => {
+        expect(policy.classify(tool)).toBe("human_request");
+        expect(policy.requiresHumanApproval(tool)).toBe(false);
+        expect(classifyTool(tool)).toBe("human_request");
+        expect(requiresHumanApproval(tool)).toBe(false);
+      });
+    }
+  });
+
+  describe("Physical machine actuation tools (hardware stress testing)", () => {
+    const physicalTools = ["run_relay_stress_test"];
 
     for (const tool of physicalTools) {
-      it(`classifies '${tool}' as 'physical' and REQUIRES human approval`, () => {
+      it(`classifies '${tool}' as 'physical' and REQUIRES Amber human approval modal`, () => {
         expect(policy.classify(tool)).toBe("physical");
         expect(policy.requiresHumanApproval(tool)).toBe(true);
         expect(classifyTool(tool)).toBe("physical");
@@ -67,7 +77,6 @@ describe("ToolSafetyPolicy (Milestone 7.14)", () => {
       });
     }
   });
-
   describe("Unknown tools & annotations fallback", () => {
     it("classifies unknown tools with readOnlyHint: true as 'observe'", () => {
       expect(policy.classify("custom_telemetry_probe", { readOnlyHint: true })).toBe("observe");

@@ -20,6 +20,7 @@ import { TestRequestScene } from "./scenes/TestRequestScene";
 import { RunningExperimentScene } from "./scenes/RunningExperimentScene";
 import { EvidenceScene } from "./scenes/EvidenceScene";
 import { HypothesisScene } from "./scenes/HypothesisScene";
+import { AssessmentScene } from "./scenes/AssessmentScene";
 import { classifyTool } from "@/domain/safety/tool-safety-policy";
 import type { TelemetryRingBuffer } from "@/domain/telemetry/ring-buffer";
 import type { ScopeEventMarker } from "../../hooks/useOscilloscopeBuffer";
@@ -41,7 +42,7 @@ export interface DynamicInvestigationSceneProps {
   readonly onDenyTest: () => void;
   readonly onProceedToRepair?: () => void;
   readonly onStartAgent?: () => void;
-  readonly activeSceneOverride?: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | null;
+  readonly activeSceneOverride?: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null;
 }
 
 export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps> = ({
@@ -60,42 +61,48 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   onStartAgent,
   activeSceneOverride,
 }) => {
-  // Reset history must only be considered inspected if successfully completed
+  // Reset history must ONLY be considered inspected if read_reset_history successfully completed
   const resetActivity = agentState.activity.find(
-    (a) => a.call.name.includes("reset") && a.status === "completed"
+    (a) =>
+      (a.call.name === "read_reset_history" ||
+        a.call.name.includes("read_reset_history") ||
+        a.call.name.includes("reset")) &&
+      a.status === "completed" &&
+      a.result !== undefined
   );
-  const hasInspectedResetHistory = resetCount > 0 || Boolean(resetActivity);
+  const hasInspectedResetHistory = Boolean(resetActivity);
 
   let parsedBrownout: number | string | undefined = undefined;
   let parsedWatchdog: number | string | undefined = undefined;
   let parsedSoftware: number | string | undefined = undefined;
+  let isResetParseError = false;
 
-  if (hasInspectedResetHistory) {
-    if (resetActivity?.result) {
-      try {
-        const parsed = JSON.parse(resetActivity.result);
-        const resets = Array.isArray(parsed?.data?.resets)
-          ? parsed.data.resets
-          : Array.isArray(parsed?.resets)
-          ? parsed.resets
-          : [];
-        parsedBrownout = resets.filter((r: { reason?: string }) => r.reason === "BROWNOUT").length;
-        parsedWatchdog = resets.filter((r: { reason?: string }) => r.reason === "WATCHDOG").length;
-        parsedSoftware = resets.filter((r: { reason?: string }) => r.reason === "SOFTWARE" || r.reason === "PANIC").length;
-      } catch {
-        parsedBrownout = resetCount;
-        parsedWatchdog = 0;
-        parsedSoftware = 0;
+  if (hasInspectedResetHistory && resetActivity?.result) {
+    try {
+      const parsed = JSON.parse(resetActivity.result);
+      const resets = Array.isArray(parsed?.data?.resets)
+        ? parsed.data.resets
+        : Array.isArray(parsed?.resets)
+        ? parsed.resets
+        : null;
+
+      if (!resets) {
+        throw new Error("Invalid reset structure");
       }
-    } else if (resetCount > 0) {
-      parsedBrownout = resetCount;
-      parsedWatchdog = 0;
-      parsedSoftware = 0;
+
+      parsedBrownout = resets.filter((r: { reason?: string }) => r.reason === "BROWNOUT").length;
+      parsedWatchdog = resets.filter((r: { reason?: string }) => r.reason === "WATCHDOG").length;
+      parsedSoftware = resets.filter((r: { reason?: string }) => r.reason === "SOFTWARE" || r.reason === "PANIC").length;
+    } catch {
+      isResetParseError = true;
+      parsedBrownout = undefined;
+      parsedWatchdog = undefined;
+      parsedSoftware = undefined;
     }
   }
 
   // Determine active scene based on real domain state
-  const computeActiveScene = (): "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" => {
+  const computeActiveScene = (): "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" => {
     if (activeSceneOverride) return activeSceneOverride;
     if (
       experimentStatus === "running" ||
@@ -111,7 +118,8 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
         return "test-request";
       }
     }
-    if (hypothesis !== null || agentState.status === "completed") return "hypothesis";
+    if (hypothesis !== null) return "hypothesis";
+    if (agentState.status === "completed") return "completed";
     if (evidenceRecords.length > 0) return "evidence";
     if (hasInspectedResetHistory) return "observing";
     return "ready";
@@ -200,12 +208,12 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             resetCount={resetCount}
             railVoltage={railVoltage}
             hasInspectedResetHistory={hasInspectedResetHistory}
+            isParseError={isResetParseError}
             brownoutCount={parsedBrownout}
             watchdogCount={parsedWatchdog}
             softwarePanicCount={parsedSoftware}
           />
         )}
-
         {currentScene === "test-request" && (
           <TestRequestScene
             key="test-request"
@@ -233,11 +241,20 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
           />
         )}
 
-        {currentScene === "hypothesis" && (
+        {currentScene === "hypothesis" && hypothesis !== null && (
           <HypothesisScene
             key="hypothesis"
             hypothesis={hypothesis}
             onProceedToRepair={onProceedToRepair}
+          />
+        )}
+
+        {currentScene === "completed" && (
+          <AssessmentScene
+            key="completed"
+            assessment={agentState.status === "completed" ? agentState.assessment : ""}
+            steps={agentState.status === "completed" ? agentState.steps : 0}
+            onRestart={onStartAgent}
           />
         )}
       </AnimatePresence>

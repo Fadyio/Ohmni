@@ -8,12 +8,12 @@
  * Invariants:
  * 1. "observe": Read-only inspection & telemetry queries. Executes automatically.
  * 2. "reason": Software hypothesis, evidence linkage & diagnostic conclusions. Executes automatically.
- * 3. "physical": Controlled physical actuation & hardware intervention. Requires Amber human approval.
- * 4. Safe Failure: Any unknown non-read-only tool defaults to "physical" requiring approval.
+ * 3. "human_request": Requests human to perform physical action. Executes automatically; human action is the consent boundary.
+ * 4. "physical": Machine-actuated hardware stress test. Requires Amber human approval.
+ * 5. Safe Failure: Any unknown non-read-only tool defaults to "physical" requiring approval.
  */
 
-export type ToolExecutionClass = "observe" | "reason" | "physical";
-
+export type ToolExecutionClass = "observe" | "reason" | "human_request" | "physical";
 export interface ToolAnnotationsHint {
   readonly readOnlyHint?: boolean;
   readonly untrustedContentHint?: boolean;
@@ -45,11 +45,13 @@ const KNOWN_REASON_TOOLS = new Set<string>([
   "record_conclusion",
 ]);
 
-const KNOWN_PHYSICAL_TOOLS = new Set<string>([
-  "run_relay_stress_test",
+const KNOWN_HUMAN_REQUEST_TOOLS = new Set<string>([
   "request_human_intervention",
 ]);
 
+const KNOWN_PHYSICAL_TOOLS = new Set<string>([
+  "run_relay_stress_test",
+]);
 export class DefaultToolSafetyPolicy implements ToolSafetyPolicy {
   public classify(toolName: string, annotations?: ToolAnnotationsHint): ToolExecutionClass {
     const normalized = toolName.trim();
@@ -64,11 +66,15 @@ export class DefaultToolSafetyPolicy implements ToolSafetyPolicy {
       return "observe";
     }
 
-    // 3. Explicit physical actuation tools
+    // 3. Explicit human action request tools (human action is consent boundary)
+    if (KNOWN_HUMAN_REQUEST_TOOLS.has(normalized)) {
+      return "human_request";
+    }
+
+    // 4. Explicit physical machine actuation tools
     if (KNOWN_PHYSICAL_TOOLS.has(normalized)) {
       return "physical";
     }
-
     // 4. Annotated read-only tools
     if (annotations?.readOnlyHint === true) {
       return "observe";

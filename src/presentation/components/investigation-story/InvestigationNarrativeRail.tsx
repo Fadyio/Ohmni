@@ -26,7 +26,7 @@ export interface InvestigationNarrativeRailProps {
   readonly onStopAgent: () => void;
   readonly onApprove?: () => void;
   readonly onDeny?: () => void;
-  readonly onSelectScene?: (scene: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis") => void;
+  readonly onSelectScene?: (scene: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed") => void;
 }
 
 export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProps> = ({
