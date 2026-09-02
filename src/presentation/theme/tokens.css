@@ -208,11 +208,28 @@ body {
 .ohmni-3d-scene {
   transform-style: preserve-3d;
 }
-
 .ohmni-3d-word {
   transform-style: preserve-3d;
 }
 
 .ohmni-3d-letter {
   transform-style: preserve-3d;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Accessible Focus Visible */
+:focus-visible {
+  outline: 2px solid var(--ohmni-lab-brand, #4967FF);
+  outline-offset: 2px;
 }

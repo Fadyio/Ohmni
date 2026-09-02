@@ -44,6 +44,24 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
     });
   };
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === "a" || e.key === "A") {
+        e.preventDefault();
+        handleApproveClick();
+      } else if (e.key === "d" || e.key === "D") {
+        e.preventDefault();
+        onDeny();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onDeny]);
+
   const isRelayTool = toolName.includes("relay") || toolName.includes("stress");
 
   return (
