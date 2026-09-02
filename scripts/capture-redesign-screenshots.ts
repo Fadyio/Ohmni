@@ -272,23 +272,23 @@ async function captureAll(): Promise<void> {
 
     await sleep(400);
 
-    // 01. INTRO / DISCONNECTED STATE
-    console.info("Capturing 01-intro.png & idle.png...");
+    // 01. WELCOME
+    console.info("Capturing 01-welcome.png & 01-intro.png...");
+    await cdpClient.captureScreenshot(join(screenshotDir, "01-welcome.png"));
     await cdpClient.captureScreenshot(join(screenshotDir, "01-intro.png"));
-    await cdpClient.captureScreenshot(join(screenshotDir, "idle.png"));
 
-    // 02. CONNECTED STATE
-    console.info("Connecting device and capturing 02-connected.png & connected.png...");
+    // 02. OBSERVING (Connected)
+    console.info("Connecting device and capturing 02-observing.png & 02-connected.png...");
     await cdpClient.evaluate(`(async () => {
       await window.__virtualDevice.connect();
       await window.__toolRegistrar.registerDevice(window.__virtualDevice);
     })()`);
     await sleep(400);
+    await cdpClient.captureScreenshot(join(screenshotDir, "02-observing.png"));
     await cdpClient.captureScreenshot(join(screenshotDir, "02-connected.png"));
-    await cdpClient.captureScreenshot(join(screenshotDir, "connected.png"));
 
-    // 03. AGENT OBSERVING
-    console.info("Setting goal & starting agent; capturing 03-agent-observing.png...");
+    // 03. TEST REQUEST (Approval)
+    console.info("Setting goal & starting agent; capturing 03-test-request.png & 03-agent-observing.png...");
     await cdpClient.evaluate(`(() => {
       const input = document.querySelector("[data-testid='bench-agent-goal-input']");
       const prototype = Object.getPrototypeOf(input);
@@ -299,52 +299,41 @@ async function captureAll(): Promise<void> {
       document.querySelector("[data-testid='bench-agent-start']").click();
     })()`);
     await sleep(600);
-    await cdpClient.captureScreenshot(join(screenshotDir, "03-agent-observing.png"));
-
-    // 04. APPROVAL REQUEST
-    console.info("Waiting for approval request; capturing 04-approval.png...");
     for (let i = 0; i < 30; i++) {
       const hasApproval = await cdpClient.evaluate(`Boolean(document.querySelector("[data-testid='bench-agent-approval']"))`);
       if (hasApproval) break;
       await sleep(200);
     }
     await sleep(300);
+    await cdpClient.captureScreenshot(join(screenshotDir, "03-test-request.png"));
     await cdpClient.captureScreenshot(join(screenshotDir, "04-approval.png"));
 
-    // 05. EXPERIMENT RUNNING
-    console.info("Approving test & capturing 05-experiment-running.png...");
+    // 04. RUNNING SCOPE
+    console.info("Approving test & capturing 04-running.png & 05-experiment-running.png...");
     await cdpClient.evaluate(`document.querySelector("[data-testid='bench-agent-approve']")?.click()`);
     await sleep(150);
+    await cdpClient.captureScreenshot(join(screenshotDir, "04-running.png"));
     await cdpClient.captureScreenshot(join(screenshotDir, "05-experiment-running.png"));
 
-    // 06. BROWNOUT FAULT STATE
-    console.info("Waiting for brownout fault; capturing 06-brownout.png & brownout-fault.png...");
+    // 05. BROWNOUT FAULT STATE
+    console.info("Waiting for brownout fault; capturing 05-brownout.png & 06-brownout.png...");
     await sleep(1200);
+    await cdpClient.captureScreenshot(join(screenshotDir, "05-brownout.png"));
     await cdpClient.captureScreenshot(join(screenshotDir, "06-brownout.png"));
-    await cdpClient.captureScreenshot(join(screenshotDir, "brownout-fault.png"));
 
-    // 07. EVIDENCE LEDGER
-    console.info("Switching to evidence tab; capturing 07-evidence.png & evidence.png...");
-    await cdpClient.evaluate(`(() => {
-      const buttons = Array.from(document.querySelectorAll("button"));
-      const evBtn = buttons.find(b => b.innerText.includes("Evidence"));
-      evBtn?.click();
-    })()`);
+    // 06. EVIDENCE
+    console.info("Capturing 06-evidence.png & 07-evidence.png...");
     await sleep(400);
+    await cdpClient.captureScreenshot(join(screenshotDir, "06-evidence.png"));
     await cdpClient.captureScreenshot(join(screenshotDir, "07-evidence.png"));
-    await cdpClient.captureScreenshot(join(screenshotDir, "evidence.png"));
 
-    // 08. HYPOTHESIS FORMULATION
-    console.info("Switching to hypothesis tab; capturing 08-hypothesis.png & hypotheses.png...");
-    await cdpClient.evaluate(`(() => {
-      const buttons = Array.from(document.querySelectorAll("button"));
-      const hypBtn = buttons.find(b => b.innerText.includes("Hypotheses"));
-      hypBtn?.click();
-    })()`);
+    // 07. HYPOTHESIS
+    console.info("Capturing 07-hypothesis.png & 08-hypothesis.png...");
     await sleep(600);
+    await cdpClient.captureScreenshot(join(screenshotDir, "07-hypothesis.png"));
     await cdpClient.captureScreenshot(join(screenshotDir, "08-hypothesis.png"));
-    await cdpClient.captureScreenshot(join(screenshotDir, "hypotheses.png"));
 
+    console.info("✅ ALL PROOF SCREENSHOTS CAPTURED SUCCESSFULLY!");
     console.info("✅ ALL 8 PROOF SCREENSHOTS CAPTURED SUCCESSFULLY!");
   } finally {
     if (cdpClient) await cdpClient.close();

@@ -1,10 +1,12 @@
 /**
  * Root Application Component for OHMNI Hardware Diagnostic Workbench.
- * Connects domain adapters and telemetry pipelines to the React presentation layer.
- * Implements Mode 1 (Intro / Ready) and Mode 2 (Investigation Workbench).
+ * Implements the 3 Core Experience States:
+ * 1. Welcome View (Full-Screen Hero Narrative + Hardware Visual)
+ * 2. Investigation Story View (Left 68% Dynamic Scene + Right 32% Investigation Narrative)
+ * 3. Repair Verification Scene (Physical Jumper Interaction + Split-Scope Comparison)
  */
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
 import type { DeviceAdapter } from "@/domain/device/adapter";
 import type { DeviceToolRegistrar } from "@/infrastructure/webmcp/device-tool-registrar";
 import type { ITelemetryEventBus } from "@/domain/telemetry/bus";
@@ -12,20 +14,15 @@ import type { ExperimentRunner } from "@/domain/experiment/runner";
 import type { EvidenceStore } from "@/domain/evidence/store";
 import type { HypothesisStore } from "@/domain/hypothesis/store";
 
-import { WorkbenchLayout } from "./components/layout/WorkbenchLayout";
-import { TopBar } from "./components/layout/TopBar";
-import { DevicePanel } from "./components/device/DevicePanel";
-import { Oscilloscope } from "./components/instruments/Oscilloscope";
-import { MetricStrip } from "./components/instruments/MetricStrip";
-import { ExperimentStatusCard } from "./components/instruments/ExperimentStatusCard";
-import { EventTimeline } from "./components/timeline/EventTimeline";
-import { InvestigationPanel } from "./components/investigation/InvestigationPanel";
-import { VirtualBenchControls } from "./components/controls/VirtualBenchControls";
-import { BenchAgentPanel } from "./components/agent/BenchAgentPanel";
+import { WelcomeView } from "./components/welcome/WelcomeView";
+import { InvestigationStoryView } from "./components/investigation-story/InvestigationStoryView";
+import { RepairVerificationScene } from "./components/repair/RepairVerificationScene";
 import { useDeviceState } from "./hooks/useDeviceState";
 import { useExperimentTimeline } from "./hooks/useExperimentTimeline";
 import { useOscilloscopeBuffer } from "./hooks/useOscilloscopeBuffer";
-import { Zap, Sparkles, ArrowRight, Sliders, Cpu, Activity, Bot } from "lucide-react";
+import { useBenchAgent } from "./hooks/useBenchAgent";
+import { useEvidenceStore } from "./hooks/useEvidenceStore";
+import { useHypothesisStore } from "./hooks/useHypothesisStore";
 
 import "./theme/tokens.css";
 
@@ -71,9 +68,8 @@ export const App: React.FC<AppProps> = ({
     return undefined;
   }, [hypothesisStore]);
 
-  const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
-  const [selectedHypothesisId, setSelectedHypothesisId] = useState<string | null>(null);
-  const [highlightedExperimentId, setHighlightedExperimentId] = useState<string | null>(null);
+  // View state: "welcome" | "investigation" | "repair"
+  const [viewMode, setViewMode] = useState<"welcome" | "investigation" | "repair">("welcome");
 
   // Hook subscriptions
   const {
@@ -98,240 +94,106 @@ export const App: React.FC<AppProps> = ({
     faultReproduced,
     resetOccurred,
     resetReason,
-    recordWebMCPStart,
-    recordWebMCPComplete,
   } = useExperimentTimeline(resolvedBus);
 
-  const { ringBufferRef, markersRef, clear: clearScope } = useOscilloscopeBuffer(resolvedBus);
+  const { ringBufferRef, markersRef } = useOscilloscopeBuffer(resolvedBus);
+  const { state: agentState, setGoal, start: startAgent, stop: stopAgent, approve: approveAgent, deny: denyAgent } = useBenchAgent(isConnected);
+  const { records: evidenceRecords } = useEvidenceStore(resolvedEvidenceStore);
+  const { hypotheses } = useHypothesisStore(resolvedHypothesisStore);
 
-  const handleStartVirtualDiagnosis = async () => {
+  const activeHypothesis = hypotheses.length > 0 ? hypotheses[0] : null;
+
+  // Sync connection state with viewMode
+  useEffect(() => {
+    if (isConnected && viewMode === "welcome") {
+      setViewMode("investigation");
+    } else if (!isConnected && viewMode !== "welcome") {
+      setViewMode("welcome");
+    }
+  }, [isConnected, viewMode]);
+
+  // Actions
+  const handleStartDemo = useCallback(async () => {
     try {
       await connect();
       if (resolvedAdapter && resolvedRegistrar) {
         await resolvedRegistrar.registerDevice(resolvedAdapter);
       }
-      // Populate standard scenario goal in the goal input textarea if present
-      const goalInput = document.querySelector<HTMLTextAreaElement>("[data-testid='bench-agent-goal-input']");
-      if (goalInput) {
-        const proto = Object.getPrototypeOf(goalInput);
-        const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-        setter?.call(goalInput, "The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.");
-        goalInput.dispatchEvent(new Event("input", { bubbles: true }));
-        goalInput.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      setGoal("The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.");
+      setViewMode("investigation");
     } catch (err) {
       console.error("Failed to start virtual diagnosis:", err);
     }
-  };
+  }, [connect, resolvedAdapter, resolvedRegistrar, setGoal]);
 
-  const handleToggleConnection = async () => {
+  const handleConnectHardware = useCallback(async () => {
+    try {
+      await connect();
+      if (resolvedAdapter && resolvedRegistrar) {
+        await resolvedRegistrar.registerDevice(resolvedAdapter);
+      }
+      setViewMode("investigation");
+    } catch (err) {
+      console.error("Failed to connect hardware:", err);
+    }
+  }, [connect, resolvedAdapter, resolvedRegistrar]);
+
+  const handleToggleConnect = useCallback(async () => {
     if (isConnected) {
       if (resolvedAdapter && resolvedRegistrar) {
         resolvedRegistrar.unregisterDevice(resolvedAdapter);
       }
       await disconnect();
+      setViewMode("welcome");
     } else {
-      await connect();
-      if (resolvedAdapter && resolvedRegistrar) {
-        await resolvedRegistrar.registerDevice(resolvedAdapter);
-      }
+      await handleConnectHardware();
     }
-  };
+  }, [isConnected, resolvedAdapter, resolvedRegistrar, disconnect, handleConnectHardware]);
 
   return (
-    <WorkbenchLayout
-      topBar={
-        <TopBar
-          isConnected={isConnected}
-          descriptor={descriptor}
-          statusVisual={statusVisual}
-          onToggleConnect={handleToggleConnection}
-        />
-      }
-      leftPanel={
-        <DevicePanel
+    <div style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden", background: "var(--ohmni-canvas)" }}>
+      {/* State 1: Welcome View (Full viewport when disconnected) */}
+      {!isConnected && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 40 }}>
+          <WelcomeView
+            onStartDemo={handleStartDemo}
+            onConnectHardware={handleConnectHardware}
+          />
+        </div>
+      )}
+
+      {/* State 2: Investigation Story View */}
+      <div style={{ width: "100vw", height: "100vh", display: viewMode === "repair" ? "none" : "flex", flexDirection: "column" }}>
+        <InvestigationStoryView
           isConnected={isConnected}
           descriptor={descriptor}
           relayState={relayState}
           resetCount={resetCount}
           railVoltage={railVoltage}
-          statusVisual={statusVisual}
-          isRelayTargeted={experimentStatus === "running" || relayState === "closed"}
+          experimentStatus={experimentStatus}
+          ringBufferRef={ringBufferRef}
+          markersRef={markersRef}
+          evidenceRecords={evidenceRecords}
+          hypothesis={activeHypothesis}
+          agentState={agentState}
+          onSetGoal={setGoal}
+          onStartAgent={startAgent}
+          onStopAgent={stopAgent}
+          onApproveTest={approveAgent}
+          onDenyTest={denyAgent}
+          onToggleConnect={handleToggleConnect}
+          onProceedToRepair={() => setViewMode("repair")}
         />
-      }
-      centerPanel={
-        <>
-          {/* Mode 1 Intro Hero Banner (when disconnected or for quick onboarding) */}
-          {!isConnected && (
-            <div
-              style={{
-                background: "linear-gradient(135deg, rgba(79, 107, 255, 0.12) 0%, rgba(53, 198, 244, 0.08) 50%, var(--ohmni-surface-raised) 100%)",
-                border: "1px solid rgba(79, 107, 255, 0.25)",
-                borderRadius: "var(--radius-lg)",
-                padding: "1rem 1.25rem",
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-                boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    padding: "2px 8px",
-                    borderRadius: "var(--radius-full)",
-                    background: "rgba(53, 198, 244, 0.1)",
-                    border: "1px solid rgba(53, 198, 244, 0.25)",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    color: "var(--ohmni-signal)",
-                  }}
-                >
-                  <Sparkles size={11} />
-                  READY FOR DIAGNOSIS
-                </div>
+      </div>
 
-                <span className="metadata-text font-mono">13 Agent Instruments Ready</span>
-              </div>
-
-              <div>
-                <h2 style={{ fontSize: "16px", fontWeight: 700, color: "var(--ohmni-text-primary)", margin: "0 0 4px" }}>
-                  Hardware debugging that measures before it guesses.
-                </h2>
-                <p className="body-text" style={{ fontSize: "12px", margin: 0, color: "var(--ohmni-text-secondary)" }}>
-                  Give your AI agent safe diagnostic instruments to reproduce supply brownouts, inspect reset history, and verify physical root cause.
-                </p>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "2px" }}>
-                <button
-                  onClick={handleStartVirtualDiagnosis}
-                  className="btn-primary"
-                  style={{
-                    padding: "8px 16px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                  }}
-                >
-                  <Zap size={14} fill="currentColor" />
-                  Start Virtual Diagnosis
-                  <ArrowRight size={14} />
-                </button>
-
-                <button
-                  onClick={handleToggleConnection}
-                  className="btn-secondary"
-                  style={{
-                    padding: "8px 14px",
-                    fontSize: "12px",
-                  }}
-                >
-                  <Sliders size={13} />
-                  Connect Hardware
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Virtual Bench Developer Controls */}
-          <VirtualBenchControls
-            adapter={resolvedAdapter}
-            registrar={resolvedRegistrar}
-            isConnected={isConnected}
-            onConnect={connect}
-            onDisconnect={disconnect}
-            onExperimentStart={recordWebMCPStart}
-            onExperimentComplete={recordWebMCPComplete}
-            onClearScope={clearScope}
+      {/* State 3: Human Intervention & Repair Verification */}
+      {viewMode === "repair" && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 50 }}>
+          <RepairVerificationScene
+            onReturnToInvestigation={() => setViewMode("investigation")}
           />
-
-          {/* Hero Instrument: Real-time 60fps Oscilloscope */}
-          <div style={{ flex: 1, minHeight: "240px", display: "flex", flexDirection: "column" }}>
-            <Oscilloscope
-              ringBufferRef={ringBufferRef}
-              markersRef={markersRef}
-              isRunning={experimentStatus === "running"}
-              nominalVoltage={3.31}
-              safeThresholdVoltage={2.80}
-            />
-          </div>
-
-          {/* Real-Time Telemetry Metric Strip */}
-          <MetricStrip
-            baselineVoltage={3.31}
-            voltageSummary={voltageSummary}
-            isRunning={experimentStatus === "running"}
-            resetReason={resetReason}
-            liveVoltage={railVoltage}
-          />
-
-          {/* Factual Experiment State & Cycle Accounting */}
-          <ExperimentStatusCard
-            status={experimentStatus}
-            requestedCycles={requestedCycles}
-            completedCycles={completedCycles}
-            faultReproduced={faultReproduced}
-            resetOccurred={resetOccurred}
-            resetReason={resetReason}
-            activeExperimentId={activeExperimentId}
-          />
-        </>
-      }
-      rightPanel={
-        <div
-          style={{
-            height: "100%",
-            minHeight: 0,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          {/* Agent Supervisor Panel */}
-          <div
-            style={{
-              flex: "0 1 45%",
-              minHeight: "260px",
-              maxHeight: "380px",
-              overflow: "hidden",
-            }}
-          >
-            <BenchAgentPanel isConnected={isConnected} />
-          </div>
-
-          {/* Grounded Evidence & Hypothesis Investigation Panel */}
-          <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-            <InvestigationPanel
-              evidenceStore={resolvedEvidenceStore}
-              hypothesisStore={resolvedHypothesisStore}
-              selectedEvidenceId={selectedEvidenceId}
-              onSelectEvidence={(record) => {
-                setSelectedEvidenceId(record ? record.id : null);
-                if (record?.experimentId) {
-                  setHighlightedExperimentId(record.experimentId);
-                }
-              }}
-              selectedHypothesisId={selectedHypothesisId}
-              onSelectHypothesis={(h) => {
-                setSelectedHypothesisId(h ? h.id : null);
-              }}
-              highlightedExperimentId={highlightedExperimentId}
-              onHighlightExperiment={setHighlightedExperimentId}
-            />
-          </div>
         </div>
-      }
-      bottomTimeline={
-        <EventTimeline
-          events={events}
-          lastCallInfo={lastCallInfo}
-          highlightedExperimentId={highlightedExperimentId}
-          isRunning={experimentStatus === "running"}
-        />
-      }
-    />
+      )}
+    </div>
   );
 };
