@@ -86,19 +86,18 @@ export function useLandingToLabTransition() {
       }
 
       // 0–550ms: Hardware visual scales 1.0 -> 1.4 and moves toward center
-      if (hardwareVisualRef.current) {
-        tl.to(
-          hardwareVisualRef.current,
-          {
-            scale: 1.4,
-            x: -60,
-            y: 20,
-            duration: 0.55,
-            ease: "power2.inOut",
-          },
-          0
-        );
-      }
+      const visualTarget = hardwareVisualRef.current || "#hardware-illustration";
+      tl.to(
+        visualTarget,
+        {
+          scale: 1.4,
+          x: -60,
+          y: 20,
+          duration: 0.55,
+          ease: "power2.inOut",
+        },
+        0
+      );
 
       // 300–850ms: Page background interpolates light -> dark
       if (rootContainerRef.current) {

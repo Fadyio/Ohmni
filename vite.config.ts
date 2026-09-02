@@ -161,6 +161,7 @@ export default defineConfig(({ mode }) => {
       outDir: "dist",
       target: "esnext",
       sourcemap: true,
+      chunkSizeWarningLimit: 800,
     },
   };
 });
