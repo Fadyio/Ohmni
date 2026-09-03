@@ -30,7 +30,7 @@ export class MirroredModelContext implements ModelContext {
   }
 
   public executeTool(
-    tool: RegisteredTool,
+    tool: RegisteredTool | string,
     input?: string | Record<string, unknown>,
     options?: ModelContextExecuteToolOptions,
   ): Promise<unknown> {

@@ -72,7 +72,7 @@ export const AuthoredHardwareIllustration: React.FC<AuthoredHardwareIllustration
               boxShadow: "0 0 8px rgba(34, 197, 94, 0.5)",
             }}
           />
-          <span className="font-mono">ESP32-S3-WROOM-1</span>
+          <span className="font-mono">Virtual ESP32-S3 reference board</span>
         </div>
 
       </div>

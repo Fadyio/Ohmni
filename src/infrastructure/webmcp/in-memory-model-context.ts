@@ -69,17 +69,18 @@ export class InMemoryModelContext extends EventTarget implements ModelContext {
   }
 
   public async executeTool(
-    tool: RegisteredTool,
+    tool: RegisteredTool | string,
     input: string | Record<string, unknown> = {},
     options?: ModelContextExecuteToolOptions
   ): Promise<string> {
-    const entry = this.tools.get(tool.name);
+    const toolName = typeof tool === "string" ? tool : tool?.name;
+    const entry = this.tools.get(toolName);
     if (!entry) {
-      throw new Error(`Tool not found or unregistered: '${tool.name}'`);
+      throw new Error(`Tool not found or unregistered: '${toolName}'`);
     }
 
     if (options?.signal?.aborted) {
-      throw new Error(`Tool execution aborted for '${tool.name}'`);
+      throw new Error(`Tool execution aborted for '${toolName}'`);
     }
 
     let parsedInput: Record<string, unknown> = {};
@@ -89,7 +90,7 @@ export class InMemoryModelContext extends EventTarget implements ModelContext {
         try {
           parsedInput = JSON.parse(trimmed);
         } catch {
-          throw new Error(`Invalid JSON input string for tool '${tool.name}': ${trimmed}`);
+          throw new Error(`Invalid JSON input string for tool '${toolName}': ${trimmed}`);
         }
       }
     } else if (input && typeof input === "object") {

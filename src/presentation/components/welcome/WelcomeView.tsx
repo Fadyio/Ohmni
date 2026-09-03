@@ -72,7 +72,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
             opacity: isNative ? 1 : 0.72,
           }}
         >
-          {isNative ? "Native WebMCP" : "WebMCP compatibility"} · {toolCount} tools discovered
+          {isNative ? "WebMCP ready" : "Browser compatibility mode"}
         </span>
 
       </header>
@@ -131,7 +131,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   margin: 0,
                 }}
               >
-                Give an AI instruments, not screenshots.
+                Give an AI agent instruments, not screenshots.
               </h1>
 
               <p
@@ -143,9 +143,13 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   maxWidth: "560px",
                 }}
               >
-                Connect real hardware over Web Serial or try the deterministic virtual ESP32 challenge.
-                Ohmni exposes browser-native WebMCP tools so an agent can measure, test, collect evidence,
-                and request physical intervention when changes are required.
+                Coding agents can inspect software, but they cannot inspect the physical board on your desk.
+                Ohmni uses WebMCP to expose safe browser-native hardware instruments so an agent can measure,
+                run bounded tests, collect evidence, and ask you to make physical changes. Dangerous actions
+                require your approval; physical repairs require your hands.
+                <span style={{ display: "block", marginTop: "8px" }}>
+                  No hardware? Use the deterministic virtual ESP32 challenge.
+                </span>
               </p>
             </div>
 
@@ -168,7 +172,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 }}
               >
                 <Lock size={15} />
-                <span>Start live AI diagnosis</span>
+                <span>Start AI diagnosis</span>
                 <ArrowRight size={16} />
               </button>
 
@@ -211,17 +215,12 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   textUnderlineOffset: "3px",
                 }}
               >
-                View deterministic walkthrough
+                Try virtual challenge
               </button>
               <span style={{ fontSize: "12px", color: "#94A3B8" }}>•</span>
-              <span style={{ fontSize: "12.5px", color: "#64748B" }}>Guided replay of the WebMCP diagnostic architecture</span>
+              <span style={{ fontSize: "12.5px", color: "#64748B" }}>No hardware required</span>
             </div>
 
-            <div style={{ color: "var(--ohmni-intro-secondary, #525866)", fontSize: "12px", lineHeight: 1.55, maxWidth: "560px" }}>
-              <p style={{ margin: "4px 0 0" }}>
-                Supports both in-browser virtual microcontroller emulation and physical hardware over Web Serial (115200 baud NDJSON protocol v1).
-              </p>
-            </div>
 
             {/* Product principles */}
             <div
@@ -232,7 +231,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 fontWeight: 500,
               }}
             >
-              Human-gated actuation · Evidence-backed diagnosis · Verified repair
+              Human-gated actuation · Evidence-backed diagnosis · Retest to verify
             </div>
           </div>
 

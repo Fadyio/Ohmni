@@ -379,7 +379,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                   <strong>Why:</strong> {rootCauseText}
                 </p>
                 <p className="body-text" style={{ fontSize: "13px", lineHeight: 1.55, margin: "12px 0 0", color: "var(--ohmni-secondary)" }}>
-                  In a physical adapter, Ohmni would pause here until a technician or device signal confirmed the hardware change. The next step is connecting Ohmni to real hardware over Web Serial, so the same WebMCP tools used in the virtual lab can operate an actual device on the desk.
+                  In a physical adapter, Ohmni pauses here until a technician or device signal confirms the hardware change. Physical mode connects to real hardware over Web Serial, so the same WebMCP tools operate an attached device using trusted hardware descriptors.
                 </p>
               </div>
 

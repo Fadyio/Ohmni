@@ -567,10 +567,10 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
         </div>
         <div>
           <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-brand, #4967FF)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-            Hardware Control Plane Roadmap
+            Hardware Control Plane
           </div>
           <div style={{ fontSize: "13.5px", color: "var(--ohmni-lab-text, #0F172A)", marginTop: "3px", lineHeight: 1.45 }}>
-            The next step is connecting Ohmni to real hardware over Web Serial, so the same WebMCP tools used in the virtual lab can operate an actual device on the desk.
+            Physical mode is implemented over Web Serial. Device capabilities are discovered from the connected hardware descriptor and mapped through Ohmni's trusted instrument registry.
           </div>
         </div>
       </div>

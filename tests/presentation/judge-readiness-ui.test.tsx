@@ -13,10 +13,10 @@ describe("production judge-readiness UI", () => {
   it("uses truthful virtual-device product copy", () => {
     const html = renderToString(<WelcomeView onStartDemo={() => undefined} />);
 
-    expect(html).toContain("Give an AI instruments, not screenshots.");
-    expect(html).toContain("deterministic virtual ESP32");
-    expect(html).toContain("Start live AI diagnosis");
-    expect(html).not.toContain("board on your desk");
+    expect(html).toContain("Give an AI agent instruments, not screenshots.");
+    expect(html).toContain("deterministic virtual ESP32 challenge");
+    expect(html).toContain("Start AI diagnosis");
+    expect(html).toContain("physical board on your desk");
   });
 
   it("does not mutate virtual JP1 while merely rendering the intervention request", () => {

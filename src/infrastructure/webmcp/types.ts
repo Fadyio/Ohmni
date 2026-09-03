@@ -45,7 +45,7 @@ export interface ModelContext {
   getTools(): Promise<readonly RegisteredTool[]>;
 
   executeTool(
-    tool: RegisteredTool,
+    tool: RegisteredTool | string,
     input?: string | Record<string, unknown>,
     options?: ModelContextExecuteToolOptions
   ): Promise<unknown>;

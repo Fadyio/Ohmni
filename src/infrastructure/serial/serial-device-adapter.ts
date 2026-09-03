@@ -242,11 +242,15 @@ export class SerialDeviceAdapter implements DeviceAdapter {
       name: descMsg.device.name,
       firmwareVersion: descMsg.device.firmwareVersion,
       protocolVersion: descMsg.protocol,
+      manufacturer: descMsg.device.manufacturer,
+      model: descMsg.device.model,
+      hardwareRevision: descMsg.device.hardwareRevision,
+      transport: descMsg.device.transport ?? "Web Serial",
+      presentationProfile: "generic_serial",
       capabilities: safeCapabilities,
       limits: descMsg.limits,
     };
   }
-
   public async disconnect(): Promise<void> {
     this._connected = false;
 

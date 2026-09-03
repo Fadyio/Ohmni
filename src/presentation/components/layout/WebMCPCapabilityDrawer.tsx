@@ -151,10 +151,12 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
                 </div>
                 <div>
                   <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--ohmni-text-primary)" }}>
-                    WebMCP Agent Instrument Inspector
+                    WebMCP Instrument Inspector
                   </div>
                   <div className="metadata-text">
-                    {tools.length} Dynamic Tools Materialized into <code className="font-mono">document.modelContext</code>
+                    {isNative
+                      ? `${tools.length} tools registered with native document.modelContext`
+                      : `${tools.length} tools available in compatibility mode`}
                   </div>
                 </div>
               </div>
@@ -337,8 +339,12 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
                 lineHeight: 1.45,
               }}
             >
-              <strong style={{ color: "var(--ohmni-text-primary, #F8FAFC)" }}>Physical Hardware: </strong>
-              The next step is connecting Ohmni to real hardware over Web Serial, so the same WebMCP tools used in the virtual lab can operate an actual device on the desk.
+              <div style={{ color: "var(--ohmni-text-primary, #F8FAFC)", fontWeight: 600 }}>
+                Physical mode is implemented over Web Serial. Device capabilities are discovered from the connected hardware descriptor and mapped through Ohmni's trusted instrument registry.
+              </div>
+              <div style={{ marginTop: "4px", fontSize: "11px", color: "var(--ohmni-text-muted, #64748B)" }}>
+                Automated tests verify the serial protocol path with a simulated peer. Electrical behavior still requires testing with an attached physical board.
+              </div>
             </div>
             <div
               style={{
@@ -351,7 +357,9 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
               }}
             >
               <span className="metadata-text">
-                Protocol: W3C Model Context Protocol • Runtime: Chromium Native
+                {isNative
+                  ? "API: WebMCP · document.modelContext · Runtime: Chromium native"
+                  : "API: WebMCP compatibility layer · Runtime: local browser context"}
               </span>
               <button
                 onClick={onClose}

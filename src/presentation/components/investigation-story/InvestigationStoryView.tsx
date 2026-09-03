@@ -313,7 +313,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               }}
             >
               <ShieldCheck size={12} />
-              <span>Native WebMCP · {toolCount} tools discovered</span>
+              <span>Native WebMCP · {toolCount} tools active</span>
             </span>
           )}
 
@@ -330,9 +330,9 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               background: "transparent",
               border: "none",
               color:
-                agentMode === "demo"
+                agentMode === "demo" || agentState.agentMode === "demo" || !agentState.providerAvailable
                   ? "var(--ohmni-lab-brand, #4967FF)"
-                  : providerStatus === "live"
+                  : providerStatus === "live" && agentState.providerAvailable
                   ? "var(--ohmni-lab-verified, #27966B)"
                   : "var(--ohmni-lab-brand, #4967FF)",
               fontSize: "11.5px",
@@ -340,21 +340,21 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               letterSpacing: "0.02em",
             }}
           >
-            {agentMode === "demo" ? (
+            {agentMode === "demo" || agentState.agentMode === "demo" ? (
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <Bot size={13} />
                 <span>DEMO AGENT · Deterministic walkthrough</span>
               </div>
-            ) : providerStatus === "live" ? (
+            ) : providerStatus === "live" && agentState.providerAvailable ? (
               <>
                 <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--ohmni-lab-verified, #27966B)", boxShadow: "0 0 6px rgba(39, 150, 107, 0.8)" }} />
-                <span>{agentIdentity.displayName} • Live</span>
+                <span>{agentIdentity.displayName} · Live</span>
               </>
             ) : (
-              <>
-                <Sparkles size={12} />
-                <span>{agentIdentity.displayName} • Live</span>
-              </>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Bot size={13} />
+                <span>Demo agent</span>
+              </div>
             )}
           </span>
 

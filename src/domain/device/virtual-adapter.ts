@@ -166,7 +166,7 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
         maxDurationMs: 500,
       },
       manufacturer: "Ohmni Labs",
-      model: "ESP32-S3-WROOM-1",
+      model: "Virtual ESP32-S3 reference board",
       transport: "Virtual Simulation",
       presentationProfile: "authored_esp32_demo",
     };

@@ -181,7 +181,12 @@ export const DeveloperInspector: React.FC<DeveloperInspectorProps> = ({
               lineHeight: 1.45,
             }}
           >
-            The next step is connecting Ohmni to real hardware over Web Serial, so the same WebMCP tools used in the virtual lab can operate an actual device on the desk.
+            <div>
+              Physical mode is implemented over Web Serial. Device capabilities are discovered from the connected hardware descriptor and mapped through Ohmni's trusted instrument registry.
+            </div>
+            <div style={{ marginTop: "6px", fontSize: "10.5px", color: "#94A3B8" }}>
+              Automated tests verify the serial protocol path with a simulated peer. Electrical behavior still requires testing with an attached physical board.
+            </div>
           </div>
         </div>
 

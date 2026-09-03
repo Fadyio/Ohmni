@@ -3,7 +3,7 @@
  *
  * Professional Web Serial connection flow:
  * 1. Checks browser Web Serial support truthfully (Chromium only).
- * 2. Explains browser-local execution model (zero data leaks to server).
+ * 2. Explains browser-local execution model (USB serial connection stays browser-local; structured diagnostic results may be shared with the selected AI provider when reasoning).
  * 3. Drives port selection (navigator.serial.requestPort) and protocol v1 negotiation.
  * 4. Provides a Simulated Serial Peer fallback for local automated testing when no physical board is plugged in.
  */
@@ -153,10 +153,10 @@ export const ConnectHardwareModal: React.FC<ConnectHardwareModalProps> = ({
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: "16.5px", fontWeight: 800, color: "var(--ohmni-lab-text, #0F172A)" }}>
-                Connect Hardware via Web Serial
+                Connect hardware
               </h2>
               <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted, #64748B)" }}>
-                Protocol v1 (NDJSON • 115200 baud)
+                Web Serial · 115200 baud · NDJSON v1
               </div>
             </div>
           </div>
@@ -196,7 +196,7 @@ export const ConnectHardwareModal: React.FC<ConnectHardwareModalProps> = ({
           >
             <ShieldCheck size={18} color="#27966B" style={{ flexShrink: 0, marginTop: "2px" }} />
             <div>
-              <strong>Browser-Local Serial Transport:</strong> Ohmni communicates directly from your browser to your microcontroller over USB. Raw waveforms and serial traffic remain local on your machine.
+              <strong>Browser-Local Serial Transport:</strong> The USB serial connection stays browser-local. Structured diagnostic results may be shared with the selected AI provider when the agent reasons over them.
             </div>
           </div>
 
@@ -272,7 +272,7 @@ export const ConnectHardwareModal: React.FC<ConnectHardwareModalProps> = ({
               <span>
                 {step === "requesting_permission" && "Waiting for serial port selection..."}
                 {step === "opening_port" && "Opening serial port at 115200 baud..."}
-                {step === "negotiating_protocol" && "Negotiating ADR 0006 Protocol v1 handshake..."}
+                {step === "negotiating_protocol" && "Negotiating device protocol..."}
                 {step === "connected" && "Hardware connected and WebMCP instruments registered!"}
                 {step === "error" && (errorMessage ?? "Connection failed")}
               </span>
@@ -295,16 +295,22 @@ export const ConnectHardwareModal: React.FC<ConnectHardwareModalProps> = ({
           {/* Fallback option for testing without physical board */}
           <button
             type="button"
+            id="connect-simulated-peer-btn"
             data-testid="connect-simulated-serial-btn"
             onClick={handleSimulatedPeer}
             className="btn-secondary"
             style={{
               fontSize: "12px",
-              padding: "8px 14px",
+              padding: "6px 12px",
               color: "#475569",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: "2px",
             }}
           >
-            <span>Simulate Serial Peer</span>
+            <span style={{ fontWeight: 600 }}>Try without hardware</span>
+            <span style={{ fontSize: "10px", color: "#64748B" }}>Simulated device · same protocol path</span>
           </button>
 
           <div style={{ display: "flex", gap: "10px" }}>
