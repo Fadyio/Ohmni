@@ -142,7 +142,7 @@ async function executeProviderTurnWithRetry(
               : undefined;
         const delayMs =
           retryAfterSec !== undefined && retryAfterSec > 0
-            ? Math.min(retryAfterSec * 1000, 5000)
+            ? Math.min(retryAfterSec * 1000, 30_000)
             : attempts * 75;
         await new Promise((resolve) => setTimeout(resolve, delayMs));
         continue;

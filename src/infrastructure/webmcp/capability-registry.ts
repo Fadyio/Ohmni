@@ -213,8 +213,12 @@ export class CapabilityRegistry {
           { cycles, durationMs },
           options?.signal
         );
+        const evidenceIds = effectiveRunner
+          .getEvidenceStore()
+          .getByExperiment(summary.experiment_id)
+          .map((record) => record.id);
 
-        return summary;
+        return { ...summary, evidence_ids: evidenceIds };
       },
     }));
   }

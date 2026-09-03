@@ -49,6 +49,13 @@ describe("production WebMCP tool lifecycle", () => {
     const stressTool = (await context.getTools()).find((tool) => tool.name === "run_relay_stress_test");
     expect(stressTool?.description).toContain("virtual brownout reset");
     expect(stressTool?.description).not.toContain("physical reset");
+    expect(stressTool).toBeDefined();
+    const stressResult = JSON.parse(
+      await context.executeTool(stressTool!, { cycles: 1, duration_ms: 10 }),
+    ) as { experiment_id: string; evidence_ids: string[] };
+    expect(stressResult.experiment_id).toStartWith("exp_");
+    expect(stressResult.evidence_ids.length).toBeGreaterThan(0);
+    expect(stressResult.evidence_ids.every((id) => /^E-\d{3,}$/.test(id))).toBe(true);
 
     registrar.unregisterDevice(adapter);
     const disconnected = (await context.getTools()).map((tool) => tool.name);
