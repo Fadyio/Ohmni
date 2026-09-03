@@ -97,9 +97,9 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
               borderRadius: "var(--radius-full, 9999px)",
               background: "var(--ohmni-intro-surface, #FFFFFF)",
               border: "1px solid var(--ohmni-intro-border, #E2E4E9)",
-              fontSize: "12.5px",
+              fontSize: "12px",
               fontWeight: 600,
-              color: "var(--ohmni-intro-ink, #12151A)",
+              color: "var(--ohmni-intro-secondary, #525866)",
               boxShadow: "var(--shadow-sm)",
             }}
           >
@@ -112,7 +112,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 boxShadow: "0 0 6px rgba(73, 103, 255, 0.6)",
               }}
             />
-            {isNative ? "Native WebMCP Mesh" : "WebMCP Compatibility Mode"} • {toolCount > 0 ? `${toolCount} Instruments` : "Active"}
+            Virtual Hardware Workbench
           </span>
         </div>
       </header>
@@ -194,7 +194,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   maxWidth: "540px",
                 }}
               >
-                A fault is hidden. The agent must measure it, test it, ask for your hands when needed, and prove the repair.
+                A hardware fault is hidden. The agent must measure it, test it, ask for your hands when needed, and prove the repair.
               </p>
             </div>
 
@@ -221,7 +221,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 <ArrowRight size={17} />
               </button>
 
-              {/* Secondary CTA: Demo walkthrough */}
+              {/* Secondary CTA: Deterministic walkthrough */}
               <button
                 data-testid="diagnose-demo-btn"
                 id="diagnose-demo-btn"
@@ -232,9 +232,8 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   fontSize: "14.5px",
                 }}
               >
-                <span>Demo walkthrough</span>
+                <span>Deterministic walkthrough</span>
               </button>
-
               {/* Secondary CTA: Physical hardware */}
               <button
                 data-testid="connect-hardware-btn"
@@ -246,7 +245,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 }}
               >
                 <Zap size={16} color="var(--ohmni-intro-brand, #4967FF)" />
-                <span>Physical hardware — experimental</span>
+                <span>Physical hardware</span>
               </button>
             </div>
 

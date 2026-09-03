@@ -187,6 +187,7 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
                   description: "Energizing the cooling fan relay draws excessive coil inrush current from the shared 3.3V rail, collapsing MCU voltage below the 2.80V brownout threshold.",
                   confidence: "MEDIUM",
                   rationale: "Controlled relay stress test empirically reproduced 2.72V rail collapse and brownout reset matching past reset logs.",
+                  evidence_ids: ["E-001", "E-002", "E-003"],
                 },
               },
             ],

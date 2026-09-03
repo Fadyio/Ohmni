@@ -100,9 +100,9 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
 
         {/* Big Match Badge */}
         <div
+          id="reveal-match-badge"
           data-testid="diagnosis-match-badge"
           style={{
-            display: "inline-flex",
             alignItems: "center",
             gap: "10px",
             padding: "10px 22px",

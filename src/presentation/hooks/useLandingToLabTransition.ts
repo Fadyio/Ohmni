@@ -44,10 +44,9 @@ export function useLandingToLabTransition() {
         isTransitioningRef.current = false;
         onComplete();
       };
-
       const fallbackTimer = setTimeout(() => {
         completeWrapper();
-      }, 1200);
+      }, 350);
 
       const tl = gsap.timeline({
         onComplete: completeWrapper,
@@ -64,117 +63,57 @@ export function useLandingToLabTransition() {
         agentRailRef,
       } = refs;
 
-      // 0–150ms: CTA tactile compression
-      if (ctaButtonRef.current) {
-        tl.to(
-          ctaButtonRef.current,
-          {
-            scale: 0.94,
-            duration: 0.15,
-            ease: "power2.inOut",
-          },
-          0
-        );
-      }
-
-      // Step 1: 0–250ms: Headline & copy exits BEFORE hardware crosses region
-      if (heroTextRef.current) {
-        tl.to(
-          heroTextRef.current,
-          {
-            opacity: 0,
-            x: -35,
-            duration: 0.25,
-            ease: "power2.inOut",
-          },
-          0
-        );
-      }
-
-      // Step 2: 200–550ms: 3D Wordmark shrinks and travels to navbar brand position
-      const wordmarkTarget = wordmarkRef?.current || "#landing-3d-wordmark";
-      if (wordmarkTarget) {
-        tl.to(
-          wordmarkTarget,
-          {
-            scale: 0.26,
-            x: "-38vw",
-            y: "-33vh",
-            opacity: 0.4,
-            duration: 0.35,
-            ease: "power3.inOut",
-          },
-          0.2
-        );
-      }
-
-      // Step 3: 300–750ms: Hardware moves toward lab position
-      const visualTarget = hardwareVisualRef.current || "#hero-hardware-wrapper";
-      if (visualTarget) {
-        tl.to(
-          visualTarget,
-          {
-            scale: 1.15,
-            x: "-10vw",
-            duration: 0.45,
-            ease: "power3.out",
-          },
-          0.3
-        );
-      }
-
-      // 300–800ms: Cohesive light background interpolation
+      // Clean 250-300ms transition: workbench elements enter immediately at >=0.6 opacity
       if (rootContainerRef.current) {
         tl.to(
           rootContainerRef.current,
           {
             backgroundColor: "#F4F5F7",
-            duration: 0.5,
+            duration: 0.25,
             ease: "power2.out",
           },
-          0.3
+          0
         );
       }
 
-      // Step 4: 600–900ms: Lab appears
       if (labChromeRef.current) {
         tl.fromTo(
           labChromeRef.current,
-          { opacity: 0, y: -15 },
+          { opacity: 0.65, y: -6 },
           {
             opacity: 1,
             y: 0,
-            duration: 0.3,
+            duration: 0.25,
             ease: "power2.out",
           },
-          0.6
+          0
         );
       }
 
       if (agentRailRef.current) {
         tl.fromTo(
           agentRailRef.current,
-          { opacity: 0, x: 40 },
+          { opacity: 0.65, x: 12 },
           {
             opacity: 1,
             x: 0,
-            duration: 0.3,
+            duration: 0.25,
             ease: "power2.out",
           },
-          0.65
+          0
         );
       }
 
       if (labMainSceneRef.current) {
         tl.fromTo(
           labMainSceneRef.current,
-          { opacity: 0 },
+          { opacity: 0.65 },
           {
             opacity: 1,
-            duration: 0.3,
+            duration: 0.25,
             ease: "power2.out",
           },
-          0.65
+          0
         );
       }
 

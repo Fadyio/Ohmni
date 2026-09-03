@@ -12,6 +12,7 @@
  */
 
 import React, { useState } from "react";
+import { Bot, AlertTriangle, Sparkles, Lock, ShieldCheck, Terminal, Cpu, Radio, Sliders } from "lucide-react";
 import { DynamicInvestigationScene } from "./DynamicInvestigationScene";
 import { InvestigationNarrativeRail } from "./InvestigationNarrativeRail";
 import { SignalPulse } from "./SignalPulse";
@@ -23,9 +24,13 @@ import type { EvidenceRecord } from "@/domain/evidence/types";
 import type { Hypothesis } from "@/domain/hypothesis/types";
 import type { DeviceDescriptor } from "@/domain/device/descriptor";
 import type { BenchAgentState } from "../../hooks/useBenchAgent";
-import type { ScenarioSession } from "@/domain/scenario/types";
 import type { AgentMode } from "@/infrastructure/bench-agent/types";
-import { Radio, Sliders, AlertTriangle, Bot, ShieldCheck, Sparkles, Lock, Terminal } from "lucide-react";
+import type { ScenarioSession } from "@/domain/scenario/types";
+import type { InvestigationPhase } from "@/domain/investigation/lifecycle";
+import { deriveInvestigationPhase } from "@/domain/investigation/lifecycle";
+import { classifyTool } from "@/domain/safety/tool-safety-policy";
+import { getAgentIdentity } from "@/presentation/types/agent-identity";
+
 export interface InvestigationStoryViewProps {
   readonly isConnected: boolean;
   readonly descriptor: DeviceDescriptor | null;
@@ -67,7 +72,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   evidenceRecords,
   hypothesis,
   agentState,
-  agentMode = "gemini",
+  agentMode = "groq",
   activeScenario,
   onSetGoal,
   onStartAgent,
@@ -83,13 +88,50 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   labMainSceneRef,
   agentRailRef,
 }) => {
-  const [activeSceneOverride, setActiveSceneOverride] = useState<"ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [activeSceneOverride, setActiveSceneOverride] = useState<"ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null>(null);
+  const agentIdentity = getAgentIdentity(agentMode, agentState.liveProvider, agentState.liveModel);
+
+  const activeToolName = agentState.activity.length > 0 ? agentState.activity[agentState.activity.length - 1].call.name : undefined;
+
+  const isHumanInterventionCompleted = Boolean(
+    evidenceRecords.some((e) => e.source === "human") ||
+    activeScenario?.isVerified === true
+  );
+
+  const investigationPhase: InvestigationPhase = deriveInvestigationPhase({
+    isConnected,
+    isAgentRunning: agentState.status === "investigating",
+    agentStatus:
+      agentState.status === "approval"
+        ? "waiting_approval"
+        : agentState.status === "investigating"
+        ? "running"
+        : agentState.status === "failed"
+        ? "failed"
+        : agentState.status === "stopped"
+        ? "stopped"
+        : agentState.status === "completed"
+        ? "completed"
+        : "idle",
+    activeToolClass:
+      activeToolName ? classifyTool(activeToolName) : undefined,
+    isAwaitingApproval: agentState.status === "approval",
+    isExperimentActive: experimentStatus === "running",
+    isVerificationExperiment: isHumanInterventionCompleted,
+    hasRecentEvidence: evidenceRecords.length > 0,
+    hasHypothesis: hypothesis !== null,
+    isWaitingForHuman: hypothesis !== null && !isHumanInterventionCompleted,
+    isHumanInterventionCompleted,
+    isVerified: hypothesis?.verificationStatus === "VERIFIED" || activeScenario?.isVerified === true,
+    isChallengeMode: agentMode !== "demo",
+    hasStarted: true,
+    failureMessage: agentState.status === "failed" ? agentState.message : undefined,
+  });
   const isNativeMode = typeof window !== "undefined" && window.__webmcpMode === "native";
   const providerStatus = agentState.providerStatus;
 
   const isAgentActive = agentState.status === "investigating" || agentState.status === "approval";
-  const activeToolName = agentState.activity.length > 0 ? agentState.activity[agentState.activity.length - 1].call.name : undefined;
 
   return (
     <div
@@ -179,11 +221,11 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               <span>{activeScenario.isSealed ? "SEALED FAULT" : "VERIFIED FAULT"}</span>
             </span>
           )}
-
           <span
-            data-testid="gemini-provider-badge"
+            data-testid={agentMode === "demo" ? "demo-provider-badge" : agentMode === "gemini" ? "gemini-provider-badge" : "groq-provider-badge"}
+            data-provider-badge="true"
+            id="provider-badge"
             style={{
-              display: "inline-flex",
               alignItems: "center",
               gap: "6px",
               padding: "4px 12px",
@@ -229,17 +271,17 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             ) : providerStatus === "live" ? (
               <>
                 <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--ohmni-lab-verified, #27966B)", boxShadow: "0 0 6px rgba(39, 150, 107, 0.8)" }} />
-                <span>{(agentMode === "gemini" ? "GEMINI" : (agentState.liveProvider ?? "GROQ")).toUpperCase()} LIVE</span>
+                <span>{agentIdentity.displayName.toUpperCase()} LIVE</span>
               </>
             ) : providerStatus === "error" || agentState.status === "failed" || agentState.status === "unavailable" ? (
               <>
                 <AlertTriangle size={12} />
-                <span>{(agentMode === "gemini" ? "GEMINI" : (agentState.liveProvider ?? "GROQ")).toUpperCase()} ERROR</span>
+                <span>{agentIdentity.displayName.toUpperCase()} ERROR</span>
               </>
             ) : (
               <>
                 <Sparkles size={12} />
-                <span>{(agentMode === "gemini" ? "GEMINI" : (agentState.liveProvider ?? "GROQ")).toUpperCase()} CONFIGURED</span>
+                <span>{agentIdentity.displayName.toUpperCase()} CONFIGURED</span>
               </>
             )}
           </span>
@@ -333,29 +375,33 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
         }}
       >
         {(["OBSERVE", "TEST", "DIAGNOSE", "REPAIR", "VERIFY"] as const).map((phase, idx) => {
-          const isTestActive =
-            experimentStatus === "running" ||
-            relayState === "closed" ||
-            (agentState.status === "approval" && agentState.approval.tool.name.includes("stress")) ||
-            agentState.activity.some((a) => a.call.name.includes("stress"));
-          const hasHypothesis = hypothesis !== null;
-          const isVerified = activeScenario?.isVerified === true || hypothesis?.verificationStatus === "VERIFIED";
-          const isRepair = hypothesis !== null && activeScenario?.isVerified !== true && !isTestActive;
+          const currentProgressStep: "OBSERVE" | "TEST" | "DIAGNOSE" | "REPAIR" | "VERIFY" = (() => {
+            switch (investigationPhase) {
+              case "welcome":
+              case "challenge_ready":
+              case "connecting":
+              case "ready":
+              case "observing":
+                return "OBSERVE";
+              case "waiting_for_approval":
+              case "experiment_running":
+                return "TEST";
+              case "evidence_review":
+              case "reasoning":
+              case "hypothesis":
+                return "DIAGNOSE";
+              case "waiting_for_human":
+              case "verification_pending":
+                return "REPAIR";
+              case "verification_running":
+              case "verified":
+                return "VERIFY";
+              default:
+                return "OBSERVE";
+            }
+          })();
 
-          let currentPhase: "OBSERVE" | "TEST" | "DIAGNOSE" | "REPAIR" | "VERIFY" = "OBSERVE";
-          if (isVerified) {
-            currentPhase = "VERIFY";
-          } else if (isRepair) {
-            currentPhase = "REPAIR";
-          } else if (hasHypothesis) {
-            currentPhase = "DIAGNOSE";
-          } else if (isTestActive) {
-            currentPhase = "TEST";
-          } else {
-            currentPhase = "OBSERVE";
-          }
-
-          const isActive = phase === currentPhase;
+          const isActive = phase === currentProgressStep;
           return (
             <React.Fragment key={phase}>
               {idx > 0 && <span style={{ color: "var(--ohmni-lab-border, #CBD5E1)", fontSize: "11px" }}>→</span>}
@@ -434,6 +480,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
         >
           <InvestigationNarrativeRail
             agentState={agentState}
+            investigationPhase={investigationPhase}
             onSetGoal={onSetGoal}
             onStartAgent={onStartAgent}
             onStopAgent={onStopAgent}

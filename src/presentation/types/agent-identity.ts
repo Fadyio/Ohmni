@@ -1,0 +1,57 @@
+/**
+ * Agent Identity & Provider Presentation Abstraction.
+ * OHMNI Product Truth Milestone — Eliminates hardcoded provider identity.
+ */
+
+import type { AgentMode } from "@/infrastructure/bench-agent/types";
+
+export interface AgentIdentity {
+  readonly id: "groq" | "gemini" | "demo";
+  readonly displayName: string;
+  readonly shortName: string;
+  readonly model?: string;
+  readonly mode: "groq" | "gemini" | "demo";
+  readonly isDeterministic: boolean;
+  readonly isBlind: boolean;
+}
+
+export function getAgentIdentity(
+  mode: AgentMode = "groq",
+  liveProvider?: string,
+  liveModel?: string
+): AgentIdentity {
+  if (mode === "demo") {
+    return {
+      id: "demo",
+      displayName: "Demo Agent",
+      shortName: "Demo Agent",
+      model: "Deterministic walkthrough",
+      mode: "demo",
+      isDeterministic: true,
+      isBlind: false,
+    };
+  }
+
+  const effectiveProvider = (liveProvider || mode || "groq").toLowerCase();
+  if (effectiveProvider === "gemini") {
+    return {
+      id: "gemini",
+      displayName: "Gemini",
+      shortName: "Gemini",
+      model: liveModel ?? "Gemini 2.5 Flash",
+      mode: "gemini",
+      isDeterministic: false,
+      isBlind: true,
+    };
+  }
+
+  return {
+    id: "groq",
+    displayName: "Groq",
+    shortName: "Groq",
+    model: liveModel ?? "openai/gpt-oss-120b",
+    mode: "groq",
+    isDeterministic: false,
+    isBlind: true,
+  };
+}

@@ -32,10 +32,10 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
   railVoltage,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const isClosed = relayState === "closed";
+  // When actively running, relay is energized. When test has completed or aborted, relay is safely open.
+  const isClosed = isRunning || relayState === "closed";
   const shouldReduceMotion = useReducedMotion();
   const safeThresholdVoltage = 2.80;
-
   useEffect(() => {
     let animationFrameId: number;
     const canvas = canvasRef.current;
@@ -267,30 +267,57 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
       {/* Header Tag */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-brand)", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            <Activity size={14} className={isRunning ? "animate-spin" : ""} />
-            REAL-TIME PHYSICAL EXPERIMENT
+          <div
+            data-testid="experiment-header-tag"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              color: isRunning ? "var(--ohmni-lab-brand)" : "var(--ohmni-lab-fault, #DC5050)",
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            {isRunning ? (
+              <>
+                <Activity size={14} className="animate-spin" />
+                <span>REAL-TIME LOAD TEST</span>
+              </>
+            ) : (
+              <>
+                <ShieldAlert size={14} />
+                <span>FAULT REPRODUCED (BROWNOUT RESET)</span>
+              </>
+            )}
           </div>
-          <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "4px 0 0", letterSpacing: "-0.02em" }}>
-            Relay Actuation & Oscilloscope Telemetry
+          <h2
+            data-testid="experiment-scene-title"
+            style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "4px 0 0", letterSpacing: "-0.02em" }}
+          >
+            {isRunning
+              ? "Active Relay Actuation & Oscilloscope Telemetry"
+              : "Captured Oscilloscope Waveform (Frozen at 2.72V Sag)"}
           </h2>
         </div>
 
         {/* Live Status Chip */}
         <div
+          data-testid="relay-status-chip"
           style={{
             display: "inline-flex",
             alignItems: "center",
             gap: "8px",
             padding: "6px 14px",
             borderRadius: "var(--radius-full)",
-            background: isClosed ? "rgba(229, 157, 55, 0.12)" : "var(--ohmni-lab-raised)",
-            border: `1px solid ${isClosed ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-border)"}`,
+            background: isRunning ? "rgba(229, 157, 55, 0.12)" : "var(--ohmni-lab-raised)",
+            border: `1px solid ${isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-border)"}`,
           }}
         >
-          <Zap size={14} color={isClosed ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-muted)"} />
-          <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: isClosed ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-text)" }}>
-            RELAY {isClosed ? "CLOSED (ENERGIZED)" : "OPEN (INERT)"}
+          <Zap size={14} color={isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-muted)"} />
+          <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-text)" }}>
+            {isRunning ? "RELAY ENERGIZED (ACTIVE)" : "RELAY SAFELY OPEN (INERT)"}
           </span>
         </div>
       </div>
@@ -348,7 +375,7 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
             transition: "all 0.2s ease",
           }}
         >
-          <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: isClosed ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-muted)" }}>
+          <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-muted)" }}>
             TACTILE RELAY ARMATURE
           </div>
 
@@ -381,8 +408,8 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
             />
           </svg>
 
-          <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: isClosed ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-muted)" }}>
-            {isClosed ? "⚡ COIL ENERGIZED" : "COIL INERT"}
+          <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-muted)" }}>
+            {isRunning ? "⚡ COIL ENERGIZED" : "COIL INERT (SAFELY OPEN)"}
           </div>
         </div>
       </div>

@@ -24,12 +24,14 @@ export interface TestRequestSceneProps {
   readonly onApprove: () => void;
   readonly onDeny: () => void;
   readonly toolName?: string;
+  readonly agentDisplayName?: string;
 }
 
 export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
   onApprove,
   onDeny,
   toolName = "run_relay_stress_test",
+  agentDisplayName = "Agent",
 }) => {
   const [isApproved, setIsApproved] = useState(false);
 
@@ -295,7 +297,7 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
                 lineHeight: 1.3,
               }}
             >
-              Gemini wants to energize the cooling fan relay for up to 500 ms while measuring supply voltage.
+              {agentDisplayName} wants to energize the cooling fan relay for up to 500 ms while measuring supply voltage.
             </h2>
 
             {/* WHY Section */}

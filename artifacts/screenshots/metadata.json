@@ -2,8 +2,9 @@
   {
     "fileName": "01-landing.png",
     "scene": "Landing",
-    "buildSha": "development",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
     "agentMode": "demo",
+    "provider": "demo",
     "scenario": "brownout",
     "domainState": {
       "connected": false,
@@ -11,16 +12,16 @@
       "jumper": "3v3",
       "experimentsCount": 0,
       "evidenceCount": 0,
-      "hypothesesCount": 0,
-      "hypothesisStatus": "none"
+      "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T02:18:21.376Z"
+    "timestamp": "2026-09-03T03:46:22.871Z"
   },
   {
-    "fileName": "02-blind-challenge.png",
-    "scene": "Blind Challenge",
-    "buildSha": "development",
+    "fileName": "14-demo-walkthrough.png",
+    "scene": "Demo Fallback",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
     "agentMode": "demo",
+    "provider": "demo",
     "scenario": "brownout",
     "domainState": {
       "connected": false,
@@ -28,16 +29,16 @@
       "jumper": "3v3",
       "experimentsCount": 0,
       "evidenceCount": 0,
-      "hypothesesCount": 0,
-      "hypothesisStatus": "none"
+      "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T02:18:21.510Z"
+    "timestamp": "2026-09-03T03:46:23.091Z"
   },
   {
     "fileName": "03-ready.png",
     "scene": "Ready",
-    "buildSha": "development",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
     "agentMode": "demo",
+    "provider": "demo",
     "scenario": "brownout",
     "domainState": {
       "connected": true,
@@ -45,16 +46,16 @@
       "jumper": "3v3",
       "experimentsCount": 0,
       "evidenceCount": 0,
-      "hypothesesCount": 0,
-      "hypothesisStatus": "none"
+      "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T02:18:22.229Z"
+    "timestamp": "2026-09-03T03:46:23.287Z"
   },
   {
     "fileName": "04-observation.png",
     "scene": "Observation",
-    "buildSha": "development",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
     "agentMode": "demo",
+    "provider": "demo",
     "scenario": "brownout",
     "domainState": {
       "connected": true,
@@ -62,16 +63,16 @@
       "jumper": "3v3",
       "experimentsCount": 0,
       "evidenceCount": 0,
-      "hypothesesCount": 0,
-      "hypothesisStatus": "none"
+      "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T02:18:22.337Z"
+    "timestamp": "2026-09-03T03:46:23.467Z"
   },
   {
-    "fileName": "05-approval.png",
+    "fileName": "05-physical-approval.png",
     "scene": "Physical Approval",
-    "buildSha": "development",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
     "agentMode": "demo",
+    "provider": "demo",
     "scenario": "brownout",
     "domainState": {
       "connected": true,
@@ -79,16 +80,33 @@
       "jumper": "3v3",
       "experimentsCount": 0,
       "evidenceCount": 0,
-      "hypothesesCount": 0,
-      "hypothesisStatus": "none"
+      "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T02:18:22.930Z"
+    "timestamp": "2026-09-03T03:46:23.712Z"
   },
   {
-    "fileName": "06-experiment.png",
-    "scene": "Experiment",
-    "buildSha": "development",
+    "fileName": "06-running-scope.png",
+    "scene": "Running Scope",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
     "agentMode": "demo",
+    "provider": "demo",
+    "scenario": "brownout",
+    "domainState": {
+      "connected": true,
+      "relayState": "open",
+      "jumper": "3v3",
+      "experimentsCount": 0,
+      "evidenceCount": 0,
+      "hypothesesCount": 0
+    },
+    "timestamp": "2026-09-03T03:46:23.985Z"
+  },
+  {
+    "fileName": "07-fault-evidence.png",
+    "scene": "Fault Result",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
+    "agentMode": "demo",
+    "provider": "demo",
     "scenario": "brownout",
     "domainState": {
       "connected": true,
@@ -96,16 +114,16 @@
       "jumper": "3v3",
       "experimentsCount": 1,
       "evidenceCount": 5,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "NOT_VERIFIED"
+      "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T02:18:23.271Z"
+    "timestamp": "2026-09-03T03:46:24.137Z"
   },
   {
-    "fileName": "07-evidence.png",
-    "scene": "Evidence",
-    "buildSha": "development",
+    "fileName": "08-evidence.png",
+    "scene": "Evidence Records",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
     "agentMode": "demo",
+    "provider": "demo",
     "scenario": "brownout",
     "domainState": {
       "connected": true,
@@ -113,16 +131,16 @@
       "jumper": "3v3",
       "experimentsCount": 1,
       "evidenceCount": 5,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "NOT_VERIFIED"
+      "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T02:18:23.353Z"
+    "timestamp": "2026-09-03T03:46:24.256Z"
   },
   {
-    "fileName": "08-diagnosis.png",
-    "scene": "Diagnosis",
-    "buildSha": "development",
+    "fileName": "09-hypothesis.png",
+    "scene": "Hypothesis Diagnosis",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
     "agentMode": "demo",
+    "provider": "demo",
     "scenario": "brownout",
     "domainState": {
       "connected": true,
@@ -130,16 +148,16 @@
       "jumper": "3v3",
       "experimentsCount": 1,
       "evidenceCount": 5,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "NOT_VERIFIED"
+      "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T02:18:23.434Z"
+    "timestamp": "2026-09-03T03:46:24.381Z"
   },
   {
-    "fileName": "09-human-action.png",
+    "fileName": "10-human-intervention.png",
     "scene": "Human Action",
-    "buildSha": "development",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
     "agentMode": "demo",
+    "provider": "demo",
     "scenario": "brownout",
     "domainState": {
       "connected": true,
@@ -147,33 +165,16 @@
       "jumper": "3v3",
       "experimentsCount": 1,
       "evidenceCount": 5,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "NOT_VERIFIED"
+      "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T02:18:23.771Z"
+    "timestamp": "2026-09-03T03:46:24.490Z"
   },
   {
-    "fileName": "10-verification.png",
-    "scene": "Verification Retest Approval",
-    "buildSha": "development",
+    "fileName": "11-verification-running.png",
+    "scene": "Verification Running",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
     "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": true,
-      "relayState": "open",
-      "jumper": "5v",
-      "experimentsCount": 1,
-      "evidenceCount": 5,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "NOT_VERIFIED"
-    },
-    "timestamp": "2026-09-03T02:18:24.338Z"
-  },
-  {
-    "fileName": "11-verified.png",
-    "scene": "Verified",
-    "buildSha": "development",
-    "agentMode": "demo",
+    "provider": "demo",
     "scenario": "brownout",
     "domainState": {
       "connected": true,
@@ -181,16 +182,16 @@
       "jumper": "5v",
       "experimentsCount": 2,
       "evidenceCount": 7,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "VERIFIED"
+      "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T02:18:24.643Z"
+    "timestamp": "2026-09-03T03:46:25.375Z"
   },
   {
-    "fileName": "12-reveal.png",
-    "scene": "Reveal",
-    "buildSha": "development",
+    "fileName": "12-verified-result.png",
+    "scene": "Verified Result",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
     "agentMode": "demo",
+    "provider": "demo",
     "scenario": "brownout",
     "domainState": {
       "connected": true,
@@ -198,16 +199,50 @@
       "jumper": "5v",
       "experimentsCount": 2,
       "evidenceCount": 7,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "VERIFIED"
+      "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T02:18:24.693Z"
+    "timestamp": "2026-09-03T03:46:25.425Z"
   },
   {
-    "fileName": "13-gemini-error.png",
-    "scene": "Gemini Error State",
-    "buildSha": "development",
+    "fileName": "13-ground-truth-reveal.png",
+    "scene": "Ground Truth Reveal",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
     "agentMode": "demo",
+    "provider": "demo",
+    "scenario": "brownout",
+    "domainState": {
+      "connected": true,
+      "relayState": "open",
+      "jumper": "5v",
+      "experimentsCount": 2,
+      "evidenceCount": 7,
+      "hypothesesCount": 1
+    },
+    "timestamp": "2026-09-03T03:46:25.475Z"
+  },
+  {
+    "fileName": "02-blind-challenge.png",
+    "scene": "Blind Challenge",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
+    "agentMode": "groq",
+    "provider": "groq",
+    "scenario": "brownout",
+    "domainState": {
+      "connected": false,
+      "relayState": "open",
+      "jumper": "3v3",
+      "experimentsCount": 0,
+      "evidenceCount": 0,
+      "hypothesesCount": 0
+    },
+    "timestamp": "2026-09-03T03:46:29.481Z"
+  },
+  {
+    "fileName": "15-provider-error.png",
+    "scene": "Provider Error",
+    "buildSha": "4d180a3927a3491b3379aa95512bfc3e4f748dc1",
+    "agentMode": "gemini",
+    "provider": "gemini",
     "scenario": "brownout",
     "domainState": {
       "connected": true,
@@ -215,9 +250,8 @@
       "jumper": "3v3",
       "experimentsCount": 0,
       "evidenceCount": 0,
-      "hypothesesCount": 0,
-      "hypothesisStatus": "none"
+      "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T02:18:25.078Z"
+    "timestamp": "2026-09-03T03:46:37.010Z"
   }
 ]

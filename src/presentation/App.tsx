@@ -226,6 +226,7 @@ export const App: React.FC<AppProps> = ({
       if (resolvedAdapter && resolvedRegistrar) {
         await resolvedRegistrar.registerDevice(resolvedAdapter);
       }
+      startAgent();
     })();
 
     setViewMode("investigation");
@@ -262,6 +263,7 @@ export const App: React.FC<AppProps> = ({
       if (resolvedAdapter && resolvedRegistrar) {
         await resolvedRegistrar.registerDevice(resolvedAdapter);
       }
+      startAgent();
     })();
     setViewMode("investigation");
 
@@ -417,6 +419,9 @@ export const App: React.FC<AppProps> = ({
         <MysteryIntroModal
           session={activeScenario}
           isDevMode={Boolean(queryScenarioId)}
+          agentMode={agentMode}
+          liveProvider={agentState.liveProvider}
+          liveModel={agentState.liveModel}
           onBegin={handleBeginInvestigation}
           onCancel={() => setShowMysteryIntro(false)}
         />

@@ -75,19 +75,6 @@ export const AuthoredHardwareIllustration: React.FC<AuthoredHardwareIllustration
           <span className="font-mono">ESP32-S3-WROOM-1</span>
         </div>
 
-        <span
-          style={{
-            fontSize: "11px",
-            fontWeight: 600,
-            padding: "3px 8px",
-            borderRadius: "var(--radius-full)",
-            background: "rgba(59, 91, 255, 0.08)",
-            color: "var(--ohmni-intro-brand)",
-            border: "1px solid rgba(59, 91, 255, 0.18)",
-          }}
-        >
-          {toolCount} WEBMCP INSTRUMENTS
-        </span>
       </div>
 
       {/* Primary SVG Isometric Hardware Composition */}

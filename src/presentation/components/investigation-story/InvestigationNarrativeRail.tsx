@@ -15,12 +15,14 @@
 
 import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Play, Square, Check, ShieldAlert, RotateCcw, Activity, Clock, X, AlertCircle } from "lucide-react";
+import { Square, Play, ShieldAlert, RotateCcw, Activity, Check } from "lucide-react";
 import { AgentOrbNode } from "../agent/AgentOrbNode";
 import type { BenchAgentState } from "../../hooks/useBenchAgent";
-
+import type { InvestigationPhase } from "@/domain/investigation/lifecycle";
+import { getAgentIdentity } from "@/presentation/types/agent-identity";
 export interface InvestigationNarrativeRailProps {
   readonly agentState: BenchAgentState;
+  readonly investigationPhase?: InvestigationPhase;
   readonly onSetGoal: (goal: string) => void;
   readonly onStartAgent: () => void;
   readonly onStopAgent: () => void;
@@ -31,11 +33,13 @@ export interface InvestigationNarrativeRailProps {
 
 export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProps> = ({
   agentState,
+  investigationPhase,
   onSetGoal,
   onStartAgent,
   onStopAgent,
   onSelectScene,
 }) => {
+  const identity = getAgentIdentity(agentState.agentMode, agentState.liveProvider, agentState.liveModel);
   const active = agentState.status === "investigating" || agentState.status === "approval";
   const isIdle = agentState.status === "idle" || agentState.status === "stopped";
   const currentGoal = agentState.goal || "The controller restarts when the fan turns on.";
@@ -54,32 +58,30 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
 
   const getHumanToolName = (toolName: string) => {
     switch (toolName) {
-      case "read_device_info":
-        return "Read device descriptor";
       case "read_reset_history":
-        return "Read reset history";
+        return "Reading reset history and reboot cause";
       case "read_system_health":
-        return "Read system health";
+        return "Checking system health telemetry";
       case "measure_supply_voltage":
-        return "Measure supply voltage";
+        return "Measuring baseline supply voltage";
       case "run_relay_stress_test":
-        return "Controlled relay stress test";
+        return "Testing whether relay load collapses MCU power";
       case "list_evidence":
-        return "List empirical evidence";
+        return "Reviewing empirical evidence records";
       case "get_evidence":
-        return "Inspect evidence record";
+        return "Inspecting evidence record";
       case "propose_hypothesis":
-        return "Propose diagnostic hypothesis";
+        return "Synthesizing root cause hypothesis";
       case "update_hypothesis":
-        return "Update diagnostic hypothesis";
+        return "Elevating hypothesis confidence after retest";
       case "link_evidence":
-        return "Link evidence to hypothesis";
+        return "Linking empirical evidence to hypothesis";
       case "confirm_hypothesis":
-        return "Confirm root cause hypothesis";
+        return "Confirming verified root cause";
       case "reject_hypothesis":
-        return "Reject diagnostic hypothesis";
+        return "Rejecting disproven hypothesis";
       case "request_human_intervention":
-        return "Request physical intervention";
+        return "Requesting physical technician intervention";
       default:
         return toolName.replace(/_/g, " ");
     }
@@ -140,7 +142,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           />
           <div>
             <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--ohmni-lab-text)", letterSpacing: "-0.01em" }}>
-              {agentState.agentMode === "demo" ? "Demo Agent" : (agentState.liveProvider === "gemini" ? "Gemini" : "Groq")}
+              {identity.displayName}
             </div>
             <div
               data-testid="bench-agent-status"
@@ -152,10 +154,12 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                 fontWeight: 600,
                 color: active
                   ? "var(--ohmni-lab-brand)"
-                  : agentState.status === "completed"
+                  : investigationPhase === "verified"
                   ? "var(--ohmni-lab-verified)"
                   : agentState.status === "failed"
                   ? "var(--ohmni-lab-fault)"
+                  : isWaitingApproval || investigationPhase === "waiting_for_human"
+                  ? "var(--ohmni-lab-action)"
                   : "var(--ohmni-lab-muted)",
               }}
             >
@@ -167,14 +171,59 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                   borderRadius: "50%",
                   background: active
                     ? "var(--ohmni-lab-brand)"
-                    : agentState.status === "completed"
+                    : investigationPhase === "verified"
                     ? "var(--ohmni-lab-verified)"
                     : agentState.status === "failed"
                     ? "var(--ohmni-lab-fault)"
+                    : isWaitingApproval || investigationPhase === "waiting_for_human"
+                    ? "var(--ohmni-lab-action)"
                     : "#94A3B8",
                 }}
               />
-              <span>{active ? "Live" : isIdle ? "Ready" : agentState.status.toUpperCase()}</span>
+              <span>{(() => {
+                if (agentState.status === "failed") return "FAILED";
+                if (agentState.status === "unavailable") return "UNAVAILABLE";
+                if (agentState.status === "stopped") return "STOPPED";
+                if (agentState.status === "approval") return "WAITING FOR APPROVAL";
+                if (investigationPhase) {
+                  switch (investigationPhase) {
+                    case "welcome":
+                    case "challenge_ready":
+                    case "ready":
+                      return isIdle ? "Ready" : "READY";
+                    case "connecting":
+                      return "CONNECTING";
+                    case "observing":
+                      return "INVESTIGATING";
+                    case "waiting_for_approval":
+                      return "WAITING FOR APPROVAL";
+                    case "experiment_running":
+                      return "EXPERIMENT RUNNING";
+                    case "evidence_review":
+                    case "reasoning":
+                      return "ANALYZING EVIDENCE";
+                    case "hypothesis":
+                      return "INITIAL DIAGNOSIS READY";
+                    case "waiting_for_human":
+                      return "WAITING FOR HUMAN";
+                    case "verification_pending":
+                      return "VERIFICATION PENDING";
+                    case "verification_running":
+                      return "VERIFYING";
+                    case "verified":
+                      return "VERIFIED";
+                    case "failed":
+                      return "FAILED";
+                    case "stopped":
+                      return "STOPPED";
+                    default:
+                      break;
+                  }
+                }
+                if (active) return "Live";
+                if (isIdle) return "Ready";
+                return agentState.status.toUpperCase();
+              })()}</span>
             </div>
           </div>
         </div>

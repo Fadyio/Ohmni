@@ -18,7 +18,7 @@ import type { HypothesisStore } from "@/domain/hypothesis/store";
 import type { Hypothesis } from "@/domain/hypothesis/types";
 import type { ExperimentRecord } from "@/domain/experiment/types";
 import type { BenchAgentState } from "@/presentation/hooks/useBenchAgent";
-
+import { getAgentIdentity } from "@/presentation/types/agent-identity";
 interface InteractiveDeviceAdapter extends DeviceAdapter {
   getInterventionPoint?(point: string): string | undefined;
   setInterventionPoint?(point: string, value: string): void;
@@ -49,6 +49,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
   onDenyTest,
   onReturnToInvestigation,
 }) => {
+  const agentIdentity = getAgentIdentity(agentState?.agentMode, agentState?.liveProvider, agentState?.liveModel);
   const resolvedAdapter = useMemo<InteractiveDeviceAdapter | undefined>(() => {
     return (deviceAdapter as InteractiveDeviceAdapter) ?? (typeof window !== "undefined" ? (window.__virtualDevice as InteractiveDeviceAdapter) : undefined);
   }, [deviceAdapter]);
@@ -343,7 +344,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-warning)", fontSize: "12px", fontWeight: 700 }}>
                       <ShieldAlert size={14} />
-                      <span>{(agentState?.agentMode === "demo" ? "Demo Agent" : (agentState?.liveProvider === "gemini" ? "Gemini" : "Groq"))} Requested Retest: {agentState?.approval?.tool.name}</span>
+                      <span>{agentIdentity.displayName} Requested Retest: {agentState?.approval?.tool.name}</span>
                     </div>
                     <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
                       <button
@@ -392,14 +393,15 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     }}
                   >
                     <Activity size={14} className="animate-spin" />
-                    <span>{(agentState?.agentMode === "demo" ? "Demo Agent" : (agentState?.liveProvider === "gemini" ? "Gemini" : "Groq"))} is evaluating physical repair & executing verification...</span>
+                    <span>{agentIdentity.displayName} is evaluating physical repair & executing verification...</span>
                   </div>
                 ) : (
                   /* Human Observation CTA: Tell Gemini I changed it */
                   <button
                     onClick={handleNotifyAgent}
                     className="btn-primary"
-                    data-testid="tell-gemini-repair-btn"
+                    data-testid="tell-agent-repair-btn"
+                    data-testid-alias="tell-gemini-repair-btn"
                     id="tell-agent-repair-btn"
                     style={{
                       display: "flex",
@@ -417,7 +419,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     }}
                   >
                     <Send size={14} />
-                    <span>Tell {(agentState?.agentMode === "demo" ? "agent" : (agentState?.liveProvider === "gemini" ? "Gemini" : "Groq"))} I've changed it</span>
+                    <span>Tell {agentIdentity.displayName} I've changed it</span>
                   </button>
                 )}
               </div>

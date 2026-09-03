@@ -552,9 +552,8 @@ export function useBenchAgent(
 
     void runBenchAgent({
       goal,
-      initialHistory: transcriptRef.current,
       modelContext,
-      provider: activeProvider,
+      provider: agentModeRef.current === "demo" ? demoProvider : httpProvider,
       signal: controller.signal,
       onEvent,
       requestApproval: ({ call, tool }) => {
@@ -709,9 +708,8 @@ export function useBenchAgent(
       void runBenchAgent({
         goal: trimmed,
         initialHistory: continuationHistory,
-        previousInteractionId: lastInteractionIdRef.current,
         modelContext,
-        provider: activeProvider,
+        provider: agentModeRef.current === "demo" ? demoProvider : httpProvider,
         signal: controller.signal,
         onEvent,
         requestApproval: ({ call, tool }) => {

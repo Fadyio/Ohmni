@@ -104,13 +104,19 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
             >
               STATUS: NOT VERIFIED
             </span>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-verified)", fontSize: "12px", fontWeight: 600 }}>
-              <CheckCircle2 size={15} />
-              <span>GROUNDED BY {supportingEvidenceIds.length} FACTS</span>
-            </div>
+            {supportingEvidenceIds.length > 0 ? (
+              <div data-testid="hypothesis-grounded-badge" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-verified)", fontSize: "12px", fontWeight: 600 }}>
+                <CheckCircle2 size={15} />
+                <span>{`GROUNDED BY ${supportingEvidenceIds.length} FACTS`}</span>
+              </div>
+            ) : (
+              <div data-testid="hypothesis-grounded-badge" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-fault, #DC5050)", fontSize: "12px", fontWeight: 700 }}>
+                <ShieldCheck size={15} />
+                <span>EVIDENCE NOT LINKED</span>
+              </div>
+            )}
           </div>
         </div>
-
         {/* Title */}
         <div>
           <h3 style={{ fontSize: "22px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "0 0 8px" }}>
@@ -143,15 +149,15 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
                   }}
                 >
                   <CheckCircle2 size={13} color="var(--ohmni-lab-verified)" />
-                  <span>TOKEN {citeId}</span>
+                  <span>{`TOKEN ${citeId}`}</span>
                 </span>
               ))}
             </div>
           </div>
         )}
 
-        {/* Bottom CTA to Physical Repair Verification */}
-        {onProceedToRepair && (
+        {/* Bottom CTA to Physical Repair Verification (requires supporting evidence) */}
+        {onProceedToRepair && supportingEvidenceIds.length > 0 ? (
           <div style={{ paddingTop: "1rem", borderTop: "1px solid var(--ohmni-lab-border)", display: "flex", justifyContent: "flex-end" }}>
             <button
               id="proceed-to-repair-btn"
@@ -170,7 +176,28 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
               <ArrowRight size={15} />
             </button>
           </div>
-        )}
+        ) : onProceedToRepair ? (
+          <div style={{ paddingTop: "1rem", borderTop: "1px solid var(--ohmni-lab-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "13px", color: "var(--ohmni-lab-fault, #DC5050)", fontWeight: 600 }}>
+              Diagnosis must cite supporting evidence before proceeding to repair.
+            </span>
+            <button
+              id="proceed-to-repair-btn-disabled"
+              data-testid="proceed-to-repair-btn-disabled"
+              disabled
+              className="btn-secondary"
+              style={{
+                opacity: 0.5,
+                cursor: "not-allowed",
+                padding: "12px 24px",
+                fontSize: "14px",
+                fontWeight: 700,
+              }}
+            >
+              <span>Awaiting Evidence Linking</span>
+            </button>
+          </div>
+        ) : null}
       </div>
     </motion.div>
   );

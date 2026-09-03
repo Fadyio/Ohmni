@@ -93,7 +93,7 @@ export const EvidenceScene: React.FC<EvidenceSceneProps> = ({
                   </span>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-verified)", fontSize: "11.5px", fontWeight: 600 }}>
                     <CheckCircle2 size={14} />
-                    <span>VERIFIED FACT</span>
+                    <span>OBSERVED FACT</span>
                   </div>
                 </div>
 

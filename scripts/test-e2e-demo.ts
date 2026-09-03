@@ -420,18 +420,17 @@ async function runE2EGoldenPath(): Promise<void> {
 
     await recordScreenshot("03", "Ready", "03-ready.png");
 
-    // Step 7: Click Start investigation button
-    console.info("\n[Step 7] Clicking 'Start investigation'...");
-    await waitFor(
-      cdpClient,
-      `Boolean(document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']"))`,
-      8000
+    // Step 7: Check if Start investigation button is present, or if agent auto-started per Item 11
+    console.info("\n[Step 7] Verifying agent start (auto-started or clicking button)...");
+    const hasStartBtn = await cdpClient.evaluate<boolean>(
+      `Boolean(document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']"))`
     );
-    await cdpClient.evaluate(`(() => {
-      const btn = document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']");
-      if (btn) btn.click();
-    })()`);
-    // -----------------------------------------------------------------
+    if (hasStartBtn) {
+      await cdpClient.evaluate(`(() => {
+        const btn = document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']");
+        if (btn) (btn as HTMLButtonElement).click();
+      })()`);
+    }
     // Step 8 & 9: Demo agent calls read_reset_history -> UI updates
     // -----------------------------------------------------------------
     console.info("\n[Step 8-9] Waiting for Demo Agent to read reset history and update UI...");

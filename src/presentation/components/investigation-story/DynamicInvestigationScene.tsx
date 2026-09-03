@@ -28,7 +28,7 @@ import type { ScopeEventMarker } from "../../hooks/useOscilloscopeBuffer";
 import type { EvidenceRecord } from "@/domain/evidence/types";
 import type { Hypothesis } from "@/domain/hypothesis/types";
 import type { BenchAgentState } from "../../hooks/useBenchAgent";
-
+import { getAgentIdentity } from "@/presentation/types/agent-identity";
 export interface DynamicInvestigationSceneProps {
   readonly agentState: BenchAgentState;
   readonly experimentStatus: "idle" | "running" | "completed" | "failed" | "aborted" | string;
@@ -63,11 +63,12 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   onDenyTest,
   onProceedToRepair,
   onStartAgent,
-  agentMode = "gemini",
+  agentMode = "groq",
   onSwitchToDemo,
   onRetryGemini,
   activeSceneOverride,
 }) => {
+  const agentIdentity = getAgentIdentity(agentMode, agentState.liveProvider, agentState.liveModel);
   const resetActivity = agentState.activity.find(
     (a) =>
       (a.call.name === "read_reset_history" ||
@@ -159,11 +160,10 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
                 stateMessage.toLowerCase().includes("rate_limited") ||
                 stateMessage.includes("FREE AI RATE LIMIT REACHED"))
           );
-          const providerTitle = (agentMode === "gemini" ? "GEMINI" : (agentState.liveProvider ?? "GROQ")).toUpperCase();
           return (
             <motion.div
-              id="gemini-unavailable-card"
-              data-testid="gemini-unavailable-card"
+              id="agent-unavailable-card"
+              data-testid="agent-unavailable-card"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               style={{
@@ -179,18 +179,18 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             >
               <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--ohmni-lab-fault, #DC5050)", fontSize: "13px", fontWeight: 800 }}>
                 <AlertTriangle size={18} />
-                <span>{isRateLimited ? "FREE AI RATE LIMIT REACHED" : `${providerTitle} UNAVAILABLE`}</span>
+                <span>{isRateLimited ? "FREE AI RATE LIMIT REACHED" : `${agentIdentity.displayName.toUpperCase()} UNAVAILABLE`}</span>
               </div>
               <p style={{ margin: 0, fontSize: "14px", color: "var(--ohmni-lab-muted, #64748B)", lineHeight: 1.5 }}>
                 {isRateLimited
-                  ? "The free Groq allocation is temporarily rate limited."
-                  : stateMessage || (providerTitle === "GROQ" ? "Groq API quota is currently unavailable." : "Google API quota is currently unavailable.")}
+                  ? `The free ${agentIdentity.displayName} allocation is temporarily rate limited.`
+                  : stateMessage || `${agentIdentity.displayName} API quota is currently unavailable.`}
               </p>
               <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
                 {onRetryGemini && (
                   <button
                     type="button"
-                    data-testid="retry-gemini-btn"
+                    data-testid="retry-agent-btn"
                     id="retry-agent-btn"
                     onClick={onRetryGemini}
                     className="btn-secondary"
@@ -313,6 +313,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             onApprove={onApproveTest}
             onDeny={onDenyTest}
             toolName={agentState.status === "approval" ? agentState.approval.tool.name : undefined}
+            agentDisplayName={agentIdentity.displayName}
           />
         )}
 

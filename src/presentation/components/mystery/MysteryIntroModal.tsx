@@ -7,22 +7,31 @@
  */
 
 import React from "react";
-import { Lock, Play, ShieldAlert, Cpu, ArrowRight } from "lucide-react";
+import { Lock, Play, ShieldAlert, Cpu, ArrowRight, ShieldCheck } from "lucide-react";
 import type { ScenarioSession } from "@/domain/scenario/types";
+import type { AgentMode } from "@/infrastructure/bench-agent/types";
+import { getAgentIdentity } from "@/presentation/types/agent-identity";
 
 export interface MysteryIntroModalProps {
   readonly session: ScenarioSession;
   readonly isDevMode?: boolean;
+  readonly agentMode?: AgentMode;
+  readonly liveProvider?: string;
+  readonly liveModel?: string;
   readonly onBegin: () => void;
   readonly onCancel?: () => void;
 }
 
 export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
   session,
-  isDevMode = false,
+  agentMode = "groq",
+  liveProvider,
+  liveModel,
   onBegin,
   onCancel,
 }) => {
+  const identity = getAgentIdentity(agentMode, liveProvider, liveModel);
+  const isDemo = identity.isDeterministic;
   return (
     <div
       id="mystery-intro-overlay"
@@ -80,29 +89,14 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
               }}
             >
               <Cpu size={14} />
-              {session.sessionId}
+              {isDemo ? "DEMO AGENT • WALKTHROUGH" : session.sessionId}
             </span>
-            {isDevMode && (
-              <span
-                style={{
-                  padding: "3px 8px",
-                  borderRadius: "4px",
-                  background: "rgba(224, 138, 0, 0.12)",
-                  color: "var(--ohmni-lab-warning, #D97706)",
-                  fontSize: "10.5px",
-                  fontWeight: 700,
-                  fontFamily: "monospace",
-                }}
-              >
-                DEV MODE: {session.scenarioId}
-              </span>
-            )}
           </div>
 
-          {/* Sealed Truth Indicator */}
+          {/* Status Indicator */}
           <div
             data-testid="sealed-truth-indicator"
-            title="The scenario state is held outside the model context and is revealed only after verification."
+            title={isDemo ? "Guided fallback walkthrough using browser WebMCP instruments" : "The scenario state is held outside the model context and is revealed only after verification."}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -117,8 +111,17 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
               cursor: "help",
             }}
           >
-            <Lock size={12} />
-            <span>Hidden from agent context</span>
+            {isDemo ? (
+              <>
+                <ShieldCheck size={12} color="var(--ohmni-lab-brand, #4967FF)" />
+                <span>Deterministic WebMCP walkthrough</span>
+              </>
+            ) : (
+              <>
+                <Lock size={12} />
+                <span>Hidden from agent context</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -133,7 +136,7 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
               margin: "0 0 6px 0",
             }}
           >
-            BLIND HARDWARE CHALLENGE
+            {isDemo ? "DETERMINISTIC WEBMCP WALKTHROUGH" : "BLIND HARDWARE CHALLENGE"}
           </h2>
           <p
             style={{
@@ -143,8 +146,9 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
               margin: 0,
             }}
           >
-            A fault has been injected into the virtual controller.
-            Gemini / Demo Agent does not know the answer.
+            {isDemo
+              ? "This guided fallback demonstrates the same browser instruments, safety gates, evidence system and verification loop without external AI inference."
+              : `A fault has been injected into the virtual controller. ${identity.displayName} has not been given the answer.`}
           </p>
         </div>
 
@@ -201,8 +205,17 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
             padding: "0.25rem 0",
           }}
         >
-          <Lock size={14} color="var(--ohmni-lab-action, #D97706)" />
-          <span><strong>GROUND TRUTH:</strong> Hidden from agent context until reveal.</span>
+          {isDemo ? (
+            <>
+              <ShieldCheck size={14} color="var(--ohmni-lab-verified, #27966B)" />
+              <span><strong>EXECUTION:</strong> Guided WebMCP instrument verification without AI inference.</span>
+            </>
+          ) : (
+            <>
+              <Lock size={14} color="var(--ohmni-lab-action, #D97706)" />
+              <span><strong>GROUND TRUTH:</strong> Hidden from agent context until reveal.</span>
+            </>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -236,7 +249,7 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
             }}
           >
             <Play size={16} />
-            <span>Begin</span>
+            <span>{isDemo ? "Begin Walkthrough" : "Begin Investigation"}</span>
             <ArrowRight size={16} />
           </button>
         </div>
