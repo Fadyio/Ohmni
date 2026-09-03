@@ -47,7 +47,7 @@ export const SCENARIO_BROWNOUT: ScenarioDefinition = {
   groundTruth: {
     id: "brownout",
     title: "Relay Supply Misconfiguration",
-    hiddenFaultDescription: "Relay coil is wired to the shared 3.3 V MCU rail. Coil inrush current sags voltage to 2.72 V, triggering a hardware brownout reset.",
+    hiddenFaultDescription: "In the virtual DUT, the relay coil uses the shared 3.3 V MCU rail. Simulated coil inrush sags voltage to 2.72 V and triggers an MCU brownout reset.",
     expectedDiagnosis: "Relay-induced MCU supply rail brownout reset",
     rootCauseCategory: "supply_brownout",
     expectedRootCauseTags: ["relay_power_shared_rail", "supply_brownout", "voltage_sag"],

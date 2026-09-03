@@ -612,13 +612,13 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
       );
 
       expect(html).toContain("Repair verified");
-      expect(html).toContain("diagnosis matched the hidden hardware fault.");
+      expect(html).toContain("diagnosis matched the hidden virtual DUT fault.");
       expect(html).toContain("2.72 V");
       expect(html).toContain("3.18 V");
       expect(html).toContain("1");
       expect(html).toContain("Human Intervention");
       expect(html).toContain("2");
-      expect(html).toContain("Physical Experiments");
+      expect(html).toContain("Controlled DUT Experiments");
       expect(html).toContain("DIAGNOSIS MATCH ✓");
     });
   });

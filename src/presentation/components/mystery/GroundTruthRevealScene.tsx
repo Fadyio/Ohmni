@@ -107,8 +107,8 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
             }}
           >
             {isVerified
-              ? "The agent's diagnosis matched the hidden hardware fault."
-              : "The hidden hardware fault was revealed without a completed verification."}
+              ? "The agent's diagnosis matched the hidden virtual DUT fault."
+              : "The hidden virtual DUT fault was revealed without a completed verification."}
           </p>
         </div>
 
@@ -462,7 +462,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
               {experimentsCount}
             </div>
             <div style={{ fontSize: "12px", color: "var(--ohmni-lab-secondary)" }}>
-              Physical Experiments
+              Controlled DUT Experiments
             </div>
           </div>
         </div>
