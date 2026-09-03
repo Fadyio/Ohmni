@@ -15,6 +15,7 @@ import { translateRegisteredTools } from "./tool-translation";
 import type {
   AgentFunctionCall,
   AgentFunctionResult,
+  AgentTranscriptItem,
   AgentTurnResult,
   BenchAgentProvider,
   BenchAgentRunResult,
@@ -133,8 +134,16 @@ async function executeProviderTurnWithRetry(
       if (isAbort(error, signal)) throw error;
       if (attempts < MAX_PROVIDER_RETRIES && isRetryableError(error)) {
         attempts += 1;
-        // Bounded exponential backoff: 50ms, 150ms
-        const delayMs = attempts * 75;
+        const retryAfterSec =
+          typeof (error as { retryAfterSeconds?: unknown })?.retryAfterSeconds === "number"
+            ? ((error as { retryAfterSeconds: number }).retryAfterSeconds)
+            : typeof (error as { retryAfter?: unknown })?.retryAfter === "number"
+              ? ((error as { retryAfter: number }).retryAfter)
+              : undefined;
+        const delayMs =
+          retryAfterSec !== undefined && retryAfterSec > 0
+            ? Math.min(retryAfterSec * 1000, 5000)
+            : attempts * 75;
         await new Promise((resolve) => setTimeout(resolve, delayMs));
         continue;
       }
@@ -169,9 +178,12 @@ export async function runBenchAgent(
   let previousInteractionId: string | undefined = initialInteractionId;
   let lastInteractionId: string | undefined = initialInteractionId;
 
+  const transcript: AgentTranscriptItem[] = options.initialHistory
+    ? [...options.initialHistory]
+    : [{ role: "user", content: goal }];
+
   // Idempotency cache: maps call.id -> executed result string
   const executedCallResults = new Map<string, string>();
-
   try {
     throwIfAborted(signal);
 
@@ -186,6 +198,7 @@ export async function runBenchAgent(
         {
           input,
           tools,
+          history: transcript,
           ...(previousInteractionId === undefined
             ? {}
             : { previousInteractionId }),
@@ -193,6 +206,12 @@ export async function runBenchAgent(
         signal
       );
       lastInteractionId = turn.interactionId;
+
+      transcript.push({
+        role: "assistant",
+        ...(typeof turn.text === "string" && turn.text.length > 0 ? { content: turn.text } : {}),
+        ...(turn.functionCalls.length > 0 ? { toolCalls: turn.functionCalls } : {}),
+      });
 
       if (!Array.isArray(turn.functionCalls)) {
         throw new Error("Bench agent provider returned invalid function calls.");
@@ -204,13 +223,13 @@ export async function runBenchAgent(
             "Bench agent provider returned neither function calls nor text."
           );
         }
-        return { status: "completed", steps, text: turn.text, interactionId: turn.interactionId };
+        return { status: "completed", steps, text: turn.text, interactionId: turn.interactionId, history: transcript };
       }
 
       const results: AgentFunctionResult[] = [];
       for (const call of turn.functionCalls) {
         if (steps >= stepLimit) {
-          return { status: "step-limit", steps, interactionId: lastInteractionId };
+          return { status: "step-limit", steps, interactionId: lastInteractionId, history: transcript };
         }
         steps += 1;
 
@@ -218,9 +237,14 @@ export async function runBenchAgent(
         if (executedCallResults.has(call.id)) {
           const cachedResult = executedCallResults.get(call.id)!;
           results.push(functionResult(call, cachedResult));
+          transcript.push({
+            role: "tool",
+            callId: call.id,
+            name: call.name,
+            content: cachedResult,
+          });
           continue;
         }
-
         onEvent({ type: "tool-requested", call });
         throwIfAborted(signal);
 
@@ -234,9 +258,15 @@ export async function runBenchAgent(
           const message = `Tool '${call.name}' is unavailable.`;
           onEvent({ type: "tool-unavailable", call, message });
           results.push(errorFunctionResult(call, message));
+          transcript.push({
+            role: "tool",
+            callId: call.id,
+            name: call.name,
+            content: JSON.stringify({ error: message }),
+            isError: true,
+          });
           continue;
         }
-
         if (requiresHumanApproval(currentTool.name, currentTool.annotations)) {
           onEvent({ type: "approval-requested", call, tool: currentTool });
           const approved = await awaitWithAbort(
@@ -248,6 +278,13 @@ export async function runBenchAgent(
             const message = `Execution of tool '${call.name}' was denied.`;
             onEvent({ type: "tool-denied", call, message });
             results.push(errorFunctionResult(call, message));
+            transcript.push({
+              role: "tool",
+              callId: call.id,
+              name: call.name,
+              content: JSON.stringify({ error: message }),
+              isError: true,
+            });
             continue;
           }
 
@@ -261,6 +298,13 @@ export async function runBenchAgent(
             const message = `Tool '${call.name}' is unavailable.`;
             onEvent({ type: "tool-unavailable", call, message });
             results.push(errorFunctionResult(call, message));
+            transcript.push({
+              role: "tool",
+              callId: call.id,
+              name: call.name,
+              content: JSON.stringify({ error: message }),
+              isError: true,
+            });
             continue;
           }
         }
@@ -280,9 +324,15 @@ export async function runBenchAgent(
           );
           onEvent({ type: "tool-failed", call, message, durationMs: 0 });
           results.push(errorFunctionResult(call, message));
+          transcript.push({
+            role: "tool",
+            callId: call.id,
+            name: call.name,
+            content: JSON.stringify({ error: message }),
+            isError: true,
+          });
           continue;
         }
-
         const startedAt = Date.now();
         try {
           const result = await awaitWithAbort(
@@ -302,6 +352,12 @@ export async function runBenchAgent(
           // Record in idempotency cache
           executedCallResults.set(call.id, result);
           results.push(functionResult(call, result));
+          transcript.push({
+            role: "tool",
+            callId: call.id,
+            name: call.name,
+            content: result,
+          });
         } catch (error) {
           if (isAbort(error, signal)) throw error;
           const durationMs = Math.max(0, Date.now() - startedAt);
@@ -311,6 +367,13 @@ export async function runBenchAgent(
           );
           onEvent({ type: "tool-failed", call, message, durationMs });
           results.push(errorFunctionResult(call, message));
+          transcript.push({
+            role: "tool",
+            callId: call.id,
+            name: call.name,
+            content: JSON.stringify({ error: message }),
+            isError: true,
+          });
         }
       }
 
@@ -319,7 +382,7 @@ export async function runBenchAgent(
     }
   } catch (error) {
     if (isAbort(error, signal)) {
-      return { status: "stopped", steps, interactionId: lastInteractionId };
+      return { status: "stopped", steps, interactionId: lastInteractionId, history: transcript };
     }
     const requestId =
       typeof (error as { requestId?: unknown })?.requestId === "string"
@@ -331,6 +394,7 @@ export async function runBenchAgent(
       message: errorMessage(error, "Bench agent failed unexpectedly."),
       requestId,
       interactionId: lastInteractionId,
+      history: transcript,
     };
-  }
+}
 }

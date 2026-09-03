@@ -8,12 +8,12 @@ import { runBenchAgent } from "@/infrastructure/bench-agent/run-bench-agent";
 import type {
   AgentFunctionCall,
   AgentMode,
+  AgentTranscriptItem,
   BenchAgentEvent,
   BenchAgentProvider,
   BenchAgentRunResult,
 } from "@/infrastructure/bench-agent/types";
 import type { RegisteredTool } from "@/infrastructure/webmcp/types";
-
 export type BenchAgentActivityStatus =
   | "requested"
   | "waiting-approval"
@@ -38,6 +38,8 @@ export type BenchAgentProviderStatus =
   | "demo";
 interface BenchAgentStateBase {
   readonly agentMode?: AgentMode;
+  readonly liveProvider?: string;
+  readonly liveModel?: string;
   readonly goal: string;
   readonly runGoal?: string;
   readonly activity: readonly BenchAgentActivity[];
@@ -93,6 +95,7 @@ type ActiveBenchAgentState = Extract<
 export interface UseBenchAgentResult {
   readonly state: BenchAgentState;
   readonly agentMode: AgentMode;
+  readonly providerLabel: string;
   readonly setAgentMode: (mode: AgentMode) => void;
   readonly setGoal: (goal: string) => void;
   readonly start: () => void;
@@ -193,6 +196,8 @@ function resultState(
 
   const common = {
     agentMode: current.agentMode,
+    liveProvider: current.liveProvider,
+    liveModel: current.liveModel,
     goal: current.goal,
     runGoal: current.runGoal,
     activity: current.activity,
@@ -231,10 +236,14 @@ export function useBenchAgent(
 ): UseBenchAgentResult {
   const resolvedInitialMode: AgentMode =
     initialMode ??
-    (typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("agent") === "demo"
-      ? "demo"
-      : "gemini");
+    (typeof window !== "undefined"
+      ? (() => {
+          const p = new URLSearchParams(window.location.search).get("agent");
+          if (p === "demo") return "demo";
+          if (p === "gemini") return "gemini";
+          return "groq";
+        })()
+      : "groq");
 
   const [agentMode, setAgentModeState] = useState<AgentMode>(resolvedInitialMode);
   const agentModeRef = useRef<AgentMode>(resolvedInitialMode);
@@ -247,7 +256,7 @@ export function useBenchAgent(
   const [state, setReactState] = useState<BenchAgentState>(() => ({
     ...initialState,
     agentMode: resolvedInitialMode,
-    checkingAvailability: resolvedInitialMode === "gemini",
+    checkingAvailability: resolvedInitialMode !== "demo",
     providerAvailable: resolvedInitialMode === "demo",
     providerStatus: resolvedInitialMode === "demo" ? "demo" : "unconfigured",
   }));
@@ -258,6 +267,8 @@ export function useBenchAgent(
   const nextRunIdRef = useRef(0);
   const activeRunIdRef = useRef(0);
   const lastInteractionIdRef = useRef<string | undefined>(undefined);
+  const transcriptRef = useRef<AgentTranscriptItem[]>([]);
+
   const commit = useCallback((next: BenchAgentState) => {
     stateRef.current = next;
     if (mountedRef.current) {
@@ -266,7 +277,7 @@ export function useBenchAgent(
   }, []);
 
   const checkAvailability = useCallback(async () => {
-    if (agentModeRef.current !== "gemini") {
+    if (agentModeRef.current === "demo") {
       commit({
         status: "idle",
         checkingAvailability: false,
@@ -281,13 +292,17 @@ export function useBenchAgent(
 
     try {
       const availability = await fetchBenchAgentAvailability();
-      if (!mountedRef.current || agentModeRef.current !== "gemini") return;
+      if (!mountedRef.current) return;
       const previous = stateRef.current;
+      const detectedProvider = (availability.provider || "groq") as "groq" | "gemini" | "demo";
+      const detectedModel = availability.model;
       if (availability.available) {
         commit({
           status: "idle",
           checkingAvailability: false,
-          agentMode: "gemini",
+          agentMode: previous.agentMode ?? (detectedProvider === "gemini" ? "gemini" : "groq"),
+          liveProvider: detectedProvider,
+          liveModel: detectedModel,
           goal: previous.goal,
           activity: [],
           providerAvailable: true,
@@ -297,23 +312,28 @@ export function useBenchAgent(
       }
       commit({
         status: "unavailable",
-        agentMode: "gemini",
+        agentMode: previous.agentMode ?? (detectedProvider === "gemini" ? "gemini" : "groq"),
+        liveProvider: detectedProvider,
+        liveModel: detectedModel,
         goal: previous.goal,
         activity: [],
         providerAvailable: false,
         providerStatus: "error",
-        message: "Google API quota is currently unavailable.",
+        message: `${detectedProvider === "gemini" ? "Google" : "Groq"} API quota is currently unavailable.`,
       });
     } catch (error: unknown) {
-      if (!mountedRef.current || agentModeRef.current !== "gemini") return;
+      if (!mountedRef.current) return;
       const previous = stateRef.current;
       const requestId =
         typeof (error as { requestId?: unknown })?.requestId === "string"
           ? (error as { requestId: string }).requestId
           : undefined;
-      commit({
-        status: "failed",
-        agentMode: "gemini",
+        const fallbackProvider = agentModeRef.current === "gemini" ? "gemini" : "groq";
+        commit({
+          status: "failed",
+          agentMode: previous.agentMode ?? fallbackProvider,
+          liveProvider: previous.liveProvider ?? fallbackProvider,
+          liveModel: previous.liveModel,
         goal: previous.goal,
         activity: [],
         providerAvailable: false,
@@ -323,13 +343,13 @@ export function useBenchAgent(
         message:
           error instanceof Error && error.message.trim().length > 0
             ? error.message
-            : "Google API quota is currently unavailable.",
+            : "Live AI quota is currently unavailable.",
       });
     }
   }, [commit]);
 
   useEffect(() => {
-    if (agentMode === "gemini") {
+    if (agentMode !== "demo") {
       void checkAvailability();
     } else {
       commit({
@@ -370,7 +390,8 @@ export function useBenchAgent(
         commit({
           status: "idle",
           checkingAvailability: true,
-          agentMode: "gemini",
+          agentMode: mode,
+          liveProvider: mode,
           goal: stateRef.current.goal,
           activity: [],
           providerAvailable: false,
@@ -393,8 +414,10 @@ export function useBenchAgent(
     const currentMode = agentModeRef.current;
     commit({
       status: "idle",
-      checkingAvailability: currentMode === "gemini",
+      checkingAvailability: currentMode !== "demo",
       agentMode: currentMode,
+      liveProvider: stateRef.current.liveProvider,
+      liveModel: stateRef.current.liveModel,
       goal: "",
       activity: [],
       providerAvailable: currentMode === "demo" ? true : stateRef.current.providerAvailable,
@@ -524,8 +547,12 @@ export function useBenchAgent(
         steps: stepCount(activity),
       });
     };
+
+    transcriptRef.current = [{ role: "user", content: goal }];
+
     void runBenchAgent({
       goal,
+      initialHistory: transcriptRef.current,
       modelContext,
       provider: activeProvider,
       signal: controller.signal,
@@ -562,6 +589,9 @@ export function useBenchAgent(
         pendingApprovalRef.current = null;
         if (result.interactionId) {
           lastInteractionIdRef.current = result.interactionId;
+        }
+        if (result.history) {
+          transcriptRef.current = [...result.history];
         }
         commit(resultState(stateRef.current, result));
       })
@@ -670,8 +700,15 @@ export function useBenchAgent(
         });
       };
 
+      const continuationHistory: AgentTranscriptItem[] =
+        transcriptRef.current.length > 0
+          ? [...transcriptRef.current, { role: "user" as const, content: trimmed }]
+          : [{ role: "user" as const, content: trimmed }];
+      transcriptRef.current = continuationHistory;
+
       void runBenchAgent({
         goal: trimmed,
+        initialHistory: continuationHistory,
         previousInteractionId: lastInteractionIdRef.current,
         modelContext,
         provider: activeProvider,
@@ -709,6 +746,9 @@ export function useBenchAgent(
           pendingApprovalRef.current = null;
           if (result.interactionId) {
             lastInteractionIdRef.current = result.interactionId;
+          }
+          if (result.history) {
+            transcriptRef.current = [...result.history];
           }
           commit(resultState(stateRef.current, result));
         })
@@ -771,9 +811,16 @@ export function useBenchAgent(
     };
   }, []);
 
+  const providerLabel = useMemo(() => {
+    if (agentMode === "demo") return "DEMO AGENT";
+    if (agentMode === "gemini") return "GEMINI";
+    const p = state.liveProvider ?? "groq";
+    return p.toUpperCase();
+  }, [agentMode, state.liveProvider]);
   return {
     state,
     agentMode,
+    providerLabel,
     setAgentMode,
     setGoal,
     start,

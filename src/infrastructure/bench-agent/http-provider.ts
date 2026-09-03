@@ -73,14 +73,21 @@ function parseAvailability(value: unknown): BenchAgentAvailability {
     throw new Error("Bench agent returned invalid availability information.");
   }
 
+  const provider =
+    typeof record.provider === "string" && record.provider.length > 0
+      ? (record.provider as "groq" | "gemini" | "demo")
+      : undefined;
+
   return {
     available: record.available as boolean,
     model: record.model as string,
+    ...(provider !== undefined ? { provider } : {}),
   };
 }
 function sanitizeResponseText(text: string): string {
   return text
     .replace(/AIza[0-9A-Za-z-_]{35}/g, "[REDACTED_API_KEY]")
+    .replace(/gsk_[0-9A-Za-z_-]{20,}/g, "[REDACTED_API_KEY]")
     .replace(/(?:api[_-]?key|secret|token|password|bearer)[=:\s]+["']?([^\s"',;]+)/gi, (match) => {
       return match.replace(/([=:\s]+["']?)(.+)/, "$1[REDACTED]");
     })

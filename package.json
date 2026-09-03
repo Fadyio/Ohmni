@@ -17,6 +17,7 @@
     "test:visual": "bun run scripts/test-visual.ts",
     "test:e2e:demo": "bun run scripts/test-e2e-demo.ts",
     "test:e2e:production": "bun run scripts/test-e2e-production.ts",
+    "test:agent:groq": "bun run scripts/test-agent-groq.ts",
     "test:agent:live": "bun run scripts/test-agent-live.ts",
     "test:agent:supervised-ui": "bun run scripts/test-agent-supervised-ui.ts",
     "test:agent:vercel": "bun run scripts/test-agent-vercel.ts",

@@ -38,7 +38,7 @@ export const DeveloperInspector: React.FC<DeveloperInspectorProps> = ({
   hypotheses,
   latestToolResult,
   activeExperimentId,
-  providerName = "Gemini 2.5 Flash (Vercel Serverless)",
+  providerName = "Groq openai/gpt-oss-120b (Vercel Serverless)",
 }) => {
   const [copiedSnippet, setCopiedSnippet] = useState(false);
   const buildSha =

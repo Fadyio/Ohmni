@@ -6,7 +6,7 @@ import { GoogleGenAI } from "@google/genai";
 // Types
 // ============================================================================
 
-export interface GeminiFunctionDeclaration {
+export interface AgentToolDeclaration {
   readonly type: "function";
   readonly name: string;
   readonly description: string;
@@ -26,10 +26,29 @@ export interface AgentFunctionResult {
   readonly result: readonly [{ readonly type: "text"; readonly text: string }];
   readonly is_error?: boolean;
 }
+export type AgentTranscriptItem =
+  | {
+      readonly role: "user";
+      readonly content: string;
+    }
+  | {
+      readonly role: "assistant";
+      readonly content?: string;
+      readonly toolCalls?: readonly AgentFunctionCall[];
+    }
+  | {
+      readonly role: "tool";
+      readonly callId: string;
+      readonly name: string;
+      readonly content: string;
+      readonly isError?: boolean;
+    };
+
 
 export interface AgentTurnRequest {
   readonly input: string | readonly AgentFunctionResult[];
-  readonly tools: readonly GeminiFunctionDeclaration[];
+  readonly tools: readonly AgentToolDeclaration[];
+  readonly history?: readonly AgentTranscriptItem[];
   readonly previousInteractionId?: string;
 }
 
@@ -70,15 +89,20 @@ interface InteractionsClient {
 // ============================================================================
 
 export const DEFAULT_GEMINI_MODEL = "gemini-3.7-flash";
+export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 export const GEMINI_REQUEST_TIMEOUT_MS = 30_000;
+export const GROQ_REQUEST_TIMEOUT_MS = 30_000;
+export const GROQ_API_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 export const MAX_REQUEST_BODY_BYTES = 128 * 1024;
 export const MAX_TOOLS = 64;
 export const MAX_TOOL_DESCRIPTION_BYTES = 2 * 1024;
 export const MAX_TOOL_SCHEMA_BYTES = 16 * 1024;
+export const MAX_TRANSCRIPT_ITEMS = 128;
+export const MAX_TRANSCRIPT_CONTENT_BYTES = 64 * 1024;
+export const MAX_COMPACTED_TOOL_RESULT_BYTES = 2_048;
 export const MAX_REQUESTS_PER_SESSION = 24;
 export const SESSION_RATE_WINDOW_MS = 60_000;
 export const BENCH_AGENT_SESSION_HEADER = "x-bench-agent-session";
-
 const MAX_SESSION_ID_BYTES = 256;
 const MAX_TRACKED_SESSIONS = 1_024;
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
@@ -99,8 +123,10 @@ Prefer the smallest informative next experiment.`;
 export function sanitizeErrorMessage(error: unknown): string {
   if (!error) return "Unknown error";
   let message = error instanceof Error ? error.message : String(error);
-  // Redact Google API keys
-  message = message.replace(/AIza[0-9A-Za-z-_]{35}/g, "[REDACTED_API_KEY]");
+  // Redact Google & Groq API keys
+  message = message
+    .replace(/AIza[0-9A-Za-z-_]{35}/g, "[REDACTED_API_KEY]")
+    .replace(/gsk_[0-9A-Za-z_-]{20,}/g, "[REDACTED_API_KEY]");
   // Redact auth headers and secrets
   message = message.replace(/(?:api[_-]?key|secret|token|password|bearer)[=:\s]+["']?([^\s"',;]+)/gi, (match) => {
     return match.replace(/([=:\s]+["']?)(.+)/, "$1[REDACTED]");
@@ -217,6 +243,397 @@ export class GeminiBenchAgentProvider implements BenchAgentProvider {
     };
   }
 }
+// ============================================================================
+// Groq Provider
+// ============================================================================
+
+export class GroqRateLimitError extends Error {
+  public readonly retryAfterSeconds?: number;
+  public constructor(message: string, retryAfterSeconds?: number) {
+    super(message);
+    this.name = "GroqRateLimitError";
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+export type FetchFunction = (
+  input: RequestInfo | URL,
+  init?: RequestInit
+) => Promise<Response>;
+
+export interface GroqBenchAgentProviderOptions {
+  readonly apiKey: string;
+  readonly model?: string;
+  readonly timeoutMs?: number;
+  readonly fetchImpl?: FetchFunction;
+  readonly systemInstruction?: string;
+  readonly temperature?: number;
+}
+
+interface GroqToolCall {
+  readonly id: string;
+  readonly type: "function";
+  readonly function: {
+    readonly name: string;
+    readonly arguments: string;
+  };
+}
+
+interface GroqChoice {
+  readonly index: number;
+  readonly message: {
+    readonly role: "assistant";
+    readonly content?: string | null;
+    readonly tool_calls?: readonly GroqToolCall[];
+    readonly reasoning_content?: string | null;
+  };
+  readonly finish_reason?: string;
+}
+
+interface GroqChatCompletionResponse {
+  readonly id?: string;
+  readonly object?: string;
+  readonly created?: number;
+  readonly model?: string;
+  readonly choices?: readonly GroqChoice[];
+  readonly usage?: {
+    readonly prompt_tokens?: number;
+    readonly completion_tokens?: number;
+    readonly total_tokens?: number;
+  };
+  readonly error?: {
+    readonly message: string;
+    readonly type?: string;
+    readonly code?: string;
+  };
+}
+
+export function stripThinking(text: string): string {
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
+
+export function compactTranscriptItem(item: AgentTranscriptItem): AgentTranscriptItem {
+  if (item.role !== "tool") {
+    return item;
+  }
+  if (item.content.length <= MAX_COMPACTED_TOOL_RESULT_BYTES) {
+    return item;
+  }
+  const head = item.content.slice(0, 1_000);
+  const tail = item.content.slice(-500);
+  return {
+    ...item,
+    content: `${head}\n... [TRUNCATED FOR TOKEN CONTROL] ...\n${tail}`,
+  };
+}
+
+export function compactTranscript(history: readonly AgentTranscriptItem[]): AgentTranscriptItem[] {
+  return history.map(compactTranscriptItem);
+}
+
+export function translateToolsToGroq(
+  tools: readonly AgentToolDeclaration[]
+): Array<{
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}> {
+  return tools.map((tool) => ({
+    type: "function" as const,
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    },
+  }));
+}
+
+export function buildGroqMessages(
+  systemInstruction: string,
+  request: AgentTurnRequest
+): Array<Record<string, unknown>> {
+  const messages: Array<Record<string, unknown>> = [
+    { role: "system", content: systemInstruction },
+  ];
+
+  if (request.history && request.history.length > 0) {
+    const compacted = compactTranscript(request.history);
+    for (const item of compacted) {
+      if (item.role === "user") {
+        messages.push({ role: "user", content: item.content });
+      } else if (item.role === "assistant") {
+        const toolCalls =
+          item.toolCalls && item.toolCalls.length > 0
+            ? item.toolCalls.map((call) => ({
+                id: call.id,
+                type: "function" as const,
+                function: {
+                  name: call.name,
+                  arguments: JSON.stringify(call.arguments),
+                },
+              }))
+            : undefined;
+        messages.push({
+          role: "assistant",
+          content: item.content ?? null,
+          ...(toolCalls ? { tool_calls: toolCalls } : {}),
+        });
+      } else if (item.role === "tool") {
+        messages.push({
+          role: "tool",
+          tool_call_id: item.callId,
+          name: item.name,
+          content: item.content,
+        });
+      }
+    }
+  } else {
+    if (typeof request.input === "string") {
+      messages.push({ role: "user", content: request.input });
+    } else if (Array.isArray(request.input)) {
+      for (const res of request.input) {
+        const text = res.result.map((r: { readonly text: string }) => r.text).join("\n");
+        messages.push({
+          role: "tool",
+          tool_call_id: res.call_id,
+          name: res.name,
+          content: text,
+        });
+      }
+    }
+  }
+  return messages;
+}
+
+export function parseGroqToolCalls(
+  toolCalls: readonly GroqToolCall[] | undefined
+): AgentFunctionCall[] {
+  if (!toolCalls || toolCalls.length === 0) {
+    return [];
+  }
+  const parsedCalls: AgentFunctionCall[] = [];
+  for (const call of toolCalls) {
+    if (
+      !call ||
+      typeof call !== "object" ||
+      call.type !== "function" ||
+      !call.function ||
+      typeof call.function.name !== "string" ||
+      call.function.name.trim() === "" ||
+      typeof call.id !== "string" ||
+      call.id.trim() === ""
+    ) {
+      throw new Error("Groq returned a malformed function call structure.");
+    }
+    let parsedArgs: unknown;
+    try {
+      parsedArgs = JSON.parse(call.function.arguments || "{}");
+    } catch {
+      throw new Error(
+        `Groq returned unparseable JSON arguments for tool '${call.function.name}'.`
+      );
+    }
+    if (parsedArgs === null || typeof parsedArgs !== "object" || Array.isArray(parsedArgs)) {
+      throw new Error(
+        `Groq returned non-object arguments for tool '${call.function.name}'.`
+      );
+    }
+    parsedCalls.push({
+      id: call.id,
+      name: call.function.name,
+      arguments: parsedArgs as Record<string, unknown>,
+    });
+  }
+  return parsedCalls;
+}
+
+function parseRetryAfter(headerValue: string | null): number | undefined {
+  if (!headerValue) return undefined;
+  const parsedInt = parseInt(headerValue, 10);
+  if (!Number.isNaN(parsedInt) && parsedInt >= 0) {
+    return parsedInt;
+  }
+  const parsedDate = Date.parse(headerValue);
+  if (!Number.isNaN(parsedDate)) {
+    return Math.max(0, Math.ceil((parsedDate - Date.now()) / 1000));
+  }
+  return undefined;
+}
+
+export class GroqBenchAgentProvider implements BenchAgentProvider {
+  private readonly apiKey: string;
+  private readonly model: string;
+  private readonly timeoutMs: number;
+  private readonly fetchImpl: FetchFunction;
+  private readonly systemInstruction: string;
+  private readonly temperature: number;
+
+  public constructor(options: GroqBenchAgentProviderOptions) {
+    const apiKey = options.apiKey?.trim();
+    if (!apiKey) {
+      throw new Error("Groq API key must not be empty.");
+    }
+    this.apiKey = apiKey;
+    this.model = options.model?.trim() || DEFAULT_GROQ_MODEL;
+    this.timeoutMs = options.timeoutMs ?? GROQ_REQUEST_TIMEOUT_MS;
+    this.fetchImpl = options.fetchImpl ?? globalThis.fetch;
+    this.systemInstruction = options.systemInstruction ?? BENCH_AGENT_SYSTEM_INSTRUCTION;
+    this.temperature = options.temperature ?? 0.2;
+  }
+
+  public async turn(
+    request: AgentTurnRequest,
+    options?: { signal?: AbortSignal }
+  ): Promise<AgentTurnResult> {
+    const messages = buildGroqMessages(this.systemInstruction, request);
+    const tools = request.tools.length > 0 ? translateToolsToGroq(request.tools) : undefined;
+    const requestBody: Record<string, unknown> = {
+      model: this.model,
+      messages,
+      temperature: this.temperature,
+    };
+    if (tools) {
+      requestBody.tools = tools;
+      requestBody.tool_choice = "auto";
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const combinedSignal = options?.signal
+      ? AbortSignal.any([options.signal, controller.signal])
+      : controller.signal;
+
+    let response: Response;
+    try {
+      response = await this.fetchImpl(GROQ_API_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+        signal: combinedSignal,
+      });
+    } catch (err: unknown) {
+      clearTimeout(timeout);
+      if (options?.signal?.aborted) {
+        throw new Error("Bench agent request aborted.");
+      }
+      if (controller.signal.aborted) {
+        throw new Error(`Groq request timed out after ${this.timeoutMs}ms.`);
+      }
+      throw new Error(sanitizeErrorMessage(err));
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (response.status === 429) {
+      const retryAfter = parseRetryAfter(response.headers.get("retry-after"));
+      let errorMessage = "The free Groq allocation is temporarily rate limited.";
+      try {
+        const errorJson = (await response.json()) as GroqChatCompletionResponse;
+        if (errorJson.error?.message) {
+          errorMessage = errorJson.error.message;
+        }
+      } catch {
+        // use default
+      }
+      throw new GroqRateLimitError(errorMessage, retryAfter);
+    }
+
+    let data: GroqChatCompletionResponse;
+    try {
+      data = (await response.json()) as GroqChatCompletionResponse;
+    } catch (err) {
+      throw new Error(`Groq returned invalid JSON response: ${sanitizeErrorMessage(err)}`);
+    }
+
+    if (!response.ok) {
+      const msg = data.error?.message || `Groq request failed with status ${response.status}.`;
+      throw new Error(sanitizeErrorMessage(msg));
+    }
+
+    const choice = data.choices?.[0];
+    if (!choice || !choice.message) {
+      throw new Error("Groq response did not contain any completion choices.");
+    }
+
+    const rawContent = choice.message.content;
+    const cleanContent = typeof rawContent === "string" ? stripThinking(rawContent) : undefined;
+    const functionCalls = parseGroqToolCalls(choice.message.tool_calls);
+
+    return {
+      interactionId: data.id || `groq-${Date.now()}`,
+      functionCalls,
+      text: cleanContent && cleanContent.length > 0 ? cleanContent : undefined,
+    };
+  }
+
+  public async canary(options?: { signal?: AbortSignal }): Promise<{
+    readonly ok: boolean;
+    readonly message: string;
+    readonly model: string;
+  }> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    const combinedSignal = options?.signal
+      ? AbortSignal.any([options.signal, controller.signal])
+      : controller.signal;
+
+    try {
+      const response = await this.fetchImpl(GROQ_API_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [{ role: "user", content: "Reply exactly OK." }],
+          temperature: 0.0,
+          max_tokens: 16,
+        }),
+        signal: combinedSignal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return {
+          ok: false,
+          message: `Canary HTTP ${response.status}: ${sanitizeErrorMessage(errorText)}`,
+          model: this.model,
+        };
+      }
+
+      const data = (await response.json()) as GroqChatCompletionResponse;
+      const content = data.choices?.[0]?.message?.content?.trim();
+      if (!content) {
+        return {
+          ok: false,
+          message: "Canary returned empty response from Groq.",
+          model: this.model,
+        };
+      }
+
+      return {
+        ok: true,
+        message: content,
+        model: this.model,
+      };
+    } catch (err: unknown) {
+      return {
+        ok: false,
+        message: sanitizeErrorMessage(err),
+        model: this.model,
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+}
 
 // ============================================================================
 // Handler Parsing & Construction
@@ -293,7 +710,7 @@ function parseFunctionResult(value: unknown): AgentFunctionResult | undefined {
   };
 }
 
-function parseTool(value: unknown): GeminiFunctionDeclaration | undefined {
+function parseTool(value: unknown): AgentToolDeclaration | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return undefined;
   }
@@ -329,6 +746,111 @@ function parseTool(value: unknown): GeminiFunctionDeclaration | undefined {
     parameters: candidate.parameters as Record<string, unknown>,
   };
 }
+function parseFunctionCall(value: unknown): AgentFunctionCall | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  const candidate = value as Record<string, unknown>;
+  if (
+    !hasExactKeys(candidate, ["id", "name", "arguments"]) ||
+    typeof candidate.id !== "string" ||
+    candidate.id.length === 0 ||
+    typeof candidate.name !== "string" ||
+    candidate.name.length === 0 ||
+    typeof candidate.arguments !== "object" ||
+    candidate.arguments === null ||
+    Array.isArray(candidate.arguments)
+  ) {
+    return undefined;
+  }
+  return {
+    id: candidate.id,
+    name: candidate.name,
+    arguments: candidate.arguments as Record<string, unknown>,
+  };
+}
+
+function parseTranscriptItem(value: unknown): AgentTranscriptItem | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  const candidate = value as Record<string, unknown>;
+  if (candidate.role === "user") {
+    if (
+      !hasExactKeys(candidate, ["role", "content"]) ||
+      typeof candidate.content !== "string" ||
+      encoder.encode(candidate.content).byteLength > MAX_TRANSCRIPT_CONTENT_BYTES
+    ) {
+      return undefined;
+    }
+    return { role: "user", content: candidate.content };
+  }
+  if (candidate.role === "assistant") {
+    if (
+      !hasExactKeys(candidate, ["role"], ["content", "toolCalls"]) ||
+      (candidate.content !== undefined && typeof candidate.content !== "string") ||
+      (candidate.toolCalls !== undefined && !Array.isArray(candidate.toolCalls))
+    ) {
+      return undefined;
+    }
+    let toolCalls: AgentFunctionCall[] | undefined = undefined;
+    if (Array.isArray(candidate.toolCalls)) {
+      toolCalls = [];
+      for (const call of candidate.toolCalls) {
+        const parsedCall = parseFunctionCall(call);
+        if (parsedCall === undefined) {
+          return undefined;
+        }
+        toolCalls.push(parsedCall);
+      }
+    }
+    if (candidate.content === undefined && toolCalls === undefined) {
+      return undefined;
+    }
+    return {
+      role: "assistant",
+      ...(candidate.content !== undefined ? { content: candidate.content as string } : {}),
+      ...(toolCalls !== undefined ? { toolCalls } : {}),
+    };
+  }
+  if (candidate.role === "tool") {
+    if (
+      !hasExactKeys(candidate, ["role", "callId", "name", "content"], ["isError"]) ||
+      typeof candidate.callId !== "string" ||
+      candidate.callId.length === 0 ||
+      typeof candidate.name !== "string" ||
+      candidate.name.length === 0 ||
+      typeof candidate.content !== "string" ||
+      encoder.encode(candidate.content).byteLength > MAX_TRANSCRIPT_CONTENT_BYTES ||
+      (candidate.isError !== undefined && typeof candidate.isError !== "boolean")
+    ) {
+      return undefined;
+    }
+    return {
+      role: "tool",
+      callId: candidate.callId,
+      name: candidate.name,
+      content: candidate.content,
+      ...(candidate.isError !== undefined ? { isError: candidate.isError } : {}),
+    };
+  }
+  return undefined;
+}
+
+function parseHistory(value: unknown): AgentTranscriptItem[] | undefined {
+  if (!Array.isArray(value) || value.length > MAX_TRANSCRIPT_ITEMS) {
+    return undefined;
+  }
+  const history: AgentTranscriptItem[] = [];
+  for (const item of value) {
+    const parsed = parseTranscriptItem(item);
+    if (parsed === undefined) {
+      return undefined;
+    }
+    history.push(parsed);
+  }
+  return history;
+}
 
 function parseTurnRequest(value: unknown): AgentTurnRequest | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -336,17 +858,18 @@ function parseTurnRequest(value: unknown): AgentTurnRequest | undefined {
   }
   const candidate = value as Record<string, unknown>;
   if (
-    !hasExactKeys(candidate, ["input", "tools"], ["previousInteractionId"]) ||
+    !hasExactKeys(candidate, ["input", "tools"], ["previousInteractionId", "history"]) ||
     !Array.isArray(candidate.tools) ||
     candidate.tools.length > MAX_TOOLS ||
     (candidate.previousInteractionId !== undefined &&
       (typeof candidate.previousInteractionId !== "string" ||
-        candidate.previousInteractionId.length === 0))
+        candidate.previousInteractionId.length === 0)) ||
+    (candidate.history !== undefined && !Array.isArray(candidate.history))
   ) {
     return undefined;
   }
 
-  const tools: GeminiFunctionDeclaration[] = [];
+  const tools: AgentToolDeclaration[] = [];
   for (const value of candidate.tools) {
     const tool = parseTool(value);
     if (tool === undefined) {
@@ -372,9 +895,18 @@ function parseTurnRequest(value: unknown): AgentTurnRequest | undefined {
     return undefined;
   }
 
+  let history: AgentTranscriptItem[] | undefined = undefined;
+  if (candidate.history !== undefined) {
+    history = parseHistory(candidate.history);
+    if (history === undefined) {
+      return undefined;
+    }
+  }
+
   return {
     input,
     tools,
+    ...(history !== undefined ? { history } : {}),
     ...(typeof candidate.previousInteractionId === "string"
       ? { previousInteractionId: candidate.previousInteractionId }
       : {}),
@@ -462,27 +994,58 @@ export function formatSessionCookie(token: string, options: { isProduction?: boo
   return `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
+export interface BenchAgentEnvironment {
+  readonly AI_PROVIDER?: string;
+  readonly GROQ_API_KEY?: string;
+  readonly GROQ_MODEL?: string;
+  readonly GEMINI_API_KEY?: string;
+  readonly GEMINI_MODEL?: string;
+  readonly OHMNI_ACCESS_PASSWORD?: string;
+  readonly OHMNI_AUTH_SECRET?: string;
+  readonly NODE_ENV?: string;
+}
+
 export function createBenchAgentHandler(options: {
-  env: {
-    GEMINI_API_KEY?: string;
-    GEMINI_MODEL?: string;
-    OHMNI_ACCESS_PASSWORD?: string;
-    OHMNI_AUTH_SECRET?: string;
-    NODE_ENV?: string;
-  };
+  env: BenchAgentEnvironment;
   provider?: BenchAgentProvider;
   now?: () => number;
 }): (request: Request) => Promise<Response> {
-  const apiKey = options.env.GEMINI_API_KEY?.trim() ?? "";
-  const model = options.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+  const rawProviderType = options.env.AI_PROVIDER?.trim().toLowerCase();
+  const groqApiKey = options.env.GROQ_API_KEY?.trim() ?? "";
+  const groqModel = options.env.GROQ_MODEL?.trim() || DEFAULT_GROQ_MODEL;
+  const geminiApiKey = options.env.GEMINI_API_KEY?.trim() ?? "";
+  const geminiModel = options.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+
+  let providerType: "groq" | "gemini";
+  if (rawProviderType === "gemini") {
+    providerType = "gemini";
+  } else if (rawProviderType === "groq") {
+    providerType = "groq";
+  } else if (options.env.GROQ_API_KEY !== undefined || options.env.GROQ_MODEL !== undefined) {
+    providerType = "groq";
+  } else if (options.env.GEMINI_API_KEY !== undefined || options.env.GEMINI_MODEL !== undefined) {
+    providerType = "gemini";
+  } else {
+    providerType = "groq";
+  }
+
+  const activeApiKey = providerType === "gemini" ? geminiApiKey : groqApiKey;
+  const activeModel = providerType === "gemini" ? geminiModel : groqModel;
+  const isConfigured = activeApiKey.length > 0;
+  const providerLabel = providerType === "gemini" ? "Gemini" : "Groq";
+
+  const provider =
+    options.provider ??
+    (isConfigured
+      ? providerType === "gemini"
+        ? new GeminiBenchAgentProvider({ apiKey: geminiApiKey, model: geminiModel })
+        : new GroqBenchAgentProvider({ apiKey: groqApiKey, model: groqModel })
+      : undefined);
+  const model = activeModel;
+  const apiKey = activeApiKey;
   const accessPassword = options.env.OHMNI_ACCESS_PASSWORD?.trim() ?? "";
   const authSecret = options.env.OHMNI_AUTH_SECRET?.trim() || "ohmni-auth-secret-key-default";
   const isAuthRequired = accessPassword.length > 0;
-  const provider =
-    options.provider ??
-    (apiKey.length > 0
-      ? new GeminiBenchAgentProvider({ apiKey, model })
-      : undefined);
   const now = options.now ?? Date.now;
   const sessions = new Map<string, { count: number; windowStartedAt: number }>();
   return async (request: Request): Promise<Response> => {
@@ -539,12 +1102,12 @@ export function createBenchAgentHandler(options: {
       url.searchParams.has("health");
 
     if (isHealthCheck) {
-      if (apiKey.length === 0 || provider === undefined) {
+      if (!isConfigured || provider === undefined) {
         return jsonResponse(
           {
             ok: false,
             error: "BENCH_AGENT_UNAVAILABLE",
-            message: "Gemini API key is not configured.",
+            message: `${providerLabel} API key is not configured.`,
             requestId,
           },
           503,
@@ -586,8 +1149,9 @@ export function createBenchAgentHandler(options: {
 
     if (request.method === "GET") {
       return jsonResponse({
-        available: apiKey.length > 0,
-        model,
+        available: isConfigured,
+        provider: providerType,
+        model: activeModel,
         ...(isAuthRequired ? { authRequired: true } : {}),
       });
     }
@@ -607,11 +1171,11 @@ export function createBenchAgentHandler(options: {
       );
     }
 
-    if (apiKey.length === 0 || provider === undefined) {
+    if (!isConfigured || provider === undefined) {
       return jsonResponse(
         {
           error: "BENCH_AGENT_UNAVAILABLE",
-          message: "Gemini API key is not configured.",
+          message: `${providerLabel} API key is not configured.`,
           requestId,
         },
         503,
@@ -736,6 +1300,21 @@ export function createBenchAgentHandler(options: {
       });
       return jsonResponse({ ...result, requestId });
     } catch (err: unknown) {
+      if (err instanceof GroqRateLimitError) {
+        return jsonResponse(
+          {
+            error: "RATE_LIMITED",
+            message: err.message,
+            retryAfter: err.retryAfterSeconds,
+            requestId,
+          },
+          429,
+          err.retryAfterSeconds !== undefined
+            ? { "retry-after": String(err.retryAfterSeconds) }
+            : {},
+        );
+      }
+
       const safeMessage = sanitizeErrorMessage(err);
       const errorObj = err as Record<string, unknown> | undefined;
       const errorName = errorObj?.name ?? (err instanceof Error ? err.name : "Error");
@@ -767,8 +1346,14 @@ export function createBenchAgentHandler(options: {
 
 const webHandler = createBenchAgentHandler({
   env: {
+    AI_PROVIDER: process.env.AI_PROVIDER,
+    GROQ_API_KEY: process.env.GROQ_API_KEY,
+    GROQ_MODEL: process.env.GROQ_MODEL,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     GEMINI_MODEL: process.env.GEMINI_MODEL,
+    OHMNI_ACCESS_PASSWORD: process.env.OHMNI_ACCESS_PASSWORD,
+    OHMNI_AUTH_SECRET: process.env.OHMNI_AUTH_SECRET,
+    NODE_ENV: process.env.NODE_ENV,
   },
 });
 

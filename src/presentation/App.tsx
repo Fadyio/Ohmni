@@ -128,8 +128,11 @@ export const App: React.FC<AppProps> = ({
     if (typeof window === "undefined") return undefined;
     const params = new URLSearchParams(window.location.search);
     const mode = params.get("agent");
-    if (mode === "demo" || mode === "gemini") {
+    if (mode === "demo" || mode === "gemini" || mode === "groq") {
       return mode;
+    }
+    if (mode === "live") {
+      return "groq";
     }
     return undefined;
   }, []);
@@ -514,6 +517,11 @@ export const App: React.FC<AppProps> = ({
             : null
         }
         activeExperimentId={activeExperimentId ?? undefined}
+        providerName={
+          agentMode === "demo"
+            ? "Deterministic Demo Provider"
+            : `${(agentState.liveProvider ?? "Groq").toUpperCase()} ${agentState.liveModel ?? "openai/gpt-oss-120b"} (Vercel Serverless)`
+        }
       />
     </div>
   );

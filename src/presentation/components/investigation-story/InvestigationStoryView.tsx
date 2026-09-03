@@ -229,17 +229,17 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             ) : providerStatus === "live" ? (
               <>
                 <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--ohmni-lab-verified, #27966B)", boxShadow: "0 0 6px rgba(39, 150, 107, 0.8)" }} />
-                <span>GEMINI LIVE</span>
+                <span>{(agentMode === "gemini" ? "GEMINI" : (agentState.liveProvider ?? "GROQ")).toUpperCase()} LIVE</span>
               </>
             ) : providerStatus === "error" || agentState.status === "failed" || agentState.status === "unavailable" ? (
               <>
                 <AlertTriangle size={12} />
-                <span>GEMINI ERROR</span>
+                <span>{(agentMode === "gemini" ? "GEMINI" : (agentState.liveProvider ?? "GROQ")).toUpperCase()} ERROR</span>
               </>
             ) : (
               <>
                 <Sparkles size={12} />
-                <span>GEMINI CONFIGURED</span>
+                <span>{(agentMode === "gemini" ? "GEMINI" : (agentState.liveProvider ?? "GROQ")).toUpperCase()} CONFIGURED</span>
               </>
             )}
           </span>

@@ -3,19 +3,21 @@ import { GoogleGenAI } from "@google/genai";
 import type {
   AgentFunctionCall,
   AgentFunctionResult,
+  AgentTranscriptItem,
   AgentTurnRequest,
   AgentTurnResult,
   BenchAgentProvider,
-  GeminiFunctionDeclaration,
+  AgentToolDeclaration,
 } from "../../src/infrastructure/bench-agent/types.ts";
 
 export type {
   AgentFunctionCall,
   AgentFunctionResult,
+  AgentTranscriptItem,
   AgentTurnRequest,
   AgentTurnResult,
   BenchAgentProvider,
-  GeminiFunctionDeclaration,
+  AgentToolDeclaration,
 };
 
 interface InteractionResponse {

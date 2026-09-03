@@ -128,6 +128,7 @@ describe("createBenchAgentHandler", () => {
       expect(response.status).toBe(200);
       expect(JSON.parse(body)).toEqual({
         available: true,
+        provider: "gemini",
         model: DEFAULT_GEMINI_MODEL,
       });
       expect(body).not.toContain(API_KEY);
@@ -146,6 +147,7 @@ describe("createBenchAgentHandler", () => {
       expect(response.status).toBe(200);
       expect(await responseJson(response)).toEqual({
         available: false,
+        provider: "gemini",
         model: "server-selected-model",
       });
       expect(requests).toHaveLength(0);
@@ -167,6 +169,46 @@ describe("createBenchAgentHandler", () => {
       expect(payload.requestId).toBeDefined();
       expect(body).not.toContain(API_KEY);
       expect(requests).toHaveLength(0);
+    });
+    it("reports Groq provider and model when AI_PROVIDER is groq or GROQ_API_KEY is configured", async () => {
+      const { provider, requests } = recordingProvider();
+      const handler = createBenchAgentHandler({
+        env: {
+          AI_PROVIDER: "groq",
+          GROQ_API_KEY: "gsk_test_key_12345",
+          GROQ_MODEL: "openai/gpt-oss-120b",
+        },
+        provider,
+      });
+
+      const response = await handler(request("GET", { origin: null }));
+      expect(response.status).toBe(200);
+      expect(await responseJson(response)).toEqual({
+        available: true,
+        provider: "groq",
+        model: "openai/gpt-oss-120b",
+      });
+      expect(requests).toHaveLength(0);
+    });
+
+    it("reports unavailable Groq when GROQ_API_KEY is empty", async () => {
+      const { provider } = recordingProvider();
+      const handler = createBenchAgentHandler({
+        env: {
+          AI_PROVIDER: "groq",
+          GROQ_API_KEY: "",
+          GROQ_MODEL: "openai/gpt-oss-120b",
+        },
+        provider,
+      });
+
+      const response = await handler(request("GET", { origin: null }));
+      expect(response.status).toBe(200);
+      expect(await responseJson(response)).toEqual({
+        available: false,
+        provider: "groq",
+        model: "openai/gpt-oss-120b",
+      });
     });
   });
 

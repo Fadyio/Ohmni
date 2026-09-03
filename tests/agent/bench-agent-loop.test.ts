@@ -1012,4 +1012,71 @@ describe("runBenchAgent", () => {
     expect(executedCalls).toEqual(["run_relay_stress_test"]);
     expect(result.status).toBe("completed");
   });
+  it("maintains and sends the complete agent transcript across multi-turn tool loops", async () => {
+    const modelContext = new InMemoryModelContext();
+    await modelContext.registerTool({
+      name: "measure_supply_voltage",
+      description: "Measure supply voltage",
+      inputSchema: { type: "object", properties: {} },
+      execute: async () => JSON.stringify({ voltage: 3.12, status: "BROWNOUT" }),
+    });
+
+    const provider = new DeterministicProvider([
+      {
+        interactionId: "turn-1",
+        functionCalls: [
+          {
+            id: "call-v1",
+            name: "measure_supply_voltage",
+            arguments: {},
+          },
+        ],
+      },
+      {
+        interactionId: "turn-2",
+        functionCalls: [],
+        text: "Identified brownout at 3.12V.",
+      },
+    ]);
+
+    const result = await runBenchAgent({
+      goal: "Diagnose board reset",
+      modelContext,
+      provider,
+      requestApproval: async () => true,
+    });
+
+    expect(result.status).toBe("completed");
+    expect(result.history).toBeDefined();
+    expect(result.history).toHaveLength(4);
+    expect(result.history![3]).toEqual({
+      role: "assistant",
+      content: "Identified brownout at 3.12V.",
+    });
+    // Turn 1 request verification
+    expect(provider.requests[0].history).toEqual([
+      { role: "user", content: "Diagnose board reset" },
+    ]);
+
+    // Turn 2 request verification: receives full transcript
+    expect(provider.requests[1].history).toEqual([
+      { role: "user", content: "Diagnose board reset" },
+      {
+        role: "assistant",
+        toolCalls: [
+          {
+            id: "call-v1",
+            name: "measure_supply_voltage",
+            arguments: {},
+          },
+        ],
+      },
+      {
+        role: "tool",
+        callId: "call-v1",
+        name: "measure_supply_voltage",
+        content: JSON.stringify({ voltage: 3.12, status: "BROWNOUT" }),
+      },
+    ]);
+  });
 });

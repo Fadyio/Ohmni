@@ -344,7 +344,7 @@ export const BenchAgentPanel: React.FC<BenchAgentPanelProps> = ({ isConnected, o
               BENCH AGENT DEMO PROVIDER
             </div>
             <p style={{ marginTop: "4px", color: "var(--ohmni-text-secondary)", fontSize: "12px" }}>
-              Live Gemini API key not configured. Using deterministic validation agent.
+              Live {state.liveProvider ? state.liveProvider.toUpperCase() : "AI"} API key not configured. Using deterministic validation agent.
             </p>
           </div>
         )}

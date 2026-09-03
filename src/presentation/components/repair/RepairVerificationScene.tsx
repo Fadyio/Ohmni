@@ -343,7 +343,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-warning)", fontSize: "12px", fontWeight: 700 }}>
                       <ShieldAlert size={14} />
-                      <span>Gemini Requested Retest: {agentState.approval.tool.name}</span>
+                      <span>{(agentState?.agentMode === "demo" ? "Demo Agent" : (agentState?.liveProvider === "gemini" ? "Gemini" : "Groq"))} Requested Retest: {agentState?.approval?.tool.name}</span>
                     </div>
                     <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
                       <button
@@ -392,7 +392,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     }}
                   >
                     <Activity size={14} className="animate-spin" />
-                    <span>Gemini is evaluating physical repair & executing verification...</span>
+                    <span>{(agentState?.agentMode === "demo" ? "Demo Agent" : (agentState?.liveProvider === "gemini" ? "Gemini" : "Groq"))} is evaluating physical repair & executing verification...</span>
                   </div>
                 ) : (
                   /* Human Observation CTA: Tell Gemini I changed it */
@@ -411,14 +411,13 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                       border: "none",
                       padding: "10px 18px",
                       borderRadius: "var(--radius-md)",
-                      fontSize: "13px",
                       fontWeight: 700,
                       cursor: "pointer",
                       boxShadow: "0 0 12px rgba(85, 112, 255, 0.4)",
                     }}
                   >
                     <Send size={14} />
-                    <span>Tell agent I've changed it</span>
+                    <span>Tell {(agentState?.agentMode === "demo" ? "agent" : (agentState?.liveProvider === "gemini" ? "Gemini" : "Groq"))} I've changed it</span>
                   </button>
                 )}
               </div>

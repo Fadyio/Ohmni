@@ -140,7 +140,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           />
           <div>
             <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--ohmni-lab-text)", letterSpacing: "-0.01em" }}>
-              Gemini
+              {agentState.agentMode === "demo" ? "Demo Agent" : (agentState.liveProvider === "gemini" ? "Gemini" : "Groq")}
             </div>
             <div
               data-testid="bench-agent-status"

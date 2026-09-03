@@ -150,71 +150,86 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
     >
       {/* Agent Failure Diagnostic Banner */}
       {/* Gemini Unavailable / Error Card */}
-      {agentMode === "gemini" && (agentState.status === "failed" || agentState.status === "unavailable" || agentState.providerStatus === "error") ? (
-        <motion.div
-          id="gemini-unavailable-card"
-          data-testid="gemini-unavailable-card"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{
-            background: "rgba(220, 80, 80, 0.06)",
-            border: "1px solid rgba(220, 80, 80, 0.28)",
-            borderRadius: "var(--radius-lg, 12px)",
-            padding: "1.5rem 1.75rem",
-            marginBottom: "1.5rem",
-            display: "flex",
-            flexDirection: "column",
-            gap: "10px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--ohmni-lab-fault, #DC5050)", fontSize: "13px", fontWeight: 800 }}>
-            <AlertTriangle size={18} />
-            <span>GEMINI UNAVAILABLE</span>
-          </div>
-          <p style={{ margin: 0, fontSize: "14px", color: "var(--ohmni-lab-muted, #64748B)", lineHeight: 1.5 }}>
-            Google API quota is currently unavailable.
-          </p>
-          <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-            {onRetryGemini && (
-              <button
-                type="button"
-                data-testid="retry-gemini-btn"
-                onClick={onRetryGemini}
-                className="btn-secondary"
-                style={{
-                  padding: "8px 16px",
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <RotateCcw size={14} />
-                <span>Retry Gemini</span>
-              </button>
-            )}
-            {onSwitchToDemo && (
-              <button
-                type="button"
-                data-testid="continue-demo-agent-btn"
-                onClick={onSwitchToDemo}
-                className="btn-primary"
-                style={{
-                  padding: "8px 16px",
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <Bot size={14} />
-                <span>Continue with Demo Agent</span>
-              </button>
-            )}
-          </div>
-        </motion.div>
+      {agentMode !== "demo" && (agentState.status === "failed" || agentState.status === "unavailable" || agentState.providerStatus === "error") ? (
+        (() => {
+          const stateMessage = "message" in agentState && typeof agentState.message === "string" ? agentState.message : undefined;
+          const isRateLimited = Boolean(
+            stateMessage &&
+              (stateMessage.toLowerCase().includes("rate limit") ||
+                stateMessage.toLowerCase().includes("rate_limited") ||
+                stateMessage.includes("FREE AI RATE LIMIT REACHED"))
+          );
+          const providerTitle = (agentMode === "gemini" ? "GEMINI" : (agentState.liveProvider ?? "GROQ")).toUpperCase();
+          return (
+            <motion.div
+              id="gemini-unavailable-card"
+              data-testid="gemini-unavailable-card"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{
+                background: "rgba(220, 80, 80, 0.06)",
+                border: "1px solid rgba(220, 80, 80, 0.28)",
+                borderRadius: "var(--radius-lg, 12px)",
+                padding: "1.5rem 1.75rem",
+                marginBottom: "1.5rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--ohmni-lab-fault, #DC5050)", fontSize: "13px", fontWeight: 800 }}>
+                <AlertTriangle size={18} />
+                <span>{isRateLimited ? "FREE AI RATE LIMIT REACHED" : `${providerTitle} UNAVAILABLE`}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: "14px", color: "var(--ohmni-lab-muted, #64748B)", lineHeight: 1.5 }}>
+                {isRateLimited
+                  ? "The free Groq allocation is temporarily rate limited."
+                  : stateMessage || (providerTitle === "GROQ" ? "Groq API quota is currently unavailable." : "Google API quota is currently unavailable.")}
+              </p>
+              <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+                {onRetryGemini && (
+                  <button
+                    type="button"
+                    data-testid="retry-gemini-btn"
+                    id="retry-agent-btn"
+                    onClick={onRetryGemini}
+                    className="btn-secondary"
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <RotateCcw size={14} />
+                    <span>Retry</span>
+                  </button>
+                )}
+                {onSwitchToDemo && (
+                  <button
+                    type="button"
+                    data-testid="continue-demo-agent-btn"
+                    onClick={onSwitchToDemo}
+                    className="btn-primary"
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <Bot size={14} />
+                    <span>Continue with Demo Agent</span>
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          );
+        })()
       ) : agentState.status === "failed" ? (
         <motion.div
           initial={{ opacity: 0, y: 12 }}

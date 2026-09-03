@@ -3,12 +3,13 @@ import type {
   RegisteredTool,
 } from "@/infrastructure/webmcp/types";
 
-export interface GeminiFunctionDeclaration {
+export interface AgentToolDeclaration {
   readonly type: "function";
   readonly name: string;
   readonly description: string;
   readonly parameters: Record<string, unknown>;
 }
+
 
 export interface AgentFunctionCall {
   readonly id: string;
@@ -23,10 +24,28 @@ export interface AgentFunctionResult {
   readonly result: readonly { readonly type: "text"; readonly text: string }[];
   readonly is_error?: boolean;
 }
+export type AgentTranscriptItem =
+  | {
+      readonly role: "user";
+      readonly content: string;
+    }
+  | {
+      readonly role: "assistant";
+      readonly content?: string;
+      readonly toolCalls?: readonly AgentFunctionCall[];
+    }
+  | {
+      readonly role: "tool";
+      readonly callId: string;
+      readonly name: string;
+      readonly content: string;
+      readonly isError?: boolean;
+    };
 
 export interface AgentTurnRequest {
   readonly input: string | readonly AgentFunctionResult[];
-  readonly tools: readonly GeminiFunctionDeclaration[];
+  readonly tools: readonly AgentToolDeclaration[];
+  readonly history?: readonly AgentTranscriptItem[];
   readonly previousInteractionId?: string;
 }
 
@@ -36,7 +55,7 @@ export interface AgentTurnResult {
   readonly text?: string;
 }
 
-export type AgentMode = "gemini" | "demo";
+export type AgentMode = "groq" | "gemini" | "demo";
 
 export interface BenchAgentProvider {
   turn(
@@ -89,16 +108,19 @@ export type BenchAgentRunResult =
       readonly steps: number;
       readonly text: string;
       readonly interactionId?: string;
+      readonly history?: readonly AgentTranscriptItem[];
     }
   | {
       readonly status: "stopped";
       readonly steps: number;
       readonly interactionId?: string;
+      readonly history?: readonly AgentTranscriptItem[];
     }
   | {
       readonly status: "step-limit";
       readonly steps: number;
       readonly interactionId?: string;
+      readonly history?: readonly AgentTranscriptItem[];
     }
   | {
       readonly status: "failed";
@@ -106,6 +128,7 @@ export type BenchAgentRunResult =
       readonly message: string;
       readonly requestId?: string;
       readonly interactionId?: string;
+      readonly history?: readonly AgentTranscriptItem[];
     };
 
 export interface BenchAgentApprovalRequest {
@@ -124,9 +147,11 @@ export interface RunBenchAgentOptions {
   readonly signal?: AbortSignal;
   readonly maxSteps?: number;
   readonly previousInteractionId?: string;
+  readonly initialHistory?: readonly AgentTranscriptItem[];
 }
 
 export interface BenchAgentAvailability {
   readonly available: boolean;
   readonly model: string;
+  readonly provider?: "groq" | "gemini" | "demo" | string;
 }

@@ -1,4 +1,4 @@
-import type { GeminiFunctionDeclaration } from "./types";
+import type { AgentToolDeclaration } from "./types";
 import type { RegisteredTool } from "@/infrastructure/webmcp/types";
 
 export const MAX_AGENT_TOOLS = 64;
@@ -59,13 +59,13 @@ function cloneInputSchema(
 
 export function translateRegisteredTools(
   tools: readonly RegisteredTool[]
-): readonly GeminiFunctionDeclaration[] {
+): readonly AgentToolDeclaration[] {
   if (tools.length > MAX_AGENT_TOOLS) {
     throw new Error(`Tool count exceeds the ${MAX_AGENT_TOOLS} tool limit.`);
   }
 
   const names = new Set<string>();
-  const declarations: GeminiFunctionDeclaration[] = [];
+  const declarations: AgentToolDeclaration[] = [];
 
   for (const tool of tools) {
     if (typeof tool.name !== "string" || tool.name.trim() === "") {
@@ -93,5 +93,5 @@ export function translateRegisteredTools(
     });
   }
 
-  return JSON.parse(JSON.stringify(declarations)) as GeminiFunctionDeclaration[];
+  return JSON.parse(JSON.stringify(declarations)) as AgentToolDeclaration[];
 }

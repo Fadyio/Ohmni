@@ -2,12 +2,19 @@ import {
   DEFAULT_GEMINI_MODEL,
   GeminiBenchAgentProvider,
   sanitizeErrorMessage,
+  type AgentFunctionCall,
   type AgentFunctionResult,
+  type AgentTranscriptItem,
   type AgentTurnRequest,
   type AgentTurnResult,
   type BenchAgentProvider,
-  type GeminiFunctionDeclaration,
+  type AgentToolDeclaration,
 } from "./gemini-provider.ts";
+import {
+  DEFAULT_GROQ_MODEL,
+  GroqBenchAgentProvider,
+  GroqRateLimitError,
+} from "./groq-provider.ts";
 import {
   verifyPassword,
   createSessionToken,
@@ -20,17 +27,20 @@ import {
 export type {
   AgentFunctionCall,
   AgentFunctionResult,
+  AgentTranscriptItem,
   AgentTurnRequest,
   AgentTurnResult,
+  AgentToolDeclaration,
   BenchAgentProvider,
-  GeminiFunctionDeclaration,
 } from "./gemini-provider.ts";
 export { DEFAULT_GEMINI_MODEL, sanitizeErrorMessage } from "./gemini-provider.ts";
-
+export { DEFAULT_GROQ_MODEL, GroqBenchAgentProvider, GroqRateLimitError } from "./groq-provider.ts";
 export const MAX_REQUEST_BODY_BYTES = 128 * 1024;
 export const MAX_TOOLS = 64;
 export const MAX_TOOL_DESCRIPTION_BYTES = 2 * 1024;
 export const MAX_TOOL_SCHEMA_BYTES = 16 * 1024;
+export const MAX_TRANSCRIPT_ITEMS = 128;
+export const MAX_TRANSCRIPT_CONTENT_BYTES = 64 * 1024;
 export const MAX_REQUESTS_PER_SESSION = 24;
 export const SESSION_RATE_WINDOW_MS = 60_000;
 export const BENCH_AGENT_SESSION_HEADER = "x-bench-agent-session";
@@ -41,6 +51,9 @@ const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const encoder = new TextEncoder();
 
 export interface BenchAgentEnvironment {
+  readonly AI_PROVIDER?: string;
+  readonly GROQ_API_KEY?: string;
+  readonly GROQ_MODEL?: string;
   readonly GEMINI_API_KEY?: string;
   readonly GEMINI_MODEL?: string;
   readonly OHMNI_ACCESS_PASSWORD?: string;
@@ -136,7 +149,7 @@ function parseFunctionResult(value: unknown): AgentFunctionResult | undefined {
   };
 }
 
-function parseTool(value: unknown): GeminiFunctionDeclaration | undefined {
+function parseTool(value: unknown): AgentToolDeclaration | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return undefined;
   }
@@ -172,6 +185,111 @@ function parseTool(value: unknown): GeminiFunctionDeclaration | undefined {
     parameters: candidate.parameters as Record<string, unknown>,
   };
 }
+function parseFunctionCall(value: unknown): AgentFunctionCall | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  const candidate = value as ParsedObject;
+  if (
+    !hasExactKeys(candidate, ["id", "name", "arguments"]) ||
+    typeof candidate.id !== "string" ||
+    candidate.id.length === 0 ||
+    typeof candidate.name !== "string" ||
+    candidate.name.length === 0 ||
+    typeof candidate.arguments !== "object" ||
+    candidate.arguments === null ||
+    Array.isArray(candidate.arguments)
+  ) {
+    return undefined;
+  }
+  return {
+    id: candidate.id,
+    name: candidate.name,
+    arguments: candidate.arguments as Record<string, unknown>,
+  };
+}
+
+function parseTranscriptItem(value: unknown): AgentTranscriptItem | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  const candidate = value as ParsedObject;
+  if (candidate.role === "user") {
+    if (
+      !hasExactKeys(candidate, ["role", "content"]) ||
+      typeof candidate.content !== "string" ||
+      encoder.encode(candidate.content).byteLength > MAX_TRANSCRIPT_CONTENT_BYTES
+    ) {
+      return undefined;
+    }
+    return { role: "user", content: candidate.content };
+  }
+  if (candidate.role === "assistant") {
+    if (
+      !hasExactKeys(candidate, ["role"], ["content", "toolCalls"]) ||
+      (candidate.content !== undefined && typeof candidate.content !== "string") ||
+      (candidate.toolCalls !== undefined && !Array.isArray(candidate.toolCalls))
+    ) {
+      return undefined;
+    }
+    let toolCalls: AgentFunctionCall[] | undefined = undefined;
+    if (Array.isArray(candidate.toolCalls)) {
+      toolCalls = [];
+      for (const call of candidate.toolCalls) {
+        const parsedCall = parseFunctionCall(call);
+        if (parsedCall === undefined) {
+          return undefined;
+        }
+        toolCalls.push(parsedCall);
+      }
+    }
+    if (candidate.content === undefined && toolCalls === undefined) {
+      return undefined;
+    }
+    return {
+      role: "assistant",
+      ...(candidate.content !== undefined ? { content: candidate.content as string } : {}),
+      ...(toolCalls !== undefined ? { toolCalls } : {}),
+    };
+  }
+  if (candidate.role === "tool") {
+    if (
+      !hasExactKeys(candidate, ["role", "callId", "name", "content"], ["isError"]) ||
+      typeof candidate.callId !== "string" ||
+      candidate.callId.length === 0 ||
+      typeof candidate.name !== "string" ||
+      candidate.name.length === 0 ||
+      typeof candidate.content !== "string" ||
+      encoder.encode(candidate.content).byteLength > MAX_TRANSCRIPT_CONTENT_BYTES ||
+      (candidate.isError !== undefined && typeof candidate.isError !== "boolean")
+    ) {
+      return undefined;
+    }
+    return {
+      role: "tool",
+      callId: candidate.callId,
+      name: candidate.name,
+      content: candidate.content,
+      ...(candidate.isError !== undefined ? { isError: candidate.isError } : {}),
+    };
+  }
+  return undefined;
+}
+
+function parseHistory(value: unknown): AgentTranscriptItem[] | undefined {
+  if (!Array.isArray(value) || value.length > MAX_TRANSCRIPT_ITEMS) {
+    return undefined;
+  }
+  const history: AgentTranscriptItem[] = [];
+  for (const item of value) {
+    const parsed = parseTranscriptItem(item);
+    if (parsed === undefined) {
+      return undefined;
+    }
+    history.push(parsed);
+  }
+  return history;
+}
 
 function parseTurnRequest(value: unknown): AgentTurnRequest | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -179,17 +297,18 @@ function parseTurnRequest(value: unknown): AgentTurnRequest | undefined {
   }
   const candidate = value as ParsedObject;
   if (
-    !hasExactKeys(candidate, ["input", "tools"], ["previousInteractionId"]) ||
+    !hasExactKeys(candidate, ["input", "tools"], ["previousInteractionId", "history"]) ||
     !Array.isArray(candidate.tools) ||
     candidate.tools.length > MAX_TOOLS ||
     (candidate.previousInteractionId !== undefined &&
       (typeof candidate.previousInteractionId !== "string" ||
-        candidate.previousInteractionId.length === 0))
+        candidate.previousInteractionId.length === 0)) ||
+    (candidate.history !== undefined && !Array.isArray(candidate.history))
   ) {
     return undefined;
   }
 
-  const tools: GeminiFunctionDeclaration[] = [];
+  const tools: AgentToolDeclaration[] = [];
   for (const value of candidate.tools) {
     const tool = parseTool(value);
     if (tool === undefined) {
@@ -215,9 +334,18 @@ function parseTurnRequest(value: unknown): AgentTurnRequest | undefined {
     return undefined;
   }
 
+  let history: AgentTranscriptItem[] | undefined = undefined;
+  if (candidate.history !== undefined) {
+    history = parseHistory(candidate.history);
+    if (history === undefined) {
+      return undefined;
+    }
+  }
+
   return {
     input,
     tools,
+    ...(history !== undefined ? { history } : {}),
     ...(typeof candidate.previousInteractionId === "string"
       ? { previousInteractionId: candidate.previousInteractionId }
       : {}),
@@ -255,20 +383,44 @@ async function readJsonBody(request: Request): Promise<
 export function createBenchAgentHandler(
   options: CreateBenchAgentHandlerOptions,
 ): BenchAgentHandler {
-  const apiKey = options.env.GEMINI_API_KEY?.trim() ?? "";
-  const model = options.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
-  const accessPassword = options.env.OHMNI_ACCESS_PASSWORD?.trim() ?? "";
-  const authSecret = options.env.OHMNI_AUTH_SECRET?.trim() || "ohmni-auth-secret-key-default";
-  const isAuthRequired = accessPassword.length > 0;
+  const rawProviderType = options.env.AI_PROVIDER?.trim().toLowerCase();
+  const groqApiKey = options.env.GROQ_API_KEY?.trim() ?? "";
+  const groqModel = options.env.GROQ_MODEL?.trim() || DEFAULT_GROQ_MODEL;
+  const geminiApiKey = options.env.GEMINI_API_KEY?.trim() ?? "";
+  const geminiModel = options.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+
+  let providerType: "groq" | "gemini";
+  if (rawProviderType === "gemini") {
+    providerType = "gemini";
+  } else if (rawProviderType === "groq") {
+    providerType = "groq";
+  } else if (options.env.GROQ_API_KEY !== undefined || options.env.GROQ_MODEL !== undefined) {
+    providerType = "groq";
+  } else if (options.env.GEMINI_API_KEY !== undefined || options.env.GEMINI_MODEL !== undefined) {
+    providerType = "gemini";
+  } else {
+    providerType = "groq";
+  }
+
+  const activeApiKey = providerType === "gemini" ? geminiApiKey : groqApiKey;
+  const activeModel = providerType === "gemini" ? geminiModel : groqModel;
+  const isConfigured = activeApiKey.length > 0;
+  const providerLabel = providerType === "gemini" ? "Gemini" : "Groq";
 
   const provider =
     options.provider ??
-    (apiKey.length > 0
-      ? new GeminiBenchAgentProvider({ apiKey, model })
+    (isConfigured
+      ? providerType === "gemini"
+        ? new GeminiBenchAgentProvider({ apiKey: geminiApiKey, model: geminiModel })
+        : new GroqBenchAgentProvider({ apiKey: groqApiKey, model: groqModel })
       : undefined);
+  const model = activeModel;
+  const apiKey = activeApiKey;
+  const accessPassword = options.env.OHMNI_ACCESS_PASSWORD?.trim() ?? "";
+  const authSecret = options.env.OHMNI_AUTH_SECRET?.trim() || "ohmni-auth-secret-key-default";
+  const isAuthRequired = accessPassword.length > 0;
   const now = options.now ?? Date.now;
   const sessions = new Map<string, SessionRateState>();
-
   return async (request: Request): Promise<Response> => {
     const requestId = "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
     let url: URL;
@@ -324,12 +476,12 @@ export function createBenchAgentHandler(
       url.searchParams.has("health");
 
     if (isHealthCheck) {
-      if (apiKey.length === 0 || provider === undefined) {
+      if (!isConfigured || provider === undefined) {
         return jsonResponse(
           {
             ok: false,
             error: "BENCH_AGENT_UNAVAILABLE",
-            message: "Gemini API key is not configured.",
+            message: `${providerLabel} API key is not configured.`,
             requestId,
           },
           503,
@@ -371,8 +523,9 @@ export function createBenchAgentHandler(
 
     if (request.method === "GET") {
       return jsonResponse({
-        available: apiKey.length > 0,
-        model,
+        available: isConfigured,
+        provider: providerType,
+        model: activeModel,
         ...(isAuthRequired ? { authRequired: true } : {}),
       });
     }
@@ -392,11 +545,11 @@ export function createBenchAgentHandler(
       );
     }
 
-    if (apiKey.length === 0 || provider === undefined) {
+    if (!isConfigured || provider === undefined) {
       return jsonResponse(
         {
           error: "BENCH_AGENT_UNAVAILABLE",
-          message: "Gemini API key is not configured.",
+          message: `${providerLabel} API key is not configured.`,
           requestId,
         },
         503,
@@ -521,6 +674,21 @@ export function createBenchAgentHandler(
       });
       return jsonResponse({ ...result, requestId });
     } catch (err: unknown) {
+      if (err instanceof GroqRateLimitError) {
+        return jsonResponse(
+          {
+            error: "RATE_LIMITED",
+            message: err.message,
+            retryAfter: err.retryAfterSeconds,
+            requestId,
+          },
+          429,
+          err.retryAfterSeconds !== undefined
+            ? { "retry-after": String(err.retryAfterSeconds) }
+            : {},
+        );
+      }
+
       const safeMessage = sanitizeErrorMessage(err);
       const errorObj = typeof err === "object" && err !== null ? (err as Record<string, unknown>) : undefined;
       const errorName = typeof errorObj?.name === "string" ? errorObj.name : (err instanceof Error ? err.name : "Error");

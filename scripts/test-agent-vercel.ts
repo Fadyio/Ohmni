@@ -134,7 +134,12 @@ function auditBundleSecurity(): { passed: boolean; auditedFiles: number; issues:
         const content = readFileSync(fullPath, "utf-8");
 
         // Obvious API key leakage patterns
-        if (content.includes("AIzaSy") || /GEMINI_API_KEY\s*[:=]\s*["'][^"']+["']/.test(content)) {
+        if (
+          content.includes("AIzaSy") ||
+          content.includes("GROQ_API_KEY") ||
+          /gsk_[0-9A-Za-z_-]{10,}/.test(content) ||
+          /GEMINI_API_KEY\s*[:=]\s*["'][^"']+["']/.test(content)
+        ) {
           issues.push(`Secret API key pattern found in ${entry.name}`);
         }
       }
