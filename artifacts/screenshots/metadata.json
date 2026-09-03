@@ -2,7 +2,7 @@
   {
     "fileName": "01-landing.png",
     "scene": "Landing",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -14,12 +14,12 @@
       "evidenceCount": 0,
       "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T03:48:08.792Z"
+    "timestamp": "2026-09-03T03:52:43.857Z"
   },
   {
     "fileName": "14-demo-walkthrough.png",
     "scene": "Demo Fallback",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -31,12 +31,12 @@
       "evidenceCount": 0,
       "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T03:48:08.958Z"
+    "timestamp": "2026-09-03T03:52:44.022Z"
   },
   {
     "fileName": "03-ready.png",
     "scene": "Ready",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -48,12 +48,12 @@
       "evidenceCount": 0,
       "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T03:48:09.121Z"
+    "timestamp": "2026-09-03T03:52:44.196Z"
   },
   {
     "fileName": "04-observation.png",
     "scene": "Observation",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -65,12 +65,12 @@
       "evidenceCount": 0,
       "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T03:48:09.254Z"
+    "timestamp": "2026-09-03T03:52:44.337Z"
   },
   {
     "fileName": "05-physical-approval.png",
     "scene": "Physical Approval",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -82,12 +82,12 @@
       "evidenceCount": 0,
       "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T03:48:09.591Z"
+    "timestamp": "2026-09-03T03:52:44.693Z"
   },
   {
     "fileName": "06-running-scope.png",
     "scene": "Running Scope",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -99,12 +99,12 @@
       "evidenceCount": 0,
       "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T03:48:09.856Z"
+    "timestamp": "2026-09-03T03:52:44.934Z"
   },
   {
     "fileName": "07-fault-evidence.png",
     "scene": "Fault Result",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -116,12 +116,12 @@
       "evidenceCount": 5,
       "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T03:48:09.981Z"
+    "timestamp": "2026-09-03T03:52:45.047Z"
   },
   {
     "fileName": "08-evidence.png",
     "scene": "Evidence Records",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -133,12 +133,12 @@
       "evidenceCount": 5,
       "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T03:48:10.096Z"
+    "timestamp": "2026-09-03T03:52:45.145Z"
   },
   {
     "fileName": "09-hypothesis.png",
     "scene": "Hypothesis Diagnosis",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -150,12 +150,12 @@
       "evidenceCount": 5,
       "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T03:48:10.212Z"
+    "timestamp": "2026-09-03T03:52:45.242Z"
   },
   {
     "fileName": "10-human-intervention.png",
     "scene": "Human Action",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -167,12 +167,12 @@
       "evidenceCount": 5,
       "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T03:48:10.511Z"
+    "timestamp": "2026-09-03T03:52:45.527Z"
   },
   {
     "fileName": "11-verification-running.png",
     "scene": "Verification Running",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -184,12 +184,12 @@
       "evidenceCount": 7,
       "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T03:48:11.416Z"
+    "timestamp": "2026-09-03T03:52:46.411Z"
   },
   {
     "fileName": "12-verified-result.png",
     "scene": "Verified Result",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -201,12 +201,12 @@
       "evidenceCount": 7,
       "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T03:48:11.485Z"
+    "timestamp": "2026-09-03T03:52:46.467Z"
   },
   {
     "fileName": "13-ground-truth-reveal.png",
     "scene": "Ground Truth Reveal",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "demo",
     "provider": "demo",
     "scenario": "brownout",
@@ -218,12 +218,12 @@
       "evidenceCount": 7,
       "hypothesesCount": 1
     },
-    "timestamp": "2026-09-03T03:48:11.533Z"
+    "timestamp": "2026-09-03T03:52:46.516Z"
   },
   {
     "fileName": "02-blind-challenge.png",
     "scene": "Blind Challenge",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "groq",
     "provider": "groq",
     "scenario": "brownout",
@@ -235,12 +235,12 @@
       "evidenceCount": 0,
       "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T03:48:15.508Z"
+    "timestamp": "2026-09-03T03:52:50.801Z"
   },
   {
     "fileName": "15-provider-error.png",
     "scene": "Provider Error",
-    "buildSha": "6f51a12eea2e67506de494bbdaa39966c8583205",
+    "buildSha": "ecc1e7ba60035f40400ca43d3ebc1ac4ec85ecc1",
     "agentMode": "gemini",
     "provider": "gemini",
     "scenario": "brownout",
@@ -252,6 +252,6 @@
       "evidenceCount": 0,
       "hypothesesCount": 0
     },
-    "timestamp": "2026-09-03T03:48:23.082Z"
+    "timestamp": "2026-09-03T03:52:58.427Z"
   }
 ]
