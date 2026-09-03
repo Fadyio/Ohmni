@@ -382,6 +382,7 @@ export const App: React.FC<AppProps> = ({
     setActiveAdapter(defaultVirtualAdapter);
     const session = createScenarioSession({ scenarioId: queryScenarioId });
     setActiveScenario(session);
+    setGoal("The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.");
 
     const initConfig = session.getInitialDeviceConfig();
     if (typeof (defaultVirtualAdapter as VirtualDeviceAdapter).reset === "function") {
@@ -440,11 +441,8 @@ export const App: React.FC<AppProps> = ({
 
     if (!activeScenario) return;
 
-    if (agentMode !== "demo") {
-      const goal = `${activeScenario.publicSymptom} Investigate the root cause using the available WebMCP diagnostic instruments, request human help at the device boundary when needed, and experimentally verify the repair.`;
-      setGoal(goal);
-    }
-
+    const goal = `${activeScenario.publicSymptom} Investigate the root cause using the available WebMCP diagnostic instruments, request human help at the device boundary when needed, and experimentally verify the repair.`;
+    setGoal(goal);
     // Initiate hardware connection
     const connectPromise = (async () => {
       await connect();

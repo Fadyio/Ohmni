@@ -238,7 +238,17 @@ async function runProductionAcceptance(): Promise<void> {
       await waitFor(cdpClient, `Boolean(document.getElementById("mystery-intro-card"))`, 8000);
       await click(cdpClient, "#begin-mystery-btn");
       await waitFor(cdpClient, `Boolean(document.getElementById("lab-header"))`, 12000);
+      await waitFor(
+        cdpClient,
+        `Boolean(document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']"))`,
+        10000
+      );
 
+      // Click start investigation for built-in demo agent
+      await cdpClient.evaluate(`(() => {
+        const btn = document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']");
+        if (btn) btn.click();
+      })()`);
       // Wait for amber approval
       await waitFor(
         cdpClient,
@@ -270,6 +280,11 @@ async function runProductionAcceptance(): Promise<void> {
 
       // Click 5V jumper
       await cdpClient.evaluate(`(() => {
+        const jp1Btn = document.querySelector("[data-testid='simulate-jp1-btn']") || document.getElementById("simulate-jp1-btn");
+        if (jp1Btn) {
+          jp1Btn.click();
+          return;
+        }
         const btns = Array.from(document.querySelectorAll("button"));
         const btn5v = btns.find(b => b.textContent?.includes("5 V") || b.textContent?.includes("5v") || b.textContent?.includes("External"));
         if (btn5v) btn5v.click();
@@ -284,15 +299,14 @@ async function runProductionAcceptance(): Promise<void> {
       // Second approval
       await waitFor(
         cdpClient,
-        `Boolean(document.getElementById("approve-test-btn") || document.querySelector("[data-testid='bench-agent-approve']"))`,
+        `Boolean(document.querySelector("[data-testid='repair-approve-btn']") || document.getElementById("approve-test-btn") || document.querySelector("[data-testid='bench-agent-approve']"))`,
         15000
       );
 
       await cdpClient.evaluate(`(() => {
-        const btn = document.getElementById("approve-test-btn") || document.querySelector("[data-testid='bench-agent-approve']");
+        const btn = document.querySelector("[data-testid='repair-approve-btn']") || document.getElementById("approve-test-btn") || document.querySelector("[data-testid='bench-agent-approve']");
         if (btn) btn.click();
       })()`);
-
       // Wait for VERIFIED & Reveal
       await waitFor(
         cdpClient,
