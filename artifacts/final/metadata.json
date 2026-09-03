@@ -2,7 +2,7 @@
   {
     "fileName": "01-landing.png",
     "scene": "Landing",
-    "buildSha": "development",
+    "buildSha": "e149fd040974ff147dadb83745b99938d3cb8515",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -14,12 +14,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T07:46:12.346Z"
+    "timestamp": "2026-09-03T14:09:48.008Z"
   },
   {
     "fileName": "02-challenge.png",
     "scene": "Challenge",
-    "buildSha": "development",
+    "buildSha": "e149fd040974ff147dadb83745b99938d3cb8515",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -31,12 +31,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T07:46:12.544Z"
+    "timestamp": "2026-09-03T14:09:48.085Z"
   },
   {
     "fileName": "03-ready.png",
     "scene": "Ready",
-    "buildSha": "development",
+    "buildSha": "e149fd040974ff147dadb83745b99938d3cb8515",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -48,12 +48,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T07:46:13.298Z"
+    "timestamp": "2026-09-03T14:09:48.783Z"
   },
   {
     "fileName": "04-observing.png",
     "scene": "Observing",
-    "buildSha": "development",
+    "buildSha": "e149fd040974ff147dadb83745b99938d3cb8515",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -65,12 +65,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T07:46:14.199Z"
+    "timestamp": "2026-09-03T14:09:49.655Z"
   },
   {
     "fileName": "05-approval.png",
     "scene": "Approval",
-    "buildSha": "development",
+    "buildSha": "e149fd040974ff147dadb83745b99938d3cb8515",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -82,12 +82,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T07:46:14.296Z"
+    "timestamp": "2026-09-03T14:09:49.702Z"
   },
   {
     "fileName": "06-experiment.png",
     "scene": "Experiment",
-    "buildSha": "development",
+    "buildSha": "e149fd040974ff147dadb83745b99938d3cb8515",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -99,12 +99,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T07:46:14.642Z"
+    "timestamp": "2026-09-03T14:09:50.033Z"
   },
   {
     "fileName": "07-diagnosis.png",
     "scene": "Diagnosis",
-    "buildSha": "development",
+    "buildSha": "e149fd040974ff147dadb83745b99938d3cb8515",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -116,12 +116,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T07:46:14.739Z"
+    "timestamp": "2026-09-03T14:09:50.084Z"
   },
   {
     "fileName": "08-repair.png",
     "scene": "Repair",
-    "buildSha": "development",
+    "buildSha": "e149fd040974ff147dadb83745b99938d3cb8515",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -133,12 +133,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T07:46:14.932Z"
+    "timestamp": "2026-09-03T14:09:50.177Z"
   },
   {
     "fileName": "09-verification.png",
     "scene": "Verification",
-    "buildSha": "development",
+    "buildSha": "e149fd040974ff147dadb83745b99938d3cb8515",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -150,12 +150,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "VERIFIED"
     },
-    "timestamp": "2026-09-03T07:46:15.541Z"
+    "timestamp": "2026-09-03T14:09:50.500Z"
   },
   {
     "fileName": "10-result.png",
     "scene": "Result",
-    "buildSha": "development",
+    "buildSha": "e149fd040974ff147dadb83745b99938d3cb8515",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -167,6 +167,6 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "VERIFIED"
     },
-    "timestamp": "2026-09-03T07:46:15.641Z"
+    "timestamp": "2026-09-03T14:09:50.550Z"
   }
 ]

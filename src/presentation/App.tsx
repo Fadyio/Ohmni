@@ -21,6 +21,12 @@ import type { HypothesisStore } from "@/domain/hypothesis/store";
 import type { ScenarioSession, ScenarioGroundTruth, ScenarioId } from "@/domain/scenario/types";
 import type { AgentMode } from "@/infrastructure/bench-agent/types";
 import { resetInvestigationSession } from "@/domain/investigation/session-reset";
+import { ConnectHardwareModal } from "./components/welcome/ConnectHardwareModal";
+import { WebSerialTransport } from "@/infrastructure/serial/web-serial-transport";
+import { LoopbackSerialTransport } from "@/infrastructure/serial/loopback-serial-transport";
+import { ReferenceSerialDeviceSimulator } from "@/infrastructure/serial/reference-simulator";
+import { SerialDeviceAdapter } from "@/infrastructure/serial/serial-device-adapter";
+import { VirtualDeviceAdapter } from "@/domain/device/virtual-adapter";
 
 import { WelcomeView } from "./components/welcome/WelcomeView";
 import { InvestigationStoryView } from "./components/investigation-story/InvestigationStoryView";
@@ -28,7 +34,6 @@ import { RepairVerificationScene } from "./components/repair/RepairVerificationS
 import { MysteryIntroModal } from "./components/mystery/MysteryIntroModal";
 import { GroundTruthRevealScene } from "./components/mystery/GroundTruthRevealScene";
 import { DeveloperInspector } from "./components/inspector/DeveloperInspector";
-
 import { useDeviceState } from "./hooks/useDeviceState";
 import { useExperimentTimeline } from "./hooks/useExperimentTimeline";
 import { useOscilloscopeBuffer } from "./hooks/useOscilloscopeBuffer";
@@ -59,14 +64,17 @@ export const App: React.FC<AppProps> = ({
   evidenceStore,
   hypothesisStore,
 }) => {
-  const resolvedAdapter = useMemo(() => {
-    return deviceAdapter ?? (typeof window !== "undefined" ? window.__virtualDevice : undefined);
+  const defaultVirtualAdapter = useMemo(() => {
+    return deviceAdapter ?? (typeof window !== "undefined" ? window.__virtualDevice : undefined) ?? new VirtualDeviceAdapter();
   }, [deviceAdapter]);
+
+  const [activeAdapter, setActiveAdapter] = useState<DeviceAdapter>(defaultVirtualAdapter);
+  const [deviceMode, setDeviceMode] = useState<"virtual" | "physical">("virtual");
+  const [showConnectModal, setShowConnectModal] = useState<boolean>(false);
 
   const resolvedRegistrar = useMemo(() => {
     return toolRegistrar ?? (typeof window !== "undefined" ? window.__toolRegistrar : undefined);
   }, [toolRegistrar]);
-
   const resolvedBus = useMemo(() => {
     return telemetryBus ?? (typeof window !== "undefined" ? window.__telemetryBus : undefined);
   }, [telemetryBus]);
@@ -116,7 +124,7 @@ export const App: React.FC<AppProps> = ({
     railVoltage,
     connect,
     disconnect,
-  } = useDeviceState(resolvedAdapter);
+  } = useDeviceState(activeAdapter);
 
   const {
     activeExperimentId,
@@ -195,21 +203,21 @@ export const App: React.FC<AppProps> = ({
 
     // Apply scenario initial configuration to virtual device
     const initConfig = session.getInitialDeviceConfig();
-    if (resolvedAdapter && typeof (resolvedAdapter as any).reset === "function") {
-      (resolvedAdapter as any).reset(initConfig);
-    } else if (resolvedAdapter && typeof resolvedAdapter.setInterventionPoint === "function") {
+    if (activeAdapter && typeof (activeAdapter as any).reset === "function") {
+      (activeAdapter as any).reset(initConfig);
+    } else if (activeAdapter && typeof activeAdapter.setInterventionPoint === "function") {
       if (initConfig.initialRelayPower) {
-        resolvedAdapter.setInterventionPoint("relay_power_jumper", initConfig.initialRelayPower);
+        activeAdapter.setInterventionPoint("relay_power_jumper", initConfig.initialRelayPower);
       }
       if (initConfig.initialSensorAddress) {
-        resolvedAdapter.setInterventionPoint("sensor_address_selector", initConfig.initialSensorAddress);
+        activeAdapter.setInterventionPoint("sensor_address_selector", initConfig.initialSensorAddress);
       }
       if (initConfig.initialSdaConnected !== undefined) {
-        resolvedAdapter.setInterventionPoint("sda_connection", initConfig.initialSdaConnected ? "connected" : "unseated");
+        activeAdapter.setInterventionPoint("sda_connection", initConfig.initialSdaConnected ? "connected" : "unseated");
       }
     }
     setShowMysteryIntro(true);
-  }, [queryScenarioId, resolvedAdapter]);
+  }, [queryScenarioId, activeAdapter]);
 
   // Action: Begin Investigation from Mystery Intro Modal
   const handleBeginInvestigation = useCallback(async () => {
@@ -225,8 +233,8 @@ export const App: React.FC<AppProps> = ({
     // Initiate hardware connection
     const connectPromise = (async () => {
       await connect();
-      if (resolvedAdapter && resolvedRegistrar) {
-        await resolvedRegistrar.registerDevice(resolvedAdapter);
+      if (activeAdapter && resolvedRegistrar) {
+        await resolvedRegistrar.registerDevice(activeAdapter);
       }
     })();
 
@@ -249,47 +257,100 @@ export const App: React.FC<AppProps> = ({
       },
       () => undefined
     );
-  }, [activeScenario, agentMode, setGoal, connect, resolvedAdapter, resolvedRegistrar, playTransition]);
+  }, [activeScenario, agentMode, setGoal, connect, activeAdapter, resolvedRegistrar, playTransition]);
 
   // Action: Deterministic Brownout Demo (Secondary CTA)
   const handleStartDemo = useCallback(() => {
     setAgentMode("demo");
+    setDeviceMode("virtual");
     const session = createScenarioSession({ scenarioId: "brownout" });
     setActiveScenario(session);
 
     const initConfig = session.getInitialDeviceConfig();
-    if (resolvedAdapter && typeof (resolvedAdapter as any).reset === "function") {
-      (resolvedAdapter as any).reset(initConfig);
+    if (defaultVirtualAdapter && typeof (defaultVirtualAdapter as any).reset === "function") {
+      (defaultVirtualAdapter as any).reset(initConfig);
     }
 
     setGoal("The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.");
     setShowMysteryIntro(true);
-  }, [setGoal, setAgentMode, resolvedAdapter]);
+  }, [setGoal, setAgentMode, defaultVirtualAdapter]);
 
-  const handleConnectHardware = useCallback(async () => {
-    try {
-      await connect();
-      if (resolvedAdapter && resolvedRegistrar) {
-        await resolvedRegistrar.registerDevice(resolvedAdapter);
-      }
-      setViewMode("investigation");
-    } catch (err) {
-      console.error("Failed to connect hardware:", err);
+  const handleConnectPhysical = useCallback(async () => {
+    const transport = new WebSerialTransport({ baudRate: 115200 });
+    const serialAdapter = new SerialDeviceAdapter(transport);
+
+    if (activeAdapter.isConnected()) {
+      if (resolvedRegistrar) resolvedRegistrar.unregisterDevice(activeAdapter);
+      await activeAdapter.disconnect();
     }
-  }, [connect, resolvedAdapter, resolvedRegistrar]);
+
+    await serialAdapter.connect();
+    if (resolvedRegistrar) {
+      await resolvedRegistrar.registerDevice(serialAdapter);
+    }
+
+    setActiveAdapter(serialAdapter);
+    setDeviceMode("physical");
+    setActiveScenario(null);
+
+    if (typeof window !== "undefined") {
+      (window as unknown as { __serialDeviceAdapter?: unknown }).__serialDeviceAdapter = serialAdapter;
+    }
+
+    setViewMode("investigation");
+  }, [activeAdapter, resolvedRegistrar]);
+
+  const handleConnectSimulatedSerial = useCallback(async () => {
+    const [hostTransport, peerTransport] = LoopbackSerialTransport.createPair();
+    const sim = new ReferenceSerialDeviceSimulator(peerTransport);
+    const serialAdapter = new SerialDeviceAdapter(hostTransport);
+
+    if (activeAdapter.isConnected()) {
+      if (resolvedRegistrar) resolvedRegistrar.unregisterDevice(activeAdapter);
+      await activeAdapter.disconnect();
+    }
+
+    await serialAdapter.connect();
+    if (resolvedRegistrar) {
+      await resolvedRegistrar.registerDevice(serialAdapter);
+    }
+
+    setActiveAdapter(serialAdapter);
+    setDeviceMode("physical");
+    setActiveScenario(null);
+
+    if (typeof window !== "undefined") {
+      (window as unknown as { __serialDeviceAdapter?: unknown; __serialSim?: unknown }).__serialDeviceAdapter = serialAdapter;
+      (window as unknown as { __serialDeviceAdapter?: unknown; __serialSim?: unknown }).__serialSim = sim;
+    }
+
+    setViewMode("investigation");
+  }, [activeAdapter, resolvedRegistrar]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as unknown as { __connectSimulatedSerial?: () => Promise<void> }).__connectSimulatedSerial = handleConnectSimulatedSerial;
+    }
+  }, [handleConnectSimulatedSerial]);
 
   const handleToggleConnect = useCallback(async () => {
     if (isConnected) {
-      if (resolvedAdapter && resolvedRegistrar) {
-        resolvedRegistrar.unregisterDevice(resolvedAdapter);
+      if (activeAdapter && resolvedRegistrar) {
+        resolvedRegistrar.unregisterDevice(activeAdapter);
       }
       await disconnect();
       setViewMode("welcome");
     } else {
-      await handleConnectHardware();
+      if (deviceMode === "physical") {
+        setShowConnectModal(true);
+      } else {
+        await connect();
+        if (activeAdapter && resolvedRegistrar) {
+          await resolvedRegistrar.registerDevice(activeAdapter);
+        }
+      }
     }
-  }, [isConnected, resolvedAdapter, resolvedRegistrar, disconnect, handleConnectHardware]);
-
+  }, [isConnected, activeAdapter, resolvedRegistrar, disconnect, connect, deviceMode]);
   // Check for verified hypothesis and trigger Ground Truth Reveal payoff
   useEffect(() => {
     if (activeHypothesis?.verificationStatus === "VERIFIED" && activeScenario && viewMode !== "reveal") {
@@ -346,7 +407,7 @@ export const App: React.FC<AppProps> = ({
 
     resetInvestigationSession({
       scenarioSession: activeScenario,
-      virtualAdapter: resolvedAdapter as any,
+      virtualAdapter: activeAdapter as any,
       experimentStore: experimentRunner?.getStore() ?? (typeof window !== "undefined" ? window.__experimentStore : undefined),
       evidenceStore: resolvedEvidenceStore,
       hypothesisStore: resolvedHypothesisStore,
@@ -358,7 +419,7 @@ export const App: React.FC<AppProps> = ({
   }, [
     handleStartMystery,
     activeScenario,
-    resolvedAdapter,
+    activeAdapter,
     experimentRunner,
     resolvedEvidenceStore,
     resolvedHypothesisStore,
@@ -386,6 +447,7 @@ export const App: React.FC<AppProps> = ({
           <WelcomeView
             onStartMystery={handleStartMystery}
             onStartDemo={handleStartDemo}
+            onConnectHardware={() => setShowConnectModal(true)}
             wordmarkRef={wordmarkRef}
             heroTextRef={heroTextRef}
             hardwareVisualRef={hardwareVisualRef}
@@ -394,7 +456,13 @@ export const App: React.FC<AppProps> = ({
         </div>
       )}
 
-      {/* Mystery Introduction Modal */}
+      {/* Physical Hardware Connection Modal */}
+      <ConnectHardwareModal
+        isOpen={showConnectModal}
+        onClose={() => setShowConnectModal(false)}
+        onConnectPhysical={handleConnectPhysical}
+        onConnectSimulatedSerial={handleConnectSimulatedSerial}
+      />
       {showMysteryIntro && activeScenario && (
         <MysteryIntroModal
           session={activeScenario}
@@ -451,8 +519,7 @@ export const App: React.FC<AppProps> = ({
       {viewMode === "repair" && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 50, boxSizing: "border-box" }}>
           <RepairVerificationScene
-            deviceAdapter={resolvedAdapter}
-            experimentStore={experimentRunner?.getStore() ?? (typeof window !== "undefined" ? window.__experimentStore : undefined)}
+            deviceAdapter={activeAdapter}
             evidenceStore={resolvedEvidenceStore}
             hypothesisStore={resolvedHypothesisStore}
             hypothesis={activeHypothesis}

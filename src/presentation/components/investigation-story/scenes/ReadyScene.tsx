@@ -11,9 +11,11 @@
 
 import React from "react";
 import { motion } from "motion/react";
-import { BoardSilhouette } from "../../device/BoardSilhouette";
+import { DeviceVisualizationSwitch } from "../../device/DeviceVisualizationSwitch";
+import type { DeviceDescriptor } from "@/domain/device/descriptor";
 
 export interface ReadySceneProps {
+  readonly descriptor?: DeviceDescriptor | null;
   readonly isConnected?: boolean;
   readonly relayState?: "open" | "closed";
   readonly railVoltage?: number;
@@ -21,6 +23,7 @@ export interface ReadySceneProps {
 }
 
 export const ReadyScene: React.FC<ReadySceneProps> = ({
+  descriptor,
   isConnected = true,
   relayState = "open",
   railVoltage = 3.31,
@@ -56,7 +59,7 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
             margin: 0,
           }}
         >
-          ESP32-S3 Environmental Controller
+          {descriptor?.name ?? "ESP32-S3 Environmental Controller"}
         </h2>
         <p
           style={{
@@ -67,7 +70,9 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
             lineHeight: 1.5,
           }}
         >
-          Controller resets when the fan starts. Establish a baseline, reproduce the fault, and verify the power-path repair.
+          {descriptor?.transport === "Web Serial"
+            ? "Physical device connected via Web Serial. Discover capabilities, establish baselines, and investigate hardware state."
+            : "Controller resets when the fan starts. Establish a baseline, reproduce the fault, and verify the power-path repair."}
         </p>
         </div>
           {onStartInvestigation && (
@@ -103,14 +108,15 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
         }}
       >
         <div style={{ width: "100%" }}>
-          <BoardSilhouette
+          <DeviceVisualizationSwitch
+            descriptor={descriptor}
             isConnected={isConnected}
             relayState={relayState}
+            railVoltage={railVoltage}
             statusVisual={isConnected ? "nominal" : "disconnected"}
           />
         </div>
       </div>
-
       {/* Quiet Instrument Strip */}
       <div
         data-testid="lab-instrument-strip"

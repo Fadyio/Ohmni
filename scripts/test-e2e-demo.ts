@@ -516,7 +516,7 @@ async function runE2EGoldenPath(): Promise<void> {
 
     await waitFor(
       cdpClient,
-      `Boolean(document.body.innerText.includes("THE AGENT NEEDS YOUR HANDS") || document.body.innerText.includes("PHYSICAL JUMPER"))`,
+      `Boolean(document.body.innerText.includes("THE AGENT NEEDS YOUR HANDS") || document.body.innerText.includes("PHYSICAL JUMPER") || document.body.innerText.includes("VIRTUAL DUT INTERVENTION"))`,
       8000
     );
     // Assert initial jumper position is 3V3
@@ -534,8 +534,13 @@ async function runE2EGoldenPath(): Promise<void> {
     // -----------------------------------------------------------------
     console.info("\n[Step 18-19] Clicking External 5V jumper in UI...");
     const clicked5V = await cdpClient.evaluate<boolean>(`(() => {
+      const jp1Btn = document.querySelector("[data-testid='simulate-jp1-btn']") || document.getElementById("simulate-jp1-btn");
+      if (jp1Btn) {
+        jp1Btn.click();
+        return true;
+      }
       const btns = Array.from(document.querySelectorAll("button"));
-      const btn5v = btns.find(b => b.textContent?.includes("5 V") || b.textContent?.includes("5v") || b.textContent?.includes("External"));
+      const btn5v = btns.find(b => b.textContent?.includes("5 V") || b.textContent?.includes("5v") || b.textContent?.includes("External") || b.textContent?.includes("moving JP1"));
       if (btn5v) {
         btn5v.click();
         return true;

@@ -166,6 +166,25 @@ export const DeveloperInspector: React.FC<DeveloperInspectorProps> = ({
             {copiedSnippet ? <Check size={13} color="#22C55E" /> : <Copy size={13} />}
           </div>
         </div>
+        {/* Hardware Control Plane */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div style={{ fontSize: "11px", fontWeight: 700, color: "#94A3B8", textTransform: "uppercase" }}>
+            HARDWARE CONTROL PLANE
+          </div>
+          <div
+            style={{
+              background: "#1E293B",
+              borderRadius: "8px",
+              padding: "10px 12px",
+              fontSize: "11.5px",
+              color: "#CBD5E1",
+              lineHeight: 1.45,
+            }}
+          >
+            The next step is connecting Ohmni to real hardware over Web Serial, so the same WebMCP tools used in the virtual lab can operate an actual device on the desk.
+          </div>
+        </div>
+
 
         {/* Scenario Truth Status */}
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>

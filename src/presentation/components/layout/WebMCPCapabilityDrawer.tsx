@@ -326,6 +326,20 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
             </div>
 
             {/* Footer */}
+            {/* Web Serial Next Step Banner */}
+            <div
+              style={{
+                padding: "0.75rem 1.25rem",
+                background: "rgba(73, 103, 255, 0.08)",
+                borderTop: "1px solid rgba(73, 103, 255, 0.2)",
+                fontSize: "12px",
+                color: "var(--ohmni-text-secondary, #94A3B8)",
+                lineHeight: 1.45,
+              }}
+            >
+              <strong style={{ color: "var(--ohmni-text-primary, #F8FAFC)" }}>Physical Hardware: </strong>
+              The next step is connecting Ohmni to real hardware over Web Serial, so the same WebMCP tools used in the virtual lab can operate an actual device on the desk.
+            </div>
             <div
               style={{
                 padding: "8px 1.25rem",

@@ -17,7 +17,6 @@ describe("production judge-readiness UI", () => {
     expect(html).toContain("deterministic virtual ESP32");
     expect(html).toContain("Start live AI diagnosis");
     expect(html).not.toContain("board on your desk");
-    expect(html).not.toContain("real hardware");
   });
 
   it("does not mutate virtual JP1 while merely rendering the intervention request", () => {

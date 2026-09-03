@@ -123,9 +123,9 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               <h1
                 style={{
-                  fontSize: "clamp(32px, 3.8vw, 46px)",
+                  fontSize: "clamp(30px, 3.6vw, 44px)",
                   fontWeight: 800,
-                  lineHeight: 1.12,
+                  lineHeight: 1.14,
                   letterSpacing: "-0.03em",
                   color: "var(--ohmni-intro-ink, #12151A)",
                   margin: 0,
@@ -136,20 +136,22 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
 
               <p
                 style={{
-                  fontSize: "16.5px",
+                  fontSize: "16px",
                   lineHeight: 1.6,
                   color: "var(--ohmni-intro-secondary, #525866)",
                   margin: "8px 0 0",
-                  maxWidth: "540px",
+                  maxWidth: "560px",
                 }}
               >
-                Ohmni exposes hardware diagnostics as browser-native WebMCP tools. An agent runs evidence-backed experiments, the browser gates side effects, and a human remains in control of interventions.
+                Connect real hardware over Web Serial or try the deterministic virtual ESP32 challenge.
+                Ohmni exposes browser-native WebMCP tools so an agent can measure, test, collect evidence,
+                and request physical intervention when changes are required.
               </p>
             </div>
 
             {/* Action CTAs */}
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "14px", marginTop: "4px" }}>
-              {/* Primary CTA: Start blind diagnosis */}
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px", marginTop: "4px" }}>
+              {/* Action 1: Live AI Diagnosis / Virtual Challenge */}
               <button
                 ref={ctaButtonRef}
                 data-testid="start-mystery-btn"
@@ -157,39 +159,67 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 onClick={onStartMystery ?? onStartDemo}
                 className="btn-primary"
                 style={{
-                  padding: "14px 28px",
-                  fontSize: "15.5px",
+                  padding: "13px 24px",
+                  fontSize: "15px",
                   fontWeight: 800,
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "8px",
                 }}
               >
-                <Lock size={16} />
+                <Lock size={15} />
                 <span>Start live AI diagnosis</span>
-                <ArrowRight size={17} />
+                <ArrowRight size={16} />
               </button>
 
-              {/* Secondary CTA: Deterministic walkthrough */}
+              {/* Action 2: Connect hardware */}
+              <button
+                data-testid="connect-hardware-btn"
+                id="connect-hardware-btn"
+                onClick={onConnectHardware}
+                className="btn-secondary"
+                style={{
+                  padding: "13px 22px",
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  background: "#FFFFFF",
+                  border: "1px solid #CBD5E1",
+                }}
+              >
+                <span>Connect hardware</span>
+              </button>
+            </div>
+
+            {/* Tertiary Link: Deterministic Walkthrough */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "2px" }}>
               <button
                 data-testid="diagnose-demo-btn"
                 id="diagnose-demo-btn"
                 onClick={onStartDemo}
-                className="btn-secondary"
                 style={{
-                  padding: "14px 20px",
-                  fontSize: "14.5px",
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "var(--ohmni-intro-secondary, #525866)",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  textUnderlineOffset: "3px",
                 }}
               >
-                <span>View deterministic walkthrough</span>
+                View deterministic walkthrough
               </button>
+              <span style={{ fontSize: "12px", color: "#94A3B8" }}>•</span>
+              <span style={{ fontSize: "12.5px", color: "#64748B" }}>Guided replay of the WebMCP diagnostic architecture</span>
             </div>
 
-            <div style={{ color: "var(--ohmni-intro-secondary, #525866)", fontSize: "12.5px", lineHeight: 1.55, maxWidth: "590px" }}>
-              <div><strong>Live AI diagnosis</strong> — Groq selects tools from observed evidence.</div>
-              <div><strong>Deterministic walkthrough</strong> — Reliable guided replay of the same WebMCP architecture.</div>
-              <p style={{ margin: "10px 0 0" }}>
-                This submission demonstrates the control plane on a deterministic virtual ESP32. The device-adapter boundary is designed for browser-connected physical hardware.
+            <div style={{ color: "var(--ohmni-intro-secondary, #525866)", fontSize: "12px", lineHeight: 1.55, maxWidth: "560px" }}>
+              <p style={{ margin: "4px 0 0" }}>
+                Supports both in-browser virtual microcontroller emulation and physical hardware over Web Serial (115200 baud NDJSON protocol v1).
               </p>
             </div>
 

@@ -29,7 +29,10 @@ import type { EvidenceRecord } from "@/domain/evidence/types";
 import type { Hypothesis } from "@/domain/hypothesis/types";
 import type { BenchAgentState } from "../../hooks/useBenchAgent";
 import { getAgentIdentity } from "@/presentation/types/agent-identity";
+import type { DeviceDescriptor } from "@/domain/device/descriptor";
+
 export interface DynamicInvestigationSceneProps {
+  readonly descriptor?: DeviceDescriptor | null;
   readonly agentState: BenchAgentState;
   readonly experimentStatus: "idle" | "running" | "completed" | "failed" | "aborted" | string;
   readonly relayState: "open" | "closed";
@@ -50,6 +53,7 @@ export interface DynamicInvestigationSceneProps {
 }
 
 export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps> = ({
+  descriptor,
   agentState,
   experimentStatus,
   relayState,
@@ -293,6 +297,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
         {currentScene === "ready" && (
           <ReadyScene
             key="ready"
+            descriptor={descriptor}
             isConnected={true}
             relayState={relayState}
             railVoltage={railVoltage}
@@ -325,6 +330,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
         {currentScene === "running" && (
           <RunningExperimentScene
             key="running"
+            descriptor={descriptor}
             ringBufferRef={ringBufferRef}
             markersRef={markersRef}
             isRunning={agentState.status === "investigating" && isStressToolRunning}
@@ -333,7 +339,6 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             isVerification={evidenceRecords.some((record) => record.source === "human")}
           />
         )}
-
         {currentScene === "evidence" && (
           <EvidenceScene
             key="evidence"

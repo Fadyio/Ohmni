@@ -13,11 +13,13 @@
 import React, { useRef, useEffect } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Activity, Zap, ShieldAlert } from "lucide-react";
-import { BoardSilhouette } from "../../device/BoardSilhouette";
+import { DeviceVisualizationSwitch } from "../../device/DeviceVisualizationSwitch";
+import type { DeviceDescriptor } from "@/domain/device/descriptor";
 import type { TelemetryRingBuffer } from "@/domain/telemetry/ring-buffer";
 import type { ScopeEventMarker } from "../../../hooks/useOscilloscopeBuffer";
 
 export interface RunningExperimentSceneProps {
+  readonly descriptor?: DeviceDescriptor | null;
   readonly ringBufferRef: React.RefObject<TelemetryRingBuffer>;
   readonly markersRef: React.RefObject<ScopeEventMarker[]>;
   readonly isRunning: boolean;
@@ -27,6 +29,7 @@ export interface RunningExperimentSceneProps {
 }
 
 export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
+  descriptor = null,
   ringBufferRef,
   markersRef,
   isRunning,
@@ -380,13 +383,13 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
           <div className="font-mono" style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--ohmni-lab-muted)" }}>
             DUT POWER PATH · {isRunning ? "LIVE STATE" : "CAPTURED STATE"}
           </div>
-          <BoardSilhouette
+          <DeviceVisualizationSwitch
+            descriptor={descriptor}
             isConnected={true}
             relayState={isClosed ? "closed" : "open"}
             statusVisual={diagnosticPhase === "brownout" ? "reset" : "nominal"}
             diagnosticPhase={diagnosticPhase}
             railVoltage={diagnosticVoltage}
-            style={{ padding: "0.75rem" }}
           />
           <div className="font-mono" style={{ fontSize: "10.5px", fontWeight: 700, color: isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-muted)" }}>
             {isRunning ? "COIL ENERGIZED" : "COIL INERT (SAFELY OPEN)"}

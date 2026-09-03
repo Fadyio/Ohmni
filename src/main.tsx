@@ -39,6 +39,9 @@ declare global {
       builtAt?: string;
     };
     __OHMNI_BUILD_SHA__?: string;
+    __serialDeviceAdapter?: unknown;
+    __serialSim?: unknown;
+    __connectSimulatedSerial?: () => Promise<void>;
   }
 }
 

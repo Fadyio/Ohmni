@@ -1,12 +1,9 @@
 # OHMNI
 
-> **Ohmni turns the browser into a laboratory an AI agent can operate.**
+> **Ohmni turns browser-connected hardware into a WebMCP instrument surface for AI agents.**
 
-WebMCP gives the agent instruments.  
-The browser enforces safety.  
-The human provides the hands.  
-Evidence proves the diagnosis.
-
+Connect real hardware over Web Serial or explore the virtual fault challenge.
+The AI agent observes autonomously, physical actuation is human-gated, measurements become immutable evidence, and hardware modifications require your hands.
 ---
 
 ## Live Demo & Repository
@@ -20,34 +17,29 @@ Evidence proves the diagnosis.
 ## 90-Second Architecture
 
 ```text
-       ┌───────────────────────────────┐
-       │   AI Agent (Groq / Live LLM)  │
-       └──────────────┬────────────────┘
-                      │ Structured Tool Calls
-                      ▼
-┌─────────────────────────────────────────────┐
-│          Browser (WebMCP Runtime)           │
-│                                             │
-│   document.modelContext                     │
-│       │                                     │
-│       ├─► Passive Reads ──► Autonomous      │
-│       │                                     │
-│       └─► Physical Tests ─► Amber Gate      │
-│                                  │          │
-│                             Human Consent   │
-│                                  ▼          │
-│                      Device Adapter         │
-│                      (Virtual DUT / Serial) │
-└──────────────────────┬──────────────────────┘
-                       │ Physical Telemetry & Reset Lines
-                       ▼
-┌─────────────────────────────────────────────┐
-│              ESP32-S3 Target                │
-│   MCU Rail (3.3 V) • Relay • 12 V Fan Load   │
-│   Physical Jumpers (JP1) • I²C Sensor Bus   │
-└─────────────────────────────────────────────┘
+                    ┌─────────────────────────┐
+                    │       Bench Agent       │
+                    └────────────┬────────────┘
+                                 │ WebMCP
+                    ┌────────────▼────────────┐
+                    │   Instrument Registry   │
+                    └────────────┬────────────┘
+                                 │
+                    ┌────────────▼────────────┐
+                    │      DeviceAdapter      │
+                    └───────┬─────────┬───────┘
+                            │         │
+                 ┌──────────▼──┐   ┌──▼──────────────┐
+                 │   Virtual   │   │  SerialDevice   │
+                 │   Adapter   │   │    Adapter      │
+                 └─────────────┘   └──┬──────────────┘
+                                      │ Web Serial (NDJSON v1)
+                                      ▼
+                                Physical Hardware
+
 ```
 
+> **Honesty & Verification Notice:** Automated release tests validate the complete `SerialDeviceAdapter` protocol path using a simulated serial peer. Physical electrical validation requires an attached microcontroller board (see [docs/REAL-HARDWARE-QUICKSTART.md](docs/REAL-HARDWARE-QUICKSTART.md)).
 ---
 
 ## Why WebMCP?

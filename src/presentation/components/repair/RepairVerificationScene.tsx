@@ -18,6 +18,7 @@ import type { Hypothesis } from "@/domain/hypothesis/types";
 import type { ExperimentRecord } from "@/domain/experiment/types";
 import type { BenchAgentState } from "@/presentation/hooks/useBenchAgent";
 import { getAgentIdentity } from "@/presentation/types/agent-identity";
+import { BoardSilhouette } from "@/presentation/components/device/BoardSilhouette";
 interface InteractiveDeviceAdapter extends DeviceAdapter {
   getInterventionPoint?(point: string): string | undefined;
   setInterventionPoint?(point: string, value: string): void;
@@ -76,17 +77,56 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
   const resolvedHypothesisStore = useMemo<HypothesisStore | undefined>(() => {
     return hypothesisStore ?? (typeof window !== "undefined" ? window.__hypothesisStore : undefined);
   }, [hypothesisStore]);
+  const descriptor = resolvedAdapter?.getDescriptor?.();
+  const isVirtualDemo =
+    !resolvedAdapter ||
+    descriptor?.presentationProfile === "authored_esp32_demo" ||
+    descriptor?.id === "virtual-esp32s3-env" ||
+    Boolean(resolvedAdapter?.getInterventionPoint);
+
+  const deviceHeaderName = isVirtualDemo
+    ? "ESP32-S3 Environmental Controller (Virtual)"
+    : (descriptor?.name ?? "Connected Hardware");
+
+  const activeInterventionActivity = agentState?.activity?.find(
+    (a) => a.call.name === "request_human_intervention"
+  );
+  const activeInterventionInstruction =
+    (activeInterventionActivity?.call.arguments as Record<string, unknown> | undefined)?.instruction as string | undefined;
+  const activeInterventionRationale =
+    (activeInterventionActivity?.call.arguments as Record<string, unknown> | undefined)?.rationale as string | undefined;
 
   // Initial jumper read from actual adapter state
   const initialJumper =
     resolvedAdapter?.getInterventionPoint?.("relay_power_jumper") === "5v" ? "5V" : "3V3";
 
   const [jumperPosition, setJumperPosition] = useState<"3V3" | "5V">(initialJumper);
+  const [physicalCompleted, setPhysicalCompleted] = useState<boolean>(false);
   const [observationSent, setObservationSent] = useState<boolean>(
     agentState?.status === "approval"
   );
 
-  // Read all experiment records
+  const handleCompletedPhysicalIntervention = useCallback(() => {
+    setPhysicalCompleted(true);
+    setObservationSent(true);
+    const text = `Human observation: I have completed the requested physical intervention on the hardware: ${activeInterventionInstruction ?? "manual adjustment"}. Please re-test to verify.`;
+    if (resolvedEvidenceStore && typeof resolvedEvidenceStore.addHumanObservation === "function") {
+      resolvedEvidenceStore.addHumanObservation({
+        summary: text,
+        notes: "Physical hardware intervention completed",
+      });
+    }
+    if (onSendObservation) {
+      onSendObservation(text);
+    }
+  }, [activeInterventionInstruction, resolvedEvidenceStore, onSendObservation]);
+
+  const handleCannotCompletePhysicalIntervention = useCallback(() => {
+    const text = "Human observation: I cannot perform the requested physical intervention on this device.";
+    if (onSendObservation) {
+      onSendObservation(text);
+    }
+  }, [onSendObservation]);
   const allExperiments = useMemo<readonly ExperimentRecord[]>(() => {
     if (!resolvedExperimentStore) return [];
     return resolvedExperimentStore.getExperiments();
@@ -203,7 +243,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
               }}
             />
             <span className="font-mono" style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ohmni-lab-text, #0F172A)" }}>
-              ESP32-S3 Environmental Controller (Virtual)
+              {deviceHeaderName}
             </span>
           </div>
         </div>
@@ -323,63 +363,151 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
             alignItems: "center",
           }}
         >
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-brand)", fontSize: "12.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              <Wrench size={15} />
-              Virtual DUT intervention required
-            </div>
+          {isVirtualDemo ? (
+            <>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-brand)", fontSize: "12.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <Wrench size={15} />
+                  Virtual DUT intervention required
+                </div>
 
-            <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-ink)", margin: "8px 0 12px", lineHeight: 1.2 }}>
-              Simulate technician moving JP1: Shared 3.3 V → Independent 5 V
-            </h2>
+                <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-ink)", margin: "8px 0 12px", lineHeight: 1.2 }}>
+                  Simulate technician moving JP1: Shared 3.3 V → Independent 5 V
+                </h2>
 
-            <p className="body-text" style={{ fontSize: "15px", lineHeight: 1.6, margin: 0 }}>
-              <strong>Why:</strong> {rootCauseText}
-            </p>
-            <p className="body-text" style={{ fontSize: "13px", lineHeight: 1.55, margin: "12px 0 0", color: "var(--ohmni-secondary)" }}>
-              In a physical adapter, Ohmni would pause here until a technician or device signal confirmed the hardware change. This submission uses a stateful virtual ESP32.
-            </p>
-          </div>
+                <p className="body-text" style={{ fontSize: "15px", lineHeight: 1.6, margin: 0 }}>
+                  <strong>Why:</strong> {rootCauseText}
+                </p>
+                <p className="body-text" style={{ fontSize: "13px", lineHeight: 1.55, margin: "12px 0 0", color: "var(--ohmni-secondary)" }}>
+                  In a physical adapter, Ohmni would pause here until a technician or device signal confirmed the hardware change. The next step is connecting Ohmni to real hardware over Web Serial, so the same WebMCP tools used in the virtual lab can operate an actual device on the desk.
+                </p>
+              </div>
 
-          {/* Interactive Hardware Jumper Card */}
-          <div
-            style={{
-              background: "var(--ohmni-lab-dark, #0D1118)",
-              borderRadius: "var(--radius-lg)",
-              padding: "1.5rem",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1rem",
-              alignItems: "center",
-              textAlign: "center",
-            }}
-          >
-            <div className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "#94A3B8" }}>
-              VIRTUAL ESP32 · JP1
-            </div>
-
-            {jumperPosition === "3V3" && (
-              <button
-                type="button"
-                data-testid="simulate-jp1-btn"
-                onClick={handleConfirmJumperMove}
-                className="btn-primary"
-                style={{ padding: "10px 18px", fontWeight: 700 }}
+              {/* Interactive Hardware Jumper Card */}
+              <div
+                style={{
+                  background: "var(--ohmni-lab-dark, #0D1118)",
+                  borderRadius: "var(--radius-lg)",
+                  padding: "1.25rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1rem",
+                  alignItems: "center",
+                  textAlign: "center",
+                }}
               >
-                Simulate moving JP1
-              </button>
-            )}
+                <div className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "#94A3B8" }}>
+                  VIRTUAL ESP32 · JP1 JUMPER SHUNT
+                </div>
 
-            <div style={{ fontSize: "12px", color: jumperPosition === "5V" ? "#E2E8F0" : "#94A3B8" }}>
-              {jumperPosition === "5V"
-                ? "Virtual JP1 moved. Notify the agent and run verification."
-                : "Virtual JP1 remains on the shared 3.3 V rail until you confirm."}
-            </div>
+                {/* Mini board view focused on jumper & routing */}
+                <div style={{ width: "100%", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
+                  <BoardSilhouette
+                    isConnected={true}
+                    relayState={isAgentApproval || isAgentInvestigating ? "closed" : "open"}
+                    statusVisual={hasVerified ? "nominal" : jumperPosition === "5V" ? "nominal" : "reset"}
+                    diagnosticPhase={hasVerified ? "verified" : isAgentInvestigating ? "sampling" : jumperPosition === "5V" ? "idle" : "brownout"}
+                    railVoltage={hasVerified ? (afterMinVoltage ?? 3.18) : jumperPosition === "5V" ? 3.30 : (beforeMinVoltage ?? 2.72)}
+                    jumperPosition={jumperPosition}
+                    interactiveJumper={jumperPosition === "3V3"}
+                    onMoveJumper={handleConfirmJumperMove}
+                  />
+                </div>
 
-            {/* Agent-driven Continuation / Approval Section */}
-            {jumperPosition === "5V" && (
-              <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
-                {hasVerified ? (
+                {jumperPosition === "3V3" && (
+                  <button
+                    type="button"
+                    data-testid="simulate-jp1-btn"
+                    onClick={handleConfirmJumperMove}
+                    className="btn-primary"
+                    style={{ padding: "10px 18px", fontWeight: 700 }}
+                  >
+                    Simulate moving JP1
+                  </button>
+                )}
+
+                <div style={{ fontSize: "12px", color: jumperPosition === "5V" ? "#E2E8F0" : "#94A3B8" }}>
+                  {jumperPosition === "5V"
+                    ? "Virtual JP1 moved. Notify the agent and run verification."
+                    : "Virtual JP1 remains on the shared 3.3 V rail until you confirm."}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-brand)", fontSize: "12.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <Wrench size={15} />
+                  Physical Hardware Intervention
+                </div>
+
+                <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-ink)", margin: "8px 0 12px", lineHeight: 1.2 }}>
+                  Physical Change Required on Connected Hardware
+                </h2>
+
+                <p className="body-text" style={{ fontSize: "15px", lineHeight: 1.6, margin: 0 }}>
+                  The AI agent has reached a diagnostic conclusion and requires your physical hands to adjust the device.
+                </p>
+                {activeInterventionRationale && (
+                  <p className="body-text" style={{ fontSize: "13.5px", lineHeight: 1.55, margin: "10px 0 0", color: "#475569" }}>
+                    <strong>Rationale:</strong> {activeInterventionRationale}
+                  </p>
+                )}
+              </div>
+
+              <div
+                style={{
+                  background: "#FFFFFF",
+                  borderRadius: "var(--radius-lg)",
+                  padding: "1.5rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1rem",
+                  border: "1px solid var(--ohmni-lab-border, #E2E4E9)",
+                  boxShadow: "var(--shadow-sm)",
+                }}
+              >
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Agent Instructions
+                </div>
+                <div style={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", lineHeight: 1.5 }}>
+                  {activeInterventionInstruction ?? "Perform the physical modification indicated by the diagnostic agent."}
+                </div>
+
+                {!physicalCompleted ? (
+                  <div style={{ display: "flex", gap: "10px", marginTop: "6px" }}>
+                    <button
+                      type="button"
+                      data-testid="completed-intervention-btn"
+                      onClick={handleCompletedPhysicalIntervention}
+                      className="btn-primary"
+                      style={{ padding: "10px 20px", fontWeight: 700 }}
+                    >
+                      I've completed this
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="cannot-complete-intervention-btn"
+                      onClick={handleCannotCompletePhysicalIntervention}
+                      className="btn-secondary"
+                      style={{ padding: "10px 18px" }}
+                    >
+                      I can't do this
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: "#15803D" }}>
+                    ✓ Physical change confirmed. Ready for verification experiment.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Agent-driven Continuation / Approval Section */}
+          {(isVirtualDemo ? jumperPosition === "5V" : physicalCompleted) && (
+            <div style={{ gridColumn: "1 / -1", width: "100%", display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
+              {hasVerified ? (
                   <div
                     style={{
                       display: "flex",
@@ -500,7 +628,6 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
               </div>
             )}
           </div>
-        </div>
 
         {/* The Money Shot: Split-Scope Before vs After Comparison */}
         <div>

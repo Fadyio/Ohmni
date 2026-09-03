@@ -100,6 +100,17 @@ export const MAX_TOOL_SCHEMA_BYTES = 16 * 1024;
 export const MAX_TRANSCRIPT_ITEMS = 128;
 export const MAX_TRANSCRIPT_CONTENT_BYTES = 64 * 1024;
 export const MAX_COMPACTED_TOOL_RESULT_BYTES = 2_048;
+export const GROQ_MAX_COMPLETION_TOKENS = 768;
+const GROQ_MAX_TOOL_DESCRIPTION_CHARACTERS = 240;
+const VERIFICATION_RETEST_MARKER = "The requested intervention is complete. Re-run run_relay_stress_test";
+const VERIFICATION_TOOL_NAMES = new Set([
+  "run_relay_stress_test",
+  "list_evidence",
+  "get_evidence",
+  "update_hypothesis",
+  "confirm_hypothesis",
+  "record_conclusion",
+]);
 export const MAX_REQUESTS_PER_SESSION = 24;
 export const SESSION_RATE_WINDOW_MS = 60_000;
 export const BENCH_AGENT_SESSION_HEADER = "x-bench-agent-session";
@@ -335,6 +346,34 @@ export function compactTranscript(history: readonly AgentTranscriptItem[]): Agen
   return history.map(compactTranscriptItem);
 }
 
+export function selectGroqToolChoice(
+  input: AgentTurnRequest["input"],
+  verificationWorkflow = false,
+): "auto" | { type: "function"; function: { name: "run_relay_stress_test" | "confirm_hypothesis" } } {
+  if (typeof input === "string" && input.includes(VERIFICATION_RETEST_MARKER)) {
+    return { type: "function", function: { name: "run_relay_stress_test" } };
+  }
+  if (
+    verificationWorkflow &&
+    Array.isArray(input) &&
+    input.some((result) => result.name === "run_relay_stress_test" && result.is_error !== true)
+  ) {
+    return { type: "function", function: { name: "confirm_hypothesis" } };
+  }
+  return "auto";
+}
+
+export function isGroqVerificationWorkflow(request: AgentTurnRequest): boolean {
+  if (typeof request.input === "string" && request.input.includes(VERIFICATION_RETEST_MARKER)) {
+    return true;
+  }
+  return Boolean(
+    request.history?.some(
+      (item) => item.role === "user" && item.content.includes(VERIFICATION_RETEST_MARKER),
+    ),
+  );
+}
+
 export function translateToolsToGroq(
   tools: readonly AgentToolDeclaration[]
 ): Array<{
@@ -345,12 +384,22 @@ export function translateToolsToGroq(
     parameters: Record<string, unknown>;
   };
 }> {
+  const compactSchema = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(compactSchema);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([key]) => key !== "description")
+        .map(([key, nested]) => [key, compactSchema(nested)]),
+    );
+  };
+
   return tools.map((tool) => ({
     type: "function" as const,
     function: {
       name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
+      description: tool.description.slice(0, GROQ_MAX_TOOL_DESCRIPTION_CHARACTERS),
+      parameters: compactSchema(tool.parameters) as Record<string, unknown>,
     },
   }));
 }
@@ -493,15 +542,20 @@ export class GroqBenchAgentProvider implements BenchAgentProvider {
     options?: { signal?: AbortSignal }
   ): Promise<AgentTurnResult> {
     const messages = buildGroqMessages(this.systemInstruction, request);
-    const tools = request.tools.length > 0 ? translateToolsToGroq(request.tools) : undefined;
+    const verificationWorkflow = isGroqVerificationWorkflow(request);
+    const eligibleTools = verificationWorkflow
+      ? request.tools.filter((tool) => VERIFICATION_TOOL_NAMES.has(tool.name))
+      : request.tools;
+    const tools = eligibleTools.length > 0 ? translateToolsToGroq(eligibleTools) : undefined;
     const requestBody: Record<string, unknown> = {
       model: this.model,
       messages,
       temperature: this.temperature,
+      max_completion_tokens: GROQ_MAX_COMPLETION_TOKENS,
     };
     if (tools) {
       requestBody.tools = tools;
-      requestBody.tool_choice = "auto";
+      requestBody.tool_choice = selectGroqToolChoice(request.input, verificationWorkflow);
     }
 
     const controller = new AbortController();

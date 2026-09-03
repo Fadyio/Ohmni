@@ -11,7 +11,7 @@
  */
 
 import React, { useState } from "react";
-import { CheckCircle2, XCircle, RotateCcw, ArrowRight, ShieldCheck, Wrench, Activity } from "lucide-react";
+import { CheckCircle2, XCircle, RotateCcw, ArrowRight, ShieldCheck, Wrench, Activity, Cpu } from "lucide-react";
 import type { ScenarioGroundTruth } from "@/domain/scenario/types";
 import type { DiagnosisMatchResult } from "@/domain/scenario/engine";
 import type { Hypothesis } from "@/domain/hypothesis/types";
@@ -537,6 +537,44 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
           )}
         </div>
       </div>
+      {/* Physical Hardware Control Plane Roadmap */}
+      <div
+        data-testid="web-serial-transition-banner"
+        style={{
+          background: "rgba(73, 103, 255, 0.05)",
+          border: "1px solid rgba(73, 103, 255, 0.2)",
+          borderRadius: "var(--radius-lg, 12px)",
+          padding: "1rem 1.25rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "14px",
+        }}
+      >
+        <div
+          style={{
+            width: "38px",
+            height: "38px",
+            borderRadius: "8px",
+            background: "rgba(73, 103, 255, 0.12)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--ohmni-lab-brand, #4967FF)",
+            flexShrink: 0,
+          }}
+        >
+          <Cpu size={20} />
+        </div>
+        <div>
+          <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-brand, #4967FF)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Hardware Control Plane Roadmap
+          </div>
+          <div style={{ fontSize: "13.5px", color: "var(--ohmni-lab-text, #0F172A)", marginTop: "3px", lineHeight: 1.45 }}>
+            The next step is connecting Ohmni to real hardware over Web Serial, so the same WebMCP tools used in the virtual lab can operate an actual device on the desk.
+          </div>
+        </div>
+      </div>
+
 
       {/* Action Footer */}
       <div

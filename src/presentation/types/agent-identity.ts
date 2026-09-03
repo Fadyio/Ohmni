@@ -31,10 +31,13 @@ export function getAgentIdentity(
       isBlind: false,
     };
   }
+  const providerDisplay = liveProvider
+    ? liveProvider.charAt(0).toUpperCase() + liveProvider.slice(1)
+    : "Groq";
   return {
     id: "groq",
-    displayName: "Groq",
-    shortName: "Groq",
+    displayName: providerDisplay,
+    shortName: providerDisplay,
     model: liveModel ?? "openai/gpt-oss-120b",
     mode: "groq",
     isDeterministic: false,

@@ -58,6 +58,30 @@ describe("GroqBenchAgentProvider", () => {
         ])
       ).toBe("auto");
     });
+
+    it("moves directly from a successful verification retest to evidence-bound confirmation", () => {
+      expect(
+        selectGroqToolChoice(
+          [
+            {
+              type: "function_result",
+              call_id: "call_retest",
+              name: "run_relay_stress_test",
+              result: [
+                {
+                  type: "text",
+                  text: '{"experiment_id":"exp-002","unexpected_resets":0,"evidence_ids":["E-010","E-011"]}',
+                },
+              ],
+            },
+          ],
+          true,
+        ),
+      ).toEqual({
+        type: "function",
+        function: { name: "confirm_hypothesis" },
+      });
+    });
   });
 
   describe("isGroqVerificationWorkflow", () => {

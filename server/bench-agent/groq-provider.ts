@@ -44,12 +44,23 @@ export type FetchFunction = (
 ) => Promise<Response>;
 
 export function selectGroqToolChoice(
-  input: AgentTurnRequest["input"]
-): "auto" | { type: "function"; function: { name: "run_relay_stress_test" } } {
+  input: AgentTurnRequest["input"],
+  verificationWorkflow = false
+): "auto" | { type: "function"; function: { name: "run_relay_stress_test" | "confirm_hypothesis" } } {
   if (typeof input === "string" && input.includes(VERIFICATION_RETEST_MARKER)) {
     return {
       type: "function",
       function: { name: "run_relay_stress_test" },
+    };
+  }
+  if (
+    verificationWorkflow &&
+    Array.isArray(input) &&
+    input.some((result) => result.name === "run_relay_stress_test" && result.is_error !== true)
+  ) {
+    return {
+      type: "function",
+      function: { name: "confirm_hypothesis" },
     };
   }
   return "auto";
@@ -354,7 +365,8 @@ export class GroqBenchAgentProvider implements BenchAgentProvider {
     options?: { signal?: AbortSignal }
   ): Promise<AgentTurnResult> {
     const messages = buildGroqMessages(this.systemInstruction, request);
-    const eligibleTools = isGroqVerificationWorkflow(request)
+    const verificationWorkflow = isGroqVerificationWorkflow(request);
+    const eligibleTools = verificationWorkflow
       ? request.tools.filter((tool) => VERIFICATION_TOOL_NAMES.has(tool.name))
       : request.tools;
     const tools =
@@ -369,7 +381,7 @@ export class GroqBenchAgentProvider implements BenchAgentProvider {
 
     if (tools) {
       requestBody.tools = tools;
-      requestBody.tool_choice = selectGroqToolChoice(request.input);
+      requestBody.tool_choice = selectGroqToolChoice(request.input, verificationWorkflow);
     }
 
     const controller = new AbortController();

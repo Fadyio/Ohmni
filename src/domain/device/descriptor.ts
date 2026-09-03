@@ -20,4 +20,9 @@ export interface DeviceDescriptor {
   readonly protocolVersion: number;
   readonly capabilities: readonly DeviceCapability[];
   readonly limits?: Readonly<Record<string, unknown>>;
+  readonly manufacturer?: string;
+  readonly model?: string;
+  readonly hardwareRevision?: string;
+  readonly transport?: string;
+  readonly presentationProfile?: "authored_esp32_demo" | "generic_serial" | string;
 }

@@ -519,6 +519,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
           }}
         >
           <DynamicInvestigationScene
+            descriptor={descriptor}
             agentState={agentState}
             experimentStatus={experimentStatus}
             relayState={relayState}

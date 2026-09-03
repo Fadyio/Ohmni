@@ -9,6 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "bun test",
+    "test:serial": "bun test tests/serial/",
+    "test:e2e:serial": "bun run scripts/test-e2e-serial.ts",
     "test:chrome": "bun run scripts/test-chrome.ts",
     "test:motion": "bun run scripts/test-motion.ts",
     "record:motion": "bun run scripts/record-motion.ts",

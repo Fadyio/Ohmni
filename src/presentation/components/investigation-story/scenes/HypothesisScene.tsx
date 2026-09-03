@@ -67,10 +67,10 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
         data-testid="hypothesis-card"
         style={{
           background: "var(--ohmni-lab-raised)",
-          border: "1.5px solid var(--ohmni-lab-brand)",
-          borderRadius: "var(--radius-xl)",
-          padding: "2rem",
-          boxShadow: "0 0 32px rgba(85, 112, 255, 0.15)",
+          border: "1px solid var(--ohmni-lab-border)",
+          borderRadius: "var(--radius-lg, 12px)",
+          padding: "1.75rem",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)",
           display: "flex",
           flexDirection: "column",
           gap: "1.5rem",
