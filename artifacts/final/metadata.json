@@ -2,171 +2,99 @@
   {
     "fileName": "01-landing.png",
     "scene": "Landing",
-    "buildSha": "06c5edc527b27c9c0b161594ec4ebfed8ba7f4b4",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": false,
-      "relayState": "open",
-      "jumper": "3v3",
-      "experimentsCount": 0,
-      "evidenceCount": 0,
-      "hypothesesCount": 0,
-      "hypothesisStatus": "none"
-    },
-    "timestamp": "2026-09-03T17:30:13.358Z"
+    "description": "Product hero with external-agent value proposition, reference device illustration, and compact proof line.",
+    "agentMode": "external",
+    "scenario": "brownout"
   },
   {
-    "fileName": "02-challenge.png",
-    "scene": "Challenge",
-    "buildSha": "06c5edc527b27c9c0b161594ec4ebfed8ba7f4b4",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": false,
-      "relayState": "open",
-      "jumper": "3v3",
-      "experimentsCount": 0,
-      "evidenceCount": 0,
-      "hypothesesCount": 0,
-      "hypothesisStatus": "none"
-    },
-    "timestamp": "2026-09-03T17:30:13.432Z"
-  },
-  {
-    "fileName": "03-ready.png",
+    "fileName": "02-agent-ready.png",
     "scene": "Ready",
-    "buildSha": "06c5edc527b27c9c0b161594ec4ebfed8ba7f4b4",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": true,
-      "relayState": "open",
-      "jumper": "3v3",
-      "experimentsCount": 0,
-      "evidenceCount": 0,
-      "hypothesesCount": 0,
-      "hypothesisStatus": "none"
-    },
-    "timestamp": "2026-09-03T17:30:14.128Z"
+    "description": "Quiescent hardware workbench ready for WebMCP-capable external agent, copyable prompt, and activity stream.",
+    "agentMode": "external",
+    "scenario": "brownout"
   },
   {
-    "fileName": "04-observing.png",
-    "scene": "Observing",
-    "buildSha": "06c5edc527b27c9c0b161594ec4ebfed8ba7f4b4",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": true,
-      "relayState": "open",
-      "jumper": "3v3",
-      "experimentsCount": 0,
-      "evidenceCount": 0,
-      "hypothesesCount": 0,
-      "hypothesisStatus": "none"
-    },
-    "timestamp": "2026-09-03T17:30:14.979Z"
+    "fileName": "03-observation.png",
+    "scene": "Observation",
+    "description": "Empirical reset history readout showing brownout resets and plain-English hardware interpretation.",
+    "agentMode": "external",
+    "scenario": "brownout"
   },
   {
-    "fileName": "05-approval.png",
+    "fileName": "04-approval.png",
     "scene": "Approval",
-    "buildSha": "06c5edc527b27c9c0b161594ec4ebfed8ba7f4b4",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": true,
-      "relayState": "open",
-      "jumper": "3v3",
-      "experimentsCount": 0,
-      "evidenceCount": 0,
-      "hypothesesCount": 0,
-      "hypothesisStatus": "none"
-    },
-    "timestamp": "2026-09-03T17:30:15.029Z"
+    "description": "Amber hardware safety interlock gating physical relay actuation under coil load.",
+    "agentMode": "external",
+    "scenario": "brownout"
   },
   {
-    "fileName": "06-experiment.png",
+    "fileName": "05-experiment.png",
     "scene": "Experiment",
-    "buildSha": "06c5edc527b27c9c0b161594ec4ebfed8ba7f4b4",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": true,
-      "relayState": "open",
-      "jumper": "3v3",
-      "experimentsCount": 1,
-      "evidenceCount": 5,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "NOT_VERIFIED"
-    },
-    "timestamp": "2026-09-03T17:30:15.370Z"
+    "description": "Running controlled load test with active relay, live oscilloscope trace, and 2.80V reset threshold.",
+    "agentMode": "external",
+    "scenario": "brownout"
   },
   {
-    "fileName": "07-diagnosis.png",
+    "fileName": "06-fault.png",
+    "scene": "Fault Reproduced",
+    "description": "Oscilloscope trace frozen at 2.72V minimum sag, relay safely open, brownout reset captured.",
+    "agentMode": "external",
+    "scenario": "brownout"
+  },
+  {
+    "fileName": "07-evidence.png",
+    "scene": "Evidence",
+    "description": "Immutable empirical facts collected from hardware test, with linked evidence tokens.",
+    "agentMode": "external",
+    "scenario": "brownout"
+  },
+  {
+    "fileName": "08-diagnosis.png",
     "scene": "Diagnosis",
-    "buildSha": "06c5edc527b27c9c0b161594ec4ebfed8ba7f4b4",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": true,
-      "relayState": "open",
-      "jumper": "3v3",
-      "experimentsCount": 1,
-      "evidenceCount": 5,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "NOT_VERIFIED"
-    },
-    "timestamp": "2026-09-03T17:30:15.438Z"
+    "description": "Agent working diagnosis grounded in evidence: relay activation is collapsing the MCU supply rail.",
+    "agentMode": "external",
+    "scenario": "brownout"
   },
   {
-    "fileName": "08-repair.png",
-    "scene": "Repair",
-    "buildSha": "06c5edc527b27c9c0b161594ec4ebfed8ba7f4b4",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": true,
-      "relayState": "open",
-      "jumper": "3v3",
-      "experimentsCount": 1,
-      "evidenceCount": 5,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "NOT_VERIFIED"
-    },
-    "timestamp": "2026-09-03T17:30:15.505Z"
+    "fileName": "09-human-action.png",
+    "scene": "Human Repair",
+    "description": "Human-agent collaboration boundary: moving relay power jumper from 3.3V rail to independent 5V supply.",
+    "agentMode": "external",
+    "scenario": "brownout"
   },
   {
-    "fileName": "09-verification.png",
+    "fileName": "10-verification.png",
     "scene": "Verification",
-    "buildSha": "06c5edc527b27c9c0b161594ec4ebfed8ba7f4b4",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": true,
-      "relayState": "open",
-      "jumper": "5v",
-      "experimentsCount": 2,
-      "evidenceCount": 8,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "VERIFIED"
-    },
-    "timestamp": "2026-09-03T17:30:15.827Z"
+    "description": "Post-repair verification retest proving supply rail stability at 3.18V under full relay load.",
+    "agentMode": "external",
+    "scenario": "brownout"
   },
   {
-    "fileName": "10-result.png",
+    "fileName": "11-result.png",
     "scene": "Result",
-    "buildSha": "06c5edc527b27c9c0b161594ec4ebfed8ba7f4b4",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": true,
-      "relayState": "open",
-      "jumper": "5v",
-      "experimentsCount": 2,
-      "evidenceCount": 8,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "VERIFIED"
-    },
-    "timestamp": "2026-09-03T17:30:15.877Z"
+    "description": "Verified repair payoff with empirical Before/After delta and diagnosis match against sealed ground truth.",
+    "agentMode": "external",
+    "scenario": "brownout"
+  },
+  {
+    "fileName": "12-connect-hardware.png",
+    "scene": "Connect Hardware",
+    "description": "Clean 5-step Web Serial hardware connection flow and try-without-hardware option.",
+    "agentMode": "external",
+    "scenario": "hardware"
+  },
+  {
+    "fileName": "13-physical-device.png",
+    "scene": "Physical Device",
+    "description": "Professional laboratory instrumentation rack for custom USB Serial physical devices.",
+    "agentMode": "external",
+    "scenario": "hardware"
+  },
+  {
+    "fileName": "14-webmcp-inspector.png",
+    "scene": "WebMCP Inspector",
+    "description": "Drawer displaying 19 registered instruments on document.modelContext categorized by diagnostic intent.",
+    "agentMode": "external",
+    "scenario": "diagnostics"
   }
 ]
