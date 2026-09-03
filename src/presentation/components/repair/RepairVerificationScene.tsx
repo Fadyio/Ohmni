@@ -368,7 +368,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-brand)", fontSize: "12.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   <Wrench size={15} />
-                  Virtual DUT intervention required
+                  <span>The agent needs your hands · Virtual DUT intervention required</span>
                 </div>
 
                 <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-ink)", margin: "8px 0 12px", lineHeight: 1.2 }}>

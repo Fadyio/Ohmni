@@ -51,8 +51,7 @@ export const DeviceVisualizationSwitch: React.FC<DeviceVisualizationSwitchProps>
   const isAuthoredDemo =
     !descriptor ||
     descriptor.presentationProfile === "authored_esp32_demo" ||
-    descriptor.id === "virtual-esp32s3-env" ||
-    descriptor.transport === "Virtual Simulation";
+    descriptor.presentationProfile !== "generic_serial" && descriptor.transport !== "Web Serial";
   if (isAuthoredDemo) {
     return (
       <BoardSilhouette

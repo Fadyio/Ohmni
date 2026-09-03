@@ -171,14 +171,11 @@ export class SerialDeviceAdapter implements DeviceAdapter {
       }
     });
 
-    // If peer sends a line claiming to be a descriptor that fails protocol validation, fail fast
-    const unsubscribeRaw = this.parser.onRawLine((line) => {
-      if (line.includes('"descriptor"')) {
-        const parsed = parseProtocolMessage(line);
-        if (!parsed.ok) {
-          cleanup();
-          reject(new Error(`Invalid device descriptor received during handshake: ${line.trim()}`));
-        }
+    // If peer sends a line claiming to be a descriptor that failed protocol validation, fail fast
+    const unsubscribeRaw = this.parser.getRawLog().subscribe((entry) => {
+      if (entry.line.includes('"descriptor"')) {
+        cleanup();
+        reject(new Error(`Invalid device descriptor received during handshake: ${entry.line.trim()}`));
       }
     });
 
