@@ -251,10 +251,9 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
     <motion.div
       data-scene="running"
       data-testid="running-experiment-scene"
-      initial={{ opacity: 0, scaleY: 0.88 }}
+      initial={{ opacity: 1, scaleY: 1 }}
       animate={{ opacity: 1, scaleY: 1 }}
-      exit={{ opacity: 0, scaleY: 0.88 }}
-      transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
       style={{
         display: "flex",
         flexDirection: "column",

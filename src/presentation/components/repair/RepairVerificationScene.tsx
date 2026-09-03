@@ -122,10 +122,17 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
         ? "Human observation: Relay power jumper moved from shared 3.3V rail to external 5V rail."
         : "Human observation: Relay power jumper moved back to shared 3.3V rail.";
     setObservationSent(true);
+    if (resolvedEvidenceStore && typeof resolvedEvidenceStore.addHumanObservation === "function") {
+      resolvedEvidenceStore.addHumanObservation({
+        summary: observationText,
+        notes: `Jumper physically moved to ${jumperPosition}`,
+        interventionPointId: "relay_power_jumper",
+      });
+    }
     if (onSendObservation) {
       onSendObservation(observationText);
     }
-  }, [jumperPosition, onSendObservation]);
+  }, [jumperPosition, resolvedEvidenceStore, onSendObservation]);
 
   const beforeMinVoltage = beforeExperiment?.summary?.supply_voltage?.minimum_v;
   const afterMinVoltage = afterExperiment?.summary?.supply_voltage?.minimum_v;

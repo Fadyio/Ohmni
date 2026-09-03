@@ -71,8 +71,8 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
       data-scene="approval"
       data-testid="bench-agent-approval"
       id="test-request-scene"
+      initial={{ opacity: 1 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
       transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
       style={{
         display: "flex",
@@ -279,8 +279,8 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
 
           {/* Diagram Footer Status */}
           <div style={{ position: "relative", zIndex: 2, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px", color: "#64748B" }}>
-            <span>Shared substrate trace: <strong style={{ color: "#94A3B8" }}>VCC 3.31V</strong></span>
-            <span>Relay coil: <strong style={{ color: "var(--ohmni-lab-action)" }}>12V Inductive</strong></span>
+            <span>Relay coil: <strong style={{ color: "var(--ohmni-lab-action)" }}>MCU supply rail</strong></span>
+            <span>Load: <strong style={{ color: "#94A3B8" }}>12V cooling fan</strong></span>
           </div>
         </div>
 

@@ -23,7 +23,7 @@ import { useWebMCPTools } from "../../hooks/useWebMCPTools";
 export interface WelcomeViewProps {
   readonly onStartMystery?: () => void;
   readonly onStartDemo: () => void;
-  readonly onConnectHardware: () => void;
+  readonly onConnectHardware?: () => void;
   readonly heroTextRef?: React.RefObject<HTMLDivElement | null>;
   readonly hardwareVisualRef?: React.RefObject<HTMLDivElement | null>;
   readonly ctaButtonRef?: React.RefObject<HTMLButtonElement | null>;
@@ -86,35 +86,6 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
           </span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span
-            data-testid="welcome-mesh-badge"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "7px",
-              padding: "5px 14px",
-              borderRadius: "var(--radius-full, 9999px)",
-              background: "var(--ohmni-intro-surface, #FFFFFF)",
-              border: "1px solid var(--ohmni-intro-border, #E2E4E9)",
-              fontSize: "12px",
-              fontWeight: 600,
-              color: "var(--ohmni-intro-secondary, #525866)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <span
-              style={{
-                width: "7px",
-                height: "7px",
-                borderRadius: "50%",
-                background: "var(--ohmni-intro-brand, #4967FF)",
-                boxShadow: "0 0 6px rgba(73, 103, 255, 0.6)",
-              }}
-            />
-            Virtual Hardware Workbench
-          </span>
-        </div>
       </header>
 
       {/* Main Hero Container */}
@@ -232,20 +203,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   fontSize: "14.5px",
                 }}
               >
-                <span>Deterministic walkthrough</span>
-              </button>
-              {/* Secondary CTA: Physical hardware */}
-              <button
-                data-testid="connect-hardware-btn"
-                onClick={onConnectHardware}
-                className="btn-secondary"
-                style={{
-                  padding: "14px 20px",
-                  fontSize: "14.5px",
-                }}
-              >
-                <Zap size={16} color="var(--ohmni-intro-brand, #4967FF)" />
-                <span>Physical hardware</span>
+                <span>View deterministic walkthrough</span>
               </button>
             </div>
 

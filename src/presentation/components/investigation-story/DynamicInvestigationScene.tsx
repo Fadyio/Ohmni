@@ -283,8 +283,8 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
         </motion.div>
       ) : null}
 
-      {/* Scene Render Container */}
-      <AnimatePresence mode="wait">
+      {/* Scene Render Container — Zero white wash / zero blank frame transitions */}
+      <AnimatePresence>
         {currentScene === "ready" && (
           <ReadyScene
             key="ready"

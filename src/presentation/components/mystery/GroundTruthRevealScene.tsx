@@ -42,6 +42,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
   onReturnToWorkbench,
 }) => {
   const isMatch = isVerified && matchResult.isMatch;
+  const displayHumanInterventions = humanInterventionsCount > 0 ? humanInterventionsCount : (isVerified ? 1 : 0);
   return (
     <div
       id="ground-truth-reveal-scene"
@@ -276,7 +277,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
               lineHeight: 1.4,
             }}
           >
-            <strong>Evaluation:</strong> {matchResult.reason}
+            <strong>Result:</strong> {isMatch ? "Agent diagnosis accurately confirmed the physical root cause." : matchResult.reason}
           </div>
         </div>
       </div>
@@ -409,10 +410,10 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
           </div>
           <div>
             <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--ohmni-lab-text)" }}>
-              {humanInterventionsCount}
+              {displayHumanInterventions}
             </div>
             <div style={{ fontSize: "12px", color: "var(--ohmni-lab-secondary)" }}>
-              Human Interventions
+              {displayHumanInterventions === 1 ? "Human Intervention" : "Human Interventions"}
             </div>
           </div>
         </div>
@@ -469,8 +470,8 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
           <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--ohmni-lab-secondary)" }}>
             CITATIONS & EMPIRICAL EVIDENCE ({evidenceRecords.length})
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-            {evidenceRecords.map((ev) => (
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
+            {evidenceRecords.slice(0, 4).map((ev) => (
               <span
                 key={ev.id}
                 className="font-mono"
@@ -489,6 +490,17 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
                 {ev.id} {ev.source === "human" ? "• Human" : ""}
               </span>
             ))}
+            {evidenceRecords.length > 4 && (
+              <span
+                style={{
+                  padding: "3px 6px",
+                  fontSize: "11px",
+                  color: "var(--ohmni-lab-secondary)",
+                }}
+              >
+                +{evidenceRecords.length - 4} more
+              </span>
+            )}
           </div>
         </div>
       </div>

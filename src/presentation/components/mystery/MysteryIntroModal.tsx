@@ -70,59 +70,36 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
           position: "relative",
         }}
       >
-        {/* Header Badges */}
+        {/* Header Status */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span
-              className="font-mono"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "4px 10px",
-                borderRadius: "var(--radius-full, 9999px)",
-                background: "rgba(73, 103, 255, 0.08)",
-                border: "1px solid rgba(73, 103, 255, 0.2)",
-                fontSize: "12px",
-                fontWeight: 700,
-                color: "var(--ohmni-lab-brand, #4967FF)",
-              }}
-            >
-              <Cpu size={14} />
-              {isDemo ? "DEMO AGENT • WALKTHROUGH" : session.sessionId}
-            </span>
-          </div>
-
-          {/* Status Indicator */}
-          <div
+          <span
             data-testid="sealed-truth-indicator"
-            title={isDemo ? "Guided fallback walkthrough using browser WebMCP instruments" : "The scenario state is held outside the model context and is revealed only after verification."}
+            className="font-mono"
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: "6px",
               padding: "4px 10px",
               borderRadius: "var(--radius-full, 9999px)",
-              background: "rgba(15, 23, 42, 0.06)",
+              background: "rgba(15, 23, 42, 0.05)",
               border: "1px solid rgba(15, 23, 42, 0.12)",
               fontSize: "11.5px",
               fontWeight: 600,
               color: "var(--ohmni-lab-secondary, #64748B)",
-              cursor: "help",
             }}
           >
             {isDemo ? (
               <>
                 <ShieldCheck size={12} color="var(--ohmni-lab-brand, #4967FF)" />
-                <span>Deterministic WebMCP walkthrough</span>
+                <span>DEMO AGENT • WALKTHROUGH</span>
               </>
             ) : (
               <>
                 <Lock size={12} />
-                <span>Hidden from agent context</span>
+                <span>Fault Withheld from Model Context</span>
               </>
             )}
-          </div>
+          </span>
         </div>
 
         {/* Title and Intro */}
@@ -147,8 +124,8 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
             }}
           >
             {isDemo
-              ? "This guided fallback demonstrates the same browser instruments, safety gates, evidence system and verification loop without external AI inference."
-              : `A fault has been injected into the virtual controller. ${identity.displayName} has not been given the answer.`}
+              ? "This guided fallback demonstrates browser instruments, safety gates, evidence logging, and verification without external AI inference."
+              : `${identity.displayName} knows only the reported symptom. The underlying fault is withheld from its context.`}
           </p>
         </div>
 
@@ -193,30 +170,6 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
           </p>
         </div>
 
-        {/* Blind Rules summary */}
-        {/* Ground Truth Status */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            fontSize: "13px",
-            color: "var(--ohmni-lab-secondary, #64748B)",
-            padding: "0.25rem 0",
-          }}
-        >
-          {isDemo ? (
-            <>
-              <ShieldCheck size={14} color="var(--ohmni-lab-verified, #27966B)" />
-              <span><strong>EXECUTION:</strong> Guided WebMCP instrument verification without AI inference.</span>
-            </>
-          ) : (
-            <>
-              <Lock size={14} color="var(--ohmni-lab-action, #D97706)" />
-              <span><strong>GROUND TRUTH:</strong> Hidden from agent context until reveal.</span>
-            </>
-          )}
-        </div>
 
         {/* Action Buttons */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px", marginTop: "4px" }}>

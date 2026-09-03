@@ -1,218 +1,145 @@
-# OHMNI — Browser-Native AI Hardware Investigation Lab
+# OHMNI
 
-> **Ohmni is a blind hardware investigation lab powered by WebMCP. A fault is hidden inside a virtual/physical device. Gemini does not know the fault. WebMCP gives it live browser-owned diagnostic instruments. Gemini investigates, asks the human for physical help when needed, and experimentally verifies the repair.**
+> **Ohmni turns the browser into a laboratory an AI agent can operate.**
 
----
-
-## One-Sentence Judge Summary
-
-"Ohmni uses WebMCP to let an AI agent operate live hardware instruments inside the browser, collaborate with a human on physical changes, and experimentally verify a root cause."
-
----
-
-## The Premise: Why WebMCP?
-
-AI coding agents can inspect software repositories, debug logic, and run linters. But they normally **cannot safely inspect, actuate, measure, and verify the physical device sitting on the user's desk**.
-
-A remote Model Context Protocol (MCP) server can reach your cloud database. **WebMCP can reach the board on your desk.**
-
-WebMCP exposes safe, stateful, browser-owned diagnostic instruments directly to an AI agent through the browser's native `document.modelContext` API. The browser owns the device connection (Web Serial / Virtual Device Adapter), the safety boundaries, and the human consent gates.
+WebMCP gives the agent instruments.  
+The browser enforces safety.  
+The human provides the hands.  
+Evidence proves the diagnosis.
 
 ---
 
-## Technical Architecture
+## Live Demo & Repository
 
-```mermaid
-graph TD
-    User([Human Collaborator])
-    Gemini[Gemini 2.5/3.0 LLM via BenchAgent]
-    
-    subgraph Browser["Browser Context (WebMCP Runtime)"]
-        MC[document.modelContext]
-        SafetyGate[Amber Safety Gate]
-        ER[ExperimentRunner]
-        DA[DeviceAdapter: Virtual / Serial]
-        ES[EvidenceStore: Immutable Ledger]
-        HS[HypothesisStore: Scientific Reasoning]
-        RingBuf[Telemetry RingBuffer: 60fps]
-    end
-    
-    subgraph Hardware["Device Subsystem"]
-        Target[Virtual / Physical MCU Controller]
-        Relay[Relay / Load]
-        Sensors[I2C Environmental Sensors]
-        Jumpers[Physical Jumpers & DIP Switches]
-    end
+- **Live Production Workbench:** [https://ohmni-three.vercel.app](https://ohmni-three.vercel.app)
+- **Repository:** [https://github.com/Fadyio/Ohmni](https://github.com/Fadyio/Ohmni)
+- **Submission Track:** The WebMCP Challenge (Devpost)
 
-    Gemini -->|Function Calls| MC
-    MC -->|Discovery & Invocation| ER
-    ER -->|Mutating Tool Execution| SafetyGate
-    SafetyGate -->|Approval Required| User
-    User -->|Approves / Denies| SafetyGate
-    SafetyGate -->|Permitted Actuation| DA
-    DA -->|Passive Reads / Actuation| Target
-    Target -->|Analog / Bus Events| DA
-    DA -->|Voltage & Reset Telemetry| RingBuf
-    DA -->|Factual Event Stream| ER
-    ER -->|Immutable Evidence Records| ES
-    ES -->|Empirical Citations| HS
-    Gemini -->|Propose / Update / Confirm| HS
+---
 
-    User -.->|Physical Jumper Modification| Jumpers
-    Jumpers -.->|Configuration Change| Target
-    User -.->|HumanObservation| ES
+## 90-Second Architecture
+
+```text
+       ┌───────────────────────────────┐
+       │   AI Agent (Groq / Live LLM)  │
+       └──────────────┬────────────────┘
+                      │ Structured Tool Calls
+                      ▼
+┌─────────────────────────────────────────────┐
+│          Browser (WebMCP Runtime)           │
+│                                             │
+│   document.modelContext                     │
+│       │                                     │
+│       ├─► Passive Reads ──► Autonomous      │
+│       │                                     │
+│       └─► Physical Tests ─► Amber Gate      │
+│                                  │          │
+│                             Human Consent   │
+│                                  ▼          │
+│                      Device Adapter         │
+│                      (Virtual / Serial)     │
+└──────────────────────┬──────────────────────┘
+                       │ Physical Telemetry & Reset Lines
+                       ▼
+┌─────────────────────────────────────────────┐
+│              ESP32-S3 Target                │
+│   MCU Rail (3.3V) • Relay • 12V Fan Load    │
+│   Physical Jumpers (JP1) • I²C Sensor Bus   │
+└─────────────────────────────────────────────┘
 ```
 
 ---
 
-## The Core Investigation Lifecycle
+## Why WebMCP?
 
-```
-[ WELCOME ]
-     ↓
-[ MYSTERY CHALLENGE ] (Scenario ground truth sealed outside model context)
-     ↓
-[ OBSERVE ] (Gemini autonomously reads device info, reset logs, sensor bus)
-     ↓
-[ FORM HYPOTHESES ] (Qualitative confidence tiers: UNTESTED → LOW → MEDIUM)
-     ↓
-[ CONTROLLED EXPERIMENT ] (Amber Safety Gate: Human authorization required)
-     ↓
-[ COLLECT EMPIRICAL EVIDENCE ] (Factual Evidence Ledger: E-001, E-002...)
-     ↓
-[ REQUEST HUMAN INTERVENTION ] ("I need your hands to relocate JP1 to 5V")
-     ↓
-[ HUMAN PHYSICAL ACTION ] (Technician moves jumper, adds HumanObservation)
-     ↓
-[ EXPERIMENTAL VERIFICATION ] (Gemini reruns identical test on modified system)
-     ↓
-[ VERIFIED CONCLUSION ] (Empirically verified: no resets, nominal voltage)
-     ↓
-[ GROUND TRUTH REVEAL ] (Unseal scenario ground truth → Deterministic Semantic Match)
-```
+Embedded engineers waste hours determining whether a failure is firmware, wiring, power, buses, configuration, or physical hardware. Today's coding agents can inspect source code but stop at the edge of the computer.
+
+A remote Model Context Protocol (MCP) server reaches cloud databases. **WebMCP reaches the board on your desk.**
+
+Ohmni lets the device's web console expose live measurements and bounded tests directly to an agent through the browser's native `document.modelContext` API. The browser owns the hardware connection, enforces safety boundaries, and requires human consent before physical actuation.
 
 ---
 
-## Three Canonical Mystery Scenarios
+## Try the Blind Challenge
 
-Ohmni ships with 3 scientifically rigorous hardware fault scenarios. Neither the user nor Gemini is told which scenario is active.
+Ohmni features reproducible hardware fault challenges designed for autonomous evaluation. The underlying fault is strictly firewalled from the agent's context. The agent receives only the reported symptom:
 
-### Scenario A: Relay Supply Brownout
-- **Public Symptom:** "The controller unexpectedly restarts when the cooling fan turns on."
-- **Hidden Ground Truth:** The relay coil is powered from the shared 3.3V microcontroller rail. Actuating the relay draws high inrush current, causing the 3.3V rail to collapse to 2.72V, triggering an ESP32-S3 hardware `BROWNOUT` reset.
-- **Physical Intervention:** Relocate jumper `JP1` from shared 3.3V to external 5V auxiliary rail.
-- **Verification:** Rerun relay stress test. Minimum rail voltage remains stable at 3.18V with zero resets.
+> *"The controller restarts whenever the cooling fan turns on."*
 
-### Scenario B: I²C Address Mismatch
-- **Public Symptom:** "The environmental sensor stopped responding and telemetry reports NACK."
-- **Hidden Ground Truth:** The physical sensor hardware responds at address `0x77`, but the controller firmware register targets `0x76`.
-- **Physical Intervention:** Toggle DIP address selector from `0x77` to `0x76`.
-- **Verification:** Rerun I²C bus probe. Sensor acknowledges at target address and returns valid telemetry.
-
-### Scenario C: Physical SDA Continuity Fault
-- **Public Symptom:** "The sensor intermittently disappears from the bus."
-- **Hidden Ground Truth:** SDA line is floating / open contact due to an unseated breadboard jumper.
-- **Physical Intervention:** Reseat the physical/virtual SDA jumper wire.
-- **Verification:** Rerun bus scan. Bus lines idle HIGH (3.3V) and sensor ACK is restored.
+1. **Observe:** The agent calls `read_reset_history` and `measure_supply_voltage` to observe power state.
+2. **Test:** The agent requests a controlled load test via `run_relay_stress_test`.
+3. **Safety Gate:** The browser halts execution until the human user authorizes the physical actuation.
+4. **Reproduce:** Under load, the 3.3V rail collapses to 2.72V, triggering a brownout reset captured on the live oscilloscope.
+5. **Human Hands:** The AI diagnoses the shared power rail fault. Unable to move physical jumpers itself, it requests human intervention: *"Move JP1 from 3.3V to the 5V auxiliary rail."*
+6. **Verify:** After the human switches the jumper, the agent reruns the stress test, confirms 3.18V rail stability with zero resets, and unseals the ground truth for an empirical diagnosis match.
 
 ---
 
-## WebMCP Instrument Mesh (19 Native Diagnostic Tools)
+## Five Key Instruments
 
-1. `read_device_info` — Read hardware architecture, firmware version, and target peripherals.
-2. `read_reset_history` — Inspect non-volatile reset logs (`BROWNOUT`, `WATCHDOG`, `SOFTWARE_PANIC`).
-3. `read_system_health` — Query operational status, clock frequency, and memory headroom.
-4. `measure_supply_voltage` — Sample real-time rail voltage with statistical min/max/average.
-5. `run_relay_stress_test` — **[AMBER PHYSICAL GATE]** Actuate fan relay under load to test supply stability.
-6. `scan_i2c_bus` — Probe 7-bit addresses on physical bus for ACK responses.
-7. `read_sensor_status` — Read target address and transaction status registers.
-8. `read_i2c_line_state` — Measure electrical continuity and logic states on SCL/SDA lines.
-9. `list_evidence` — Query recorded factual evidence records.
-10. `get_evidence` — Retrieve full telemetry, provenance, and data for a specific evidence token.
-11. `list_hypotheses` — Query proposed diagnostic hypotheses and their confidence tiers.
-12. `get_hypothesis` — Read detailed causal explanation, supporting facts, and next proposed tests.
-13. `propose_hypothesis` — Formulate a new hypothesis (`UNTESTED`, `LOW`, or `MEDIUM`).
-14. `update_hypothesis` — Elevate confidence (`HIGH`) backed by empirical evidence citations.
-15. `link_evidence` — Explicitly link evidence tokens (`SUPPORTS` or `CONTRADICTS`).
-16. `reject_hypothesis` — Disprove a hypothesis based on conflicting empirical data.
-17. `confirm_hypothesis` — Formally mark a hypothesis `CONFIRMED` and `VERIFIED` after post-repair test.
-18. `record_conclusion` — Document finalized root cause and technical repair summary.
-19. `request_human_intervention` — Formulate physical human instruction with scientific rationale.
+The connected board dynamically exposes diagnostic instruments tailored to its physical capabilities:
+
+1. `read_reset_history` — Inspect non-volatile microcontroller reset logs (`BROWNOUT`, `WATCHDOG`, `SOFTWARE_PANIC`).
+2. `measure_supply_voltage` — Sample real-time rail voltage with statistical min/max/average.
+3. `run_relay_stress_test` — **[Amber Physical Gate]** Actuate fan relay under load to test supply stability.
+4. `list_evidence` — Query captured empirical facts and telemetry citations.
+5. `request_human_intervention` — Request physical human action (e.g. relocate jumper, reseat wiring) with scientific rationale.
+
+*(Full tool registry with all 19 domain instruments is accessible in-app via the WebMCP Inspector).*
 
 ---
 
-## Safety Model & Non-Negotiable Invariants
+## Human Safety Model
 
-- **Green Instruments (Passive Observation):** Automatic execution. Passive reads cannot damage hardware.
-- **Amber Instruments (Physical Actuation):** Pauses execution. Requires explicit human authorization (`[Approve]` / `[Deny]` or keyboard `A`/`D`).
-- **Fail-Safe Relay Invariant:** The relay coil is guaranteed to return to `OPEN` across **all exit paths**: normal completion, tool denial, user stop, emergency stop, timeout, unhandled exception, and device disconnection.
-- **Hidden-State Firewall:** Gemini prompt, WebMCP tool declarations, system instructions, and schemas are strictly firewalled from scenario ground truth. Ground truth is unsealed only after verified repair.
+- **Green Instruments (Passive Observation):** Autonomous execution. Passive voltage sensing and register reads cannot alter hardware state.
+- **Amber Instruments (Physical Actuation):** Pauses execution. Requires explicit human authorization (`[Approve]` / `[Deny]`).
+- **Fail-Safe Invariant:** The relay coil is guaranteed to return to `OPEN` across all termination paths: tool denial, user abort, timeout, exception, or disconnect.
+- **Physical Boundary:** The AI cannot physically touch hardware; physical repairs require intentional human action.
 
 ---
 
-## Running Locally
+## How to Run Locally
 
 ### Prerequisites
 - [Bun](https://bun.sh) (v1.2+)
 - Google Chrome (latest stable)
 
 ```bash
-# Clone the repository
-git clone https://github.com/fadyat/ohmni.git
-cd ohmni
+# Clone the official repository
+git clone https://github.com/Fadyio/Ohmni.git
+cd Ohmni
 
 # Install dependencies
 bun install
 
-# Run development server
+# Start development server
 bun run dev
 ```
 
 Open `http://localhost:5173` in Google Chrome.
 
-### Running the Full Verification Gate
+---
+
+## Testing & Verification
 
 ```bash
-# Run the complete release verification suite (all gates stop on first failure)
+# Run strict TypeScript check and full test suite
+bun run typecheck
+bun test
+
+# Run the complete release verification suite
 bun run release:verify
 ```
 
-This single master command executes:
-1. `bun test` — 274 unit & domain tests across 36 files (0 failures).
-2. `bun run typecheck` — Strict TypeScript compiler check (`tsc --noEmit`).
-3. `bun run build` — Production Vite bundle with vendor chunking.
-4. `bun run test:chrome` — Real Google Chrome WebMCP tool discovery & execution.
-5. `bun run test:motion` — Real Chrome CDP 60fps motion, LED boot & relay transforms.
-6. `bun run test:mystery` — 3/3 blind hardware scenarios + hidden-state firewall audit.
-7. `bun run test:chaos` — All 14 failure modes (429, 500, timeouts, disconnects, step limits).
-8. `bun run test:visual` — All 13 canonical product scenes & responsive layout checks.
+The test suite validates:
+- 300+ unit, domain, safety, and scenario tests across 44 test suites (0 failures).
+- Real Chrome WebMCP discovery and execution.
+- 60fps telemetry ring buffer and oscilloscope sweep.
+- Amber safety gate approval/denial invariants.
+- Strict hidden-state firewall isolating ground truth from model context.
 
 ---
 
-## Enabling Native WebMCP in Google Chrome
+## License
 
-To test native `document.modelContext` without compatibility mode:
-1. Launch Google Chrome with WebMCP feature flag:
-   ```bash
-   /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --enable-features=WebMCPTesting
-   ```
-2. Inspect `window.__webmcpMode` in DevTools: returns `"native"`.
-3. The runtime badge in the header shows: `NATIVE WEBMCP`.
-
----
-
-## Production Deployment
-
-- **Hosting Platform:** Vercel (Edge-ready Vite SPA + serverless `/api/bench-agent` endpoint).
-- **Canonical Production URL:** `https://ohmni-three.vercel.app`
-- **Deployment Verification:**
-  ```bash
-  bun run smoke -- https://ohmni-three.vercel.app
-  ```
-
----
-
-## Known Limitations
-
-1. **Hardware Web Serial Support:** Experimental prototype. Web Serial adapter is designed for real ESP32-S3 boards running Ohmni NDJSON firmware, but the virtual simulator is the canonical judge-ready demo.
-2. **Gemini API Key:** Resides exclusively on the secure serverless edge in Vercel (`GEMINI_API_KEY`). Local developer test runs use the high-fidelity deterministic provider to protect test reproducibility.
+MIT License — see [LICENSE](LICENSE) for details.

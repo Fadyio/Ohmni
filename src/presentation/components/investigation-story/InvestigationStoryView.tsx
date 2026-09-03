@@ -11,8 +11,8 @@
  * - Developer Inspector access
  */
 
-import React, { useState } from "react";
-import { Bot, AlertTriangle, Sparkles, Lock, ShieldCheck, Terminal, Cpu, Radio, Sliders } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Bot, AlertTriangle, Sparkles, Lock, ShieldCheck, Terminal, Cpu, Radio, Sliders, MoreHorizontal } from "lucide-react";
 import { DynamicInvestigationScene } from "./DynamicInvestigationScene";
 import { InvestigationNarrativeRail } from "./InvestigationNarrativeRail";
 import { SignalPulse } from "./SignalPulse";
@@ -90,6 +90,8 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
 }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeSceneOverride, setActiveSceneOverride] = useState<"ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const agentIdentity = getAgentIdentity(agentMode, agentState.liveProvider, agentState.liveModel);
 
   const activeToolName = agentState.activity.length > 0 ? agentState.activity[agentState.activity.length - 1].call.name : undefined;
@@ -133,6 +135,42 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
 
   const isAgentActive = agentState.status === "investigating" || agentState.status === "approval";
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
+
+  const currentProgressStep: "OBSERVE" | "TEST" | "DIAGNOSE" | "REPAIR" | "VERIFY" = (() => {
+    switch (investigationPhase) {
+      case "welcome":
+      case "challenge_ready":
+      case "connecting":
+      case "ready":
+      case "observing":
+        return "OBSERVE";
+      case "waiting_for_approval":
+      case "experiment_running":
+        return "TEST";
+      case "evidence_review":
+      case "reasoning":
+      case "hypothesis":
+        return "DIAGNOSE";
+      case "waiting_for_human":
+      case "verification_pending":
+        return "REPAIR";
+      case "verification_running":
+      case "verified":
+        return "VERIFY";
+      default:
+        return "OBSERVE";
+    }
+  })();
   return (
     <div
       style={{
@@ -173,12 +211,12 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
         }}
       >
         {/* Left: 3D Compact Brand Wordmark + Hardware Identity */}
-        <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
           <div id="navbar-brand-wordmark" data-testid="navbar-brand-wordmark">
             <Ohmni3DWordmark variant="compact" />
           </div>
 
-          <div style={{ height: "18px", width: "1px", background: "var(--ohmni-lab-border, #E2E4E9)" }} />
+          <div style={{ height: "16px", width: "1px", background: "var(--ohmni-lab-border, #E2E4E9)" }} />
 
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span
@@ -190,70 +228,99 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
                 boxShadow: isConnected ? "0 0 8px rgba(39, 150, 107, 0.5)" : "none",
               }}
             />
-            <span className="font-mono" style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-lab-text, #0F172A)" }}>
-              {descriptor?.name ?? "ESP32 ENVIRONMENTAL CONTROLLER"}
+            <span className="font-mono" style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ohmni-lab-text, #0F172A)" }}>
+              {descriptor?.name ? descriptor.name.replace("ENVIRONMENTAL CONTROLLER", "Demo Board") : "ESP32-S3 Demo Board"}
             </span>
           </div>
         </div>
 
-        {/* Center: Sealed Fault Badge & Dynamic Agent Provider Badge */}
+        {/* Center: OBSERVE -> TEST -> DIAGNOSE -> REPAIR -> VERIFY */}
+        <div
+          id="investigation-progress-strip"
+          data-testid="investigation-progress-strip"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          {(["OBSERVE", "TEST", "DIAGNOSE", "REPAIR", "VERIFY"] as const).map((phase, idx) => {
+            const isActive = phase === currentProgressStep;
+            return (
+              <React.Fragment key={phase}>
+                {idx > 0 && <span style={{ color: "var(--ohmni-lab-border, #CBD5E1)", fontSize: "11px" }}>→</span>}
+                <span
+                  data-phase={phase}
+                  data-active={isActive}
+                  style={{
+                    padding: "3px 9px",
+                    borderRadius: "var(--radius-full, 9999px)",
+                    fontSize: "11px",
+                    fontWeight: isActive ? 800 : 600,
+                    letterSpacing: "0.04em",
+                    color: isActive ? "var(--ohmni-lab-brand, #4967FF)" : "var(--ohmni-lab-muted, #94A3B8)",
+                    background: isActive ? "rgba(73, 103, 255, 0.08)" : "transparent",
+                    border: isActive ? "1px solid rgba(73, 103, 255, 0.25)" : "1px solid transparent",
+                  }}
+                >
+                  {phase}
+                </span>
+              </React.Fragment>
+            );
+          })}
+        </div>
+
+        {/* Right: Native WebMCP (if native), Dynamic Agent Status, and ••• More Menu */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {/* Sealed Fault Badge */}
-          {activeScenario && (
+          {isNativeMode && (
             <span
-              data-testid="sealed-fault-badge"
-              title="The scenario state is held outside the model/tool context and is revealed only after verification."
+              data-testid="webmcp-mode-badge"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "5px",
-                padding: "4px 10px",
+                padding: "3px 9px",
                 borderRadius: "var(--radius-full, 9999px)",
-                background: activeScenario.isSealed ? "rgba(15, 23, 42, 0.05)" : "rgba(39, 150, 107, 0.1)",
-                border: `1px solid ${activeScenario.isSealed ? "rgba(15, 23, 42, 0.15)" : "rgba(39, 150, 107, 0.3)"}`,
-                color: activeScenario.isSealed ? "var(--ohmni-lab-secondary, #64748B)" : "var(--ohmni-lab-verified, #27966B)",
+                background: "rgba(39, 150, 107, 0.08)",
+                border: "1px solid rgba(39, 150, 107, 0.25)",
+                color: "var(--ohmni-lab-verified, #27966B)",
                 fontSize: "11px",
-                fontWeight: 700,
-                cursor: "help",
+                fontWeight: 600,
               }}
             >
-              <Lock size={12} />
-              <span>{activeScenario.isSealed ? "SEALED FAULT" : "VERIFIED FAULT"}</span>
+              <ShieldCheck size={12} />
+              <span>Native WebMCP</span>
             </span>
           )}
+
           <span
-            data-testid={agentMode === "demo" ? "demo-provider-badge" : agentMode === "gemini" ? "gemini-provider-badge" : "groq-provider-badge"}
+            data-testid={agentMode === "demo" ? "demo-provider-badge" : "groq-provider-badge"}
             data-provider-badge="true"
             id="provider-badge"
             style={{
+              display: "inline-flex",
               alignItems: "center",
               gap: "6px",
-              padding: "4px 12px",
+              padding: "4px 11px",
               borderRadius: "var(--radius-full, 9999px)",
               background:
                 agentMode === "demo"
-                  ? "rgba(73, 103, 255, 0.1)"
+                  ? "rgba(73, 103, 255, 0.08)"
                   : providerStatus === "live"
-                  ? "rgba(39, 150, 107, 0.1)"
-                  : providerStatus === "error" || agentState.status === "failed" || agentState.status === "unavailable"
-                  ? "rgba(220, 80, 80, 0.1)"
-                  : "rgba(73, 103, 255, 0.1)",
+                  ? "rgba(39, 150, 107, 0.08)"
+                  : "rgba(73, 103, 255, 0.08)",
               border: `1px solid ${
                 agentMode === "demo"
-                  ? "rgba(73, 103, 255, 0.3)"
+                  ? "rgba(73, 103, 255, 0.25)"
                   : providerStatus === "live"
-                  ? "rgba(39, 150, 107, 0.3)"
-                  : providerStatus === "error" || agentState.status === "failed" || agentState.status === "unavailable"
-                  ? "rgba(220, 80, 80, 0.3)"
-                  : "rgba(73, 103, 255, 0.3)"
+                  ? "rgba(39, 150, 107, 0.25)"
+                  : "rgba(73, 103, 255, 0.25)"
               }`,
               color:
                 agentMode === "demo"
                   ? "var(--ohmni-lab-brand, #4967FF)"
                   : providerStatus === "live"
                   ? "var(--ohmni-lab-verified, #27966B)"
-                  : providerStatus === "error" || agentState.status === "failed" || agentState.status === "unavailable"
-                  ? "var(--ohmni-lab-fault, #DC5050)"
                   : "var(--ohmni-lab-brand, #4967FF)",
               fontSize: "11.5px",
               fontWeight: 700,
@@ -271,161 +338,148 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             ) : providerStatus === "live" ? (
               <>
                 <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--ohmni-lab-verified, #27966B)", boxShadow: "0 0 6px rgba(39, 150, 107, 0.8)" }} />
-                <span>{agentIdentity.displayName.toUpperCase()} LIVE</span>
-              </>
-            ) : providerStatus === "error" || agentState.status === "failed" || agentState.status === "unavailable" ? (
-              <>
-                <AlertTriangle size={12} />
-                <span>{agentIdentity.displayName.toUpperCase()} ERROR</span>
+                <span>{agentIdentity.displayName} • Live</span>
               </>
             ) : (
               <>
                 <Sparkles size={12} />
-                <span>{agentIdentity.displayName.toUpperCase()} CONFIGURED</span>
+                <span>{agentIdentity.displayName} • Live</span>
               </>
             )}
           </span>
 
-          {/* WebMCP Mode Badge */}
-          <span
-            data-testid="webmcp-mode-badge"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "5px",
-              padding: "4px 10px",
-              borderRadius: "var(--radius-full, 9999px)",
-              background: isNativeMode ? "rgba(39, 150, 107, 0.08)" : "rgba(18, 21, 26, 0.04)",
-              border: `1px solid ${isNativeMode ? "rgba(39, 150, 107, 0.25)" : "var(--ohmni-lab-border, #E2E4E9)"}`,
-              color: isNativeMode ? "var(--ohmni-lab-verified, #27966B)" : "var(--ohmni-lab-muted, #64748B)",
-              fontSize: "11px",
-              fontWeight: 600,
-            }}
-          >
-            <ShieldCheck size={12} />
-            <span>{isNativeMode ? "Native WebMCP" : "Standard WebMCP"}</span>
-          </span>
-        </div>
-
-        {/* Right: Technical Inspector & Disconnect Button */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {onOpenDevInspector && (
+          {/* ••• More Menu */}
+          <div ref={menuRef} style={{ position: "relative" }}>
             <button
               type="button"
-              data-testid="open-dev-inspector-btn"
-              onClick={onOpenDevInspector}
+              data-testid="more-menu-btn"
+              aria-label="More developer tools and connection details"
+              onClick={() => setMenuOpen((prev) => !prev)}
               className="btn-secondary"
-              title="Developer Inspector [Cmd+Shift+D]"
               style={{
-                padding: "7px 12px",
-                fontSize: "12.5px",
+                padding: "5px 9px",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "5px",
+                justifyContent: "center",
+                borderRadius: "var(--radius-md, 8px)",
+                fontSize: "14px",
+                fontWeight: 800,
               }}
             >
-              <Terminal size={13} color="var(--ohmni-lab-brand, #4967FF)" />
-              <span>Inspector</span>
+              <MoreHorizontal size={16} />
             </button>
-          )}
 
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            className="btn-secondary"
-            style={{
-              padding: "7px 14px",
-              fontSize: "12.5px",
-            }}
-          >
-            <Radio size={13} color="var(--ohmni-lab-brand, #4967FF)" />
-            <span>WebMCP Tools</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onToggleConnect}
-            className="btn-secondary"
-            style={{
-              padding: "7px 14px",
-              fontSize: "12.5px",
-            }}
-          >
-            <Sliders size={13} />
-            <span>{isConnected ? "Disconnect" : "Connect"}</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Persistent Progress Strip: OBSERVE -> TEST -> DIAGNOSE -> REPAIR -> VERIFY */}
-      <div
-        id="investigation-progress-strip"
-        data-testid="investigation-progress-strip"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "10px",
-          padding: "7px 16px",
-          background: "rgba(255, 255, 255, 0.75)",
-          backdropFilter: "blur(8px)",
-          borderBottom: "1px solid var(--ohmni-lab-border, #E2E4E9)",
-          flex: "none",
-          zIndex: 5,
-        }}
-      >
-        {(["OBSERVE", "TEST", "DIAGNOSE", "REPAIR", "VERIFY"] as const).map((phase, idx) => {
-          const currentProgressStep: "OBSERVE" | "TEST" | "DIAGNOSE" | "REPAIR" | "VERIFY" = (() => {
-            switch (investigationPhase) {
-              case "welcome":
-              case "challenge_ready":
-              case "connecting":
-              case "ready":
-              case "observing":
-                return "OBSERVE";
-              case "waiting_for_approval":
-              case "experiment_running":
-                return "TEST";
-              case "evidence_review":
-              case "reasoning":
-              case "hypothesis":
-                return "DIAGNOSE";
-              case "waiting_for_human":
-              case "verification_pending":
-                return "REPAIR";
-              case "verification_running":
-              case "verified":
-                return "VERIFY";
-              default:
-                return "OBSERVE";
-            }
-          })();
-
-          const isActive = phase === currentProgressStep;
-          return (
-            <React.Fragment key={phase}>
-              {idx > 0 && <span style={{ color: "var(--ohmni-lab-border, #CBD5E1)", fontSize: "11px" }}>→</span>}
-              <span
-                data-phase={phase}
-                data-active={isActive}
+            {menuOpen && (
+              <div
                 style={{
-                  padding: "3px 10px",
-                  borderRadius: "var(--radius-full, 9999px)",
-                  fontSize: "11px",
-                  fontWeight: isActive ? 800 : 600,
-                  letterSpacing: "0.05em",
-                  color: isActive ? "var(--ohmni-lab-brand, #4967FF)" : "var(--ohmni-lab-muted, #94A3B8)",
-                  background: isActive ? "rgba(73, 103, 255, 0.08)" : "transparent",
-                  border: isActive ? "1px solid rgba(73, 103, 255, 0.25)" : "1px solid transparent",
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  right: 0,
+                  width: "210px",
+                  background: "var(--ohmni-lab-surface, #FFFFFF)",
+                  border: "1px solid var(--ohmni-lab-border, #E2E4E9)",
+                  borderRadius: "var(--radius-lg, 12px)",
+                  boxShadow: "0 12px 32px -4px rgba(15, 23, 42, 0.12)",
+                  padding: "6px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "2px",
+                  zIndex: 100,
                 }}
               >
-                {phase}
-              </span>
-            </React.Fragment>
-          );
-        })}
-      </div>
+                {onOpenDevInspector && (
+                  <button
+                    type="button"
+                    data-testid="open-dev-inspector-btn"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onOpenDevInspector();
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "12.5px",
+                      color: "var(--ohmni-lab-text, #0F172A)",
+                      textAlign: "left",
+                      width: "100%",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15, 23, 42, 0.04)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <Terminal size={14} color="var(--ohmni-lab-brand, #4967FF)" />
+                    <span style={{ flex: 1, fontWeight: 600 }}>WebMCP Inspector</span>
+                    <span className="font-mono" style={{ fontSize: "10px", color: "var(--ohmni-lab-muted, #64748B)" }}>⌘⇧D</span>
+                  </button>
+                )}
 
+                <button
+                  type="button"
+                  data-testid="webmcp-tools-btn"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setDrawerOpen(true);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "12.5px",
+                    color: "var(--ohmni-lab-text, #0F172A)",
+                    textAlign: "left",
+                    width: "100%",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15, 23, 42, 0.04)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <Radio size={14} color="var(--ohmni-lab-brand, #4967FF)" />
+                  <span style={{ flex: 1, fontWeight: 600 }}>Tool Registry</span>
+                </button>
+
+                <div style={{ height: "1px", background: "var(--ohmni-lab-border, #E2E4E9)", margin: "4px 0" }} />
+
+                <button
+                  type="button"
+                  data-testid="toggle-connect-btn"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onToggleConnect();
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "12.5px",
+                    color: isConnected ? "var(--ohmni-lab-fault, #DC5050)" : "var(--ohmni-lab-text, #0F172A)",
+                    textAlign: "left",
+                    width: "100%",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15, 23, 42, 0.04)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <Sliders size={14} />
+                  <span style={{ flex: 1, fontWeight: 600 }}>{isConnected ? "Disconnect Board" : "Connect Board"}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
       {/* Main 72% / 28% Workbench Layout */}
       <div
         style={{

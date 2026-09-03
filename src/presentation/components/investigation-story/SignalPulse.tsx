@@ -138,29 +138,6 @@ export const SignalPulse: React.FC<SignalPulseProps> = ({
         zIndex: 9999,
         willChange: "transform, opacity",
       }}
-    >
-      {label && (
-        <span
-          className="font-mono"
-          style={{
-            position: "absolute",
-            top: "-22px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            fontSize: "10.5px",
-            fontWeight: 700,
-            color: color,
-            whiteSpace: "nowrap",
-            textShadow: `0 0 8px ${color}`,
-            background: "rgba(9, 11, 16, 0.75)",
-            padding: "2px 6px",
-            borderRadius: "4px",
-            border: `1px solid ${color}40`,
-          }}
-        >
-          {label}
-        </span>
-      )}
-    </motion.div>
+    />
   );
 };

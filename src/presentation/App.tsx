@@ -263,7 +263,6 @@ export const App: React.FC<AppProps> = ({
       if (resolvedAdapter && resolvedRegistrar) {
         await resolvedRegistrar.registerDevice(resolvedAdapter);
       }
-      startAgent();
     })();
     setViewMode("investigation");
 
@@ -405,7 +404,6 @@ export const App: React.FC<AppProps> = ({
           <WelcomeView
             onStartMystery={handleStartMystery}
             onStartDemo={handleStartDemo}
-            onConnectHardware={handleConnectHardware}
             wordmarkRef={wordmarkRef}
             heroTextRef={heroTextRef}
             hardwareVisualRef={hardwareVisualRef}

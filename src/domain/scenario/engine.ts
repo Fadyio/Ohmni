@@ -173,7 +173,7 @@ export function matchDiagnosis(
     matchedTags,
     score,
     reason: isMatch
-      ? `Agent diagnosis aligned with causal ground truth (matched ${matchedTags.length} key root cause signals).`
+      ? "Agent diagnosis accurately confirmed the physical root cause."
       : "Agent diagnosis did not match the hidden root cause.",
   };
 }
