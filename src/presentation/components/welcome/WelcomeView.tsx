@@ -82,7 +82,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
               textTransform: "uppercase",
             }}
           >
-            PRECISION HARDWARE INSTRUMENT MESH
+            HARDWARE DIAGNOSTIC WORKBENCH
           </span>
         </div>
 
@@ -181,7 +181,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 AI can debug your code.
                 <br />
                 <span style={{ color: "var(--ohmni-intro-brand, #4967FF)" }}>
-                  Now it can investigate your board.
+                  Now it can investigate the board on your desk.
                 </span>
               </h1>
 
@@ -194,13 +194,13 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   maxWidth: "540px",
                 }}
               >
-                Ohmni gives an AI agent safe browser-native instruments to measure, test, and experimentally verify physical hardware.
+                A fault is hidden. The agent must measure it, test it, ask for your hands when needed, and prove the repair.
               </p>
             </div>
 
             {/* Action CTAs */}
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "14px", marginTop: "4px" }}>
-              {/* Primary Winning Demo CTA: Start Mystery Diagnosis */}
+              {/* Primary CTA: Start blind diagnosis */}
               <button
                 ref={ctaButtonRef}
                 data-testid="start-mystery-btn"
@@ -217,11 +217,11 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 }}
               >
                 <Lock size={16} />
-                <span>Start a blind diagnosis</span>
+                <span>Start blind diagnosis</span>
                 <ArrowRight size={17} />
               </button>
 
-              {/* Secondary Demo CTA: Deterministic Brownout */}
+              {/* Secondary CTA: Demo walkthrough */}
               <button
                 data-testid="diagnose-demo-btn"
                 id="diagnose-demo-btn"
@@ -232,10 +232,10 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   fontSize: "14.5px",
                 }}
               >
-                <span>Explore Brownout Demo</span>
+                <span>Demo walkthrough</span>
               </button>
 
-              {/* Secondary CTA: Connect Hardware */}
+              {/* Secondary CTA: Physical hardware */}
               <button
                 data-testid="connect-hardware-btn"
                 onClick={onConnectHardware}
@@ -246,7 +246,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 }}
               >
                 <Zap size={16} color="var(--ohmni-intro-brand, #4967FF)" />
-                <span>Connect Hardware</span>
+                <span>Physical hardware — experimental</span>
               </button>
             </div>
 

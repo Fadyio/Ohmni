@@ -45,12 +45,12 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
     >
       {/* Header Tag */}
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-brand)", fontSize: "12.5px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-brand)", fontSize: "12.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           <Scale size={14} />
-          SYNTHESIZED DIAGNOSIS
+          HYPOTHESIS
         </div>
         <h2 style={{ fontSize: "32px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "4px 0 0", letterSpacing: "-0.02em" }}>
-          Root Cause Hypothesis
+          Diagnosis & Synthesis
         </h2>
       </div>
 
@@ -89,9 +89,25 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-verified)", fontSize: "12px", fontWeight: 600 }}>
-            <CheckCircle2 size={15} />
-            <span>GROUNDED BY {supportingEvidenceIds.length} FACTS</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span
+              data-testid="hypothesis-status-badge"
+              style={{
+                fontSize: "11px",
+                fontWeight: 800,
+                padding: "3px 10px",
+                borderRadius: "var(--radius-full)",
+                background: "rgba(220, 80, 80, 0.12)",
+                color: "var(--ohmni-lab-fault, #DC5050)",
+                border: "1px solid rgba(220, 80, 80, 0.3)",
+              }}
+            >
+              STATUS: NOT VERIFIED
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-verified)", fontSize: "12px", fontWeight: 600 }}>
+              <CheckCircle2 size={15} />
+              <span>GROUNDED BY {supportingEvidenceIds.length} FACTS</span>
+            </div>
           </div>
         </div>
 
@@ -138,6 +154,8 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
         {onProceedToRepair && (
           <div style={{ paddingTop: "1rem", borderTop: "1px solid var(--ohmni-lab-border)", display: "flex", justifyContent: "flex-end" }}>
             <button
+              id="proceed-to-repair-btn"
+              data-testid="proceed-to-repair-btn"
               onClick={onProceedToRepair}
               className="btn-primary"
               style={{

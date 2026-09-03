@@ -24,8 +24,8 @@ import type { Hypothesis } from "@/domain/hypothesis/types";
 import type { DeviceDescriptor } from "@/domain/device/descriptor";
 import type { BenchAgentState } from "../../hooks/useBenchAgent";
 import type { ScenarioSession } from "@/domain/scenario/types";
+import type { AgentMode } from "@/infrastructure/bench-agent/types";
 import { Radio, Sliders, AlertTriangle, Bot, ShieldCheck, Sparkles, Lock, Terminal } from "lucide-react";
-
 export interface InvestigationStoryViewProps {
   readonly isConnected: boolean;
   readonly descriptor: DeviceDescriptor | null;
@@ -38,6 +38,7 @@ export interface InvestigationStoryViewProps {
   readonly evidenceRecords: readonly EvidenceRecord[];
   readonly hypothesis: Hypothesis | null;
   readonly agentState: BenchAgentState;
+  readonly agentMode?: AgentMode;
   readonly activeScenario?: ScenarioSession | null;
   readonly onSetGoal: (goal: string) => void;
   readonly onStartAgent: () => void;
@@ -47,6 +48,8 @@ export interface InvestigationStoryViewProps {
   readonly onToggleConnect: () => void;
   readonly onProceedToRepair?: () => void;
   readonly onOpenDevInspector?: () => void;
+  readonly onSwitchToDemo?: () => void;
+  readonly onRetryGemini?: () => void;
   readonly labChromeRef?: React.RefObject<HTMLElement | null>;
   readonly labMainSceneRef?: React.RefObject<HTMLElement | null>;
   readonly agentRailRef?: React.RefObject<HTMLElement | null>;
@@ -64,6 +67,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   evidenceRecords,
   hypothesis,
   agentState,
+  agentMode = "gemini",
   activeScenario,
   onSetGoal,
   onStartAgent,
@@ -73,13 +77,14 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   onToggleConnect,
   onProceedToRepair,
   onOpenDevInspector,
+  onSwitchToDemo,
+  onRetryGemini,
   labChromeRef,
   labMainSceneRef,
   agentRailRef,
 }) => {
   const [activeSceneOverride, setActiveSceneOverride] = useState<"ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-
   const isNativeMode = typeof window !== "undefined" && window.__webmcpMode === "native";
   const providerStatus = agentState.providerStatus;
 
@@ -184,54 +189,57 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               padding: "4px 12px",
               borderRadius: "var(--radius-full, 9999px)",
               background:
-                providerStatus === "live"
-                  ? "rgba(39, 150, 107, 0.1)"
-                  : providerStatus === "error"
-                  ? "rgba(220, 80, 80, 0.1)"
-                  : providerStatus === "configured"
+                agentMode === "demo"
                   ? "rgba(73, 103, 255, 0.1)"
-                  : "rgba(18, 21, 26, 0.05)",
+                  : providerStatus === "live"
+                  ? "rgba(39, 150, 107, 0.1)"
+                  : providerStatus === "error" || agentState.status === "failed" || agentState.status === "unavailable"
+                  ? "rgba(220, 80, 80, 0.1)"
+                  : "rgba(73, 103, 255, 0.1)",
               border: `1px solid ${
-                providerStatus === "live"
-                  ? "rgba(39, 150, 107, 0.3)"
-                  : providerStatus === "error"
-                  ? "rgba(220, 80, 80, 0.3)"
-                  : providerStatus === "configured"
+                agentMode === "demo"
                   ? "rgba(73, 103, 255, 0.3)"
-                  : "var(--ohmni-lab-border, #E2E4E9)"
+                  : providerStatus === "live"
+                  ? "rgba(39, 150, 107, 0.3)"
+                  : providerStatus === "error" || agentState.status === "failed" || agentState.status === "unavailable"
+                  ? "rgba(220, 80, 80, 0.3)"
+                  : "rgba(73, 103, 255, 0.3)"
               }`,
               color:
-                providerStatus === "live"
-                  ? "var(--ohmni-lab-verified, #27966B)"
-                  : providerStatus === "error"
-                  ? "var(--ohmni-lab-fault, #DC5050)"
-                  : providerStatus === "configured"
+                agentMode === "demo"
                   ? "var(--ohmni-lab-brand, #4967FF)"
-                  : "var(--ohmni-lab-muted, #64748B)",
+                  : providerStatus === "live"
+                  ? "var(--ohmni-lab-verified, #27966B)"
+                  : providerStatus === "error" || agentState.status === "failed" || agentState.status === "unavailable"
+                  ? "var(--ohmni-lab-fault, #DC5050)"
+                  : "var(--ohmni-lab-brand, #4967FF)",
               fontSize: "11.5px",
               fontWeight: 700,
               letterSpacing: "0.02em",
             }}
           >
-            {providerStatus === "live" ? (
+            {agentMode === "demo" ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Bot size={13} />
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.1 }}>
+                  <span>DEMO AGENT</span>
+                  <span style={{ fontSize: "9px", fontWeight: 500, opacity: 0.85 }}>Deterministic walkthrough</span>
+                </div>
+              </div>
+            ) : providerStatus === "live" ? (
               <>
                 <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--ohmni-lab-verified, #27966B)", boxShadow: "0 0 6px rgba(39, 150, 107, 0.8)" }} />
                 <span>GEMINI LIVE</span>
               </>
-            ) : providerStatus === "error" ? (
+            ) : providerStatus === "error" || agentState.status === "failed" || agentState.status === "unavailable" ? (
               <>
                 <AlertTriangle size={12} />
-                <span>DEMO AGENT (BILLING UNCONFIGURED)</span>
-              </>
-            ) : providerStatus === "configured" ? (
-              <>
-                <Sparkles size={12} />
-                <span>GEMINI CONFIGURED</span>
+                <span>GEMINI ERROR</span>
               </>
             ) : (
               <>
-                <Bot size={12} />
-                <span>BENCH AGENT</span>
+                <Sparkles size={12} />
+                <span>GEMINI CONFIGURED</span>
               </>
             )}
           </span>
@@ -307,12 +315,77 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
         </div>
       </header>
 
-      {/* Main 70% / 30% Workbench Layout */}
+      {/* Persistent Progress Strip: OBSERVE -> TEST -> DIAGNOSE -> REPAIR -> VERIFY */}
+      <div
+        id="investigation-progress-strip"
+        data-testid="investigation-progress-strip"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "10px",
+          padding: "7px 16px",
+          background: "rgba(255, 255, 255, 0.75)",
+          backdropFilter: "blur(8px)",
+          borderBottom: "1px solid var(--ohmni-lab-border, #E2E4E9)",
+          flex: "none",
+          zIndex: 5,
+        }}
+      >
+        {(["OBSERVE", "TEST", "DIAGNOSE", "REPAIR", "VERIFY"] as const).map((phase, idx) => {
+          const isTestActive =
+            experimentStatus === "running" ||
+            relayState === "closed" ||
+            (agentState.status === "approval" && agentState.approval.tool.name.includes("stress")) ||
+            agentState.activity.some((a) => a.call.name.includes("stress"));
+          const hasHypothesis = hypothesis !== null;
+          const isVerified = activeScenario?.isVerified === true || hypothesis?.verificationStatus === "VERIFIED";
+          const isRepair = hypothesis !== null && activeScenario?.isVerified !== true && !isTestActive;
+
+          let currentPhase: "OBSERVE" | "TEST" | "DIAGNOSE" | "REPAIR" | "VERIFY" = "OBSERVE";
+          if (isVerified) {
+            currentPhase = "VERIFY";
+          } else if (isRepair) {
+            currentPhase = "REPAIR";
+          } else if (hasHypothesis) {
+            currentPhase = "DIAGNOSE";
+          } else if (isTestActive) {
+            currentPhase = "TEST";
+          } else {
+            currentPhase = "OBSERVE";
+          }
+
+          const isActive = phase === currentPhase;
+          return (
+            <React.Fragment key={phase}>
+              {idx > 0 && <span style={{ color: "var(--ohmni-lab-border, #CBD5E1)", fontSize: "11px" }}>→</span>}
+              <span
+                data-phase={phase}
+                data-active={isActive}
+                style={{
+                  padding: "3px 10px",
+                  borderRadius: "var(--radius-full, 9999px)",
+                  fontSize: "11px",
+                  fontWeight: isActive ? 800 : 600,
+                  letterSpacing: "0.05em",
+                  color: isActive ? "var(--ohmni-lab-brand, #4967FF)" : "var(--ohmni-lab-muted, #94A3B8)",
+                  background: isActive ? "rgba(73, 103, 255, 0.08)" : "transparent",
+                  border: isActive ? "1px solid rgba(73, 103, 255, 0.25)" : "1px solid transparent",
+                }}
+              >
+                {phase}
+              </span>
+            </React.Fragment>
+          );
+        })}
+      </div>
+
+      {/* Main 72% / 28% Workbench Layout */}
       <div
         style={{
           flex: 1,
           display: "grid",
-          gridTemplateColumns: "70% 30%",
+          gridTemplateColumns: "72% 28%",
           overflow: "hidden",
           minHeight: 0,
         }}
@@ -342,6 +415,9 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             onDenyTest={onDenyTest}
             onProceedToRepair={onProceedToRepair}
             onStartAgent={onStartAgent}
+            agentMode={agentMode}
+            onSwitchToDemo={onSwitchToDemo}
+            onRetryGemini={onRetryGemini}
             activeSceneOverride={activeSceneOverride}
           />
         </main>

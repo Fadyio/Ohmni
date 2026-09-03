@@ -201,8 +201,11 @@ export const DeveloperInspector: React.FC<DeveloperInspectorProps> = ({
                 }}
               >
                 {activeScenario?.isSealed ? <Lock size={11} /> : <Eye size={11} />}
-                {activeScenario?.isSealed ? "SEALED (Hidden from Agent)" : "UNSEALED / VERIFIED"}
+                {activeScenario?.isSealed ? "SEALED FROM AGENT CONTEXT" : "UNSEALED / VERIFIED"}
               </span>
+            </div>
+            <div style={{ fontSize: "10.5px", color: "#64748B", lineHeight: 1.4, marginTop: "2px" }}>
+              Ground truth remains outside model prompts, tool schemas, and agent-visible results until verification.
             </div>
           </div>
         </div>

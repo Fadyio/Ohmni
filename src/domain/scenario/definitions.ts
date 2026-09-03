@@ -26,6 +26,23 @@ export const SCENARIO_BROWNOUT: ScenarioDefinition = {
     initialSensorAddress: "0x76",
     firmwareTargetAddress: "0x76",
     initialSdaConnected: true,
+    initialResets: [
+      {
+        timestamp: Date.now() - 45_000,
+        reason: "BROWNOUT",
+        message: "Brownout detector triggered: VDD sagged below 2.80V threshold",
+      },
+      {
+        timestamp: Date.now() - 25_000,
+        reason: "BROWNOUT",
+        message: "Brownout detector triggered: VDD sagged below 2.80V threshold",
+      },
+      {
+        timestamp: Date.now() - 10_000,
+        reason: "BROWNOUT",
+        message: "Brownout detector triggered: VDD sagged below 2.80V threshold",
+      },
+    ],
   },
   groundTruth: {
     id: "brownout",
@@ -144,3 +161,13 @@ export const SCENARIOS: Readonly<Record<ScenarioId, ScenarioDefinition>> = {
 };
 
 export const ALL_SCENARIO_IDS: readonly ScenarioId[] = ["brownout", "i2c_address", "sda_fault"];
+
+export const scenarioAvailability: Readonly<Record<ScenarioId, "enabled" | "experimental">> = {
+  brownout: "enabled",
+  i2c_address: "experimental",
+  sda_fault: "experimental",
+};
+
+export const ENABLED_SCENARIO_IDS: readonly ScenarioId[] = ALL_SCENARIO_IDS.filter(
+  (id) => scenarioAvailability[id] === "enabled"
+);

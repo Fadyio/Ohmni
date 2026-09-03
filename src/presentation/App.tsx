@@ -4,7 +4,7 @@
  *
  * Implements the Core Product Workflow:
  * 1. World 1: Welcome View (Editorial Narrative + 3D Brand Anchor)
- * 2. Mystery Intro: Cryptographically Sealed Ground Truth + Public Symptom
+ * 2. Mystery Intro: Sealed Ground Truth (Hidden from Agent Context) + Public Symptom
  * 3. World 2: Investigation Lab Mode (70% Live Scene + 30% Chronological Narrative)
  * 4. Human Intervention & Repair: First-Class Physical Manipulation + Continuation
  * 5. Ground Truth Reveal: Final Payoff comparing unsealed ground truth with agent diagnosis.
@@ -19,6 +19,8 @@ import type { ExperimentRunner } from "@/domain/experiment/runner";
 import type { EvidenceStore } from "@/domain/evidence/store";
 import type { HypothesisStore } from "@/domain/hypothesis/store";
 import type { ScenarioSession, ScenarioGroundTruth, ScenarioId } from "@/domain/scenario/types";
+import type { AgentMode } from "@/infrastructure/bench-agent/types";
+import { resetInvestigationSession } from "@/domain/investigation/session-reset";
 
 import { WelcomeView } from "./components/welcome/WelcomeView";
 import { InvestigationStoryView } from "./components/investigation-story/InvestigationStoryView";
@@ -122,15 +124,29 @@ export const App: React.FC<AppProps> = ({
   } = useExperimentTimeline(resolvedBus);
 
   const { ringBufferRef, markersRef } = useOscilloscopeBuffer(resolvedBus);
+  const queryAgentMode = useMemo<AgentMode | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get("agent");
+    if (mode === "demo" || mode === "gemini") {
+      return mode;
+    }
+    return undefined;
+  }, []);
+
   const {
     state: agentState,
+    agentMode,
+    setAgentMode,
     setGoal,
     start: startAgent,
     sendObservation: sendAgentObservation,
     stop: stopAgent,
     approve: approveAgent,
     deny: denyAgent,
-  } = useBenchAgent(isConnected);
+    retryAvailability,
+    reset: resetAgent,
+  } = useBenchAgent(isConnected, queryAgentMode);
 
   const { records: evidenceRecords } = useEvidenceStore(resolvedEvidenceStore);
   const { hypotheses } = useHypothesisStore(resolvedHypothesisStore);
@@ -176,7 +192,9 @@ export const App: React.FC<AppProps> = ({
 
     // Apply scenario initial configuration to virtual device
     const initConfig = session.getInitialDeviceConfig();
-    if (resolvedAdapter && typeof resolvedAdapter.setInterventionPoint === "function") {
+    if (resolvedAdapter && typeof (resolvedAdapter as any).reset === "function") {
+      (resolvedAdapter as any).reset(initConfig);
+    } else if (resolvedAdapter && typeof resolvedAdapter.setInterventionPoint === "function") {
       if (initConfig.initialRelayPower) {
         resolvedAdapter.setInterventionPoint("relay_power_jumper", initConfig.initialRelayPower);
       }
@@ -187,7 +205,6 @@ export const App: React.FC<AppProps> = ({
         resolvedAdapter.setInterventionPoint("sda_connection", initConfig.initialSdaConnected ? "connected" : "unseated");
       }
     }
-
     setShowMysteryIntro(true);
   }, [queryScenarioId, resolvedAdapter]);
 
@@ -208,7 +225,17 @@ export const App: React.FC<AppProps> = ({
       }
     })();
 
-    // Execute GSAP transition immediately
+    setViewMode("investigation");
+
+    void connectPromise
+      .then(() => {
+        startAgent();
+      })
+      .catch((err) => {
+        console.error("Failed to connect hardware during transition:", err);
+      });
+
+    // Execute GSAP transition in parallel
     playTransition(
       {
         rootContainerRef,
@@ -220,25 +247,18 @@ export const App: React.FC<AppProps> = ({
         labMainSceneRef,
         agentRailRef,
       },
-      async () => {
-        try {
-          await connectPromise;
-        } catch (err) {
-          console.error("Failed to connect hardware during transition:", err);
-        }
-        setViewMode("investigation");
-      }
+      () => undefined
     );
-  }, [activeScenario, setGoal, connect, resolvedAdapter, resolvedRegistrar, playTransition]);
+  }, [activeScenario, setGoal, connect, resolvedAdapter, resolvedRegistrar, playTransition, startAgent]);
 
   // Action: Deterministic Brownout Demo (Secondary CTA)
   const handleStartDemo = useCallback(() => {
+    setAgentMode("demo");
     const session = createScenarioSession({ scenarioId: "brownout" });
     setActiveScenario(session);
 
     const goal = "The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.";
     setGoal(goal);
-
     const connectPromise = (async () => {
       await connect();
       if (resolvedAdapter && resolvedRegistrar) {
@@ -317,7 +337,7 @@ export const App: React.FC<AppProps> = ({
   const handleManualReveal = useCallback(() => {
     if (activeScenario && viewMode !== "reveal") {
       try {
-        const gt = activeScenario.revealGroundTruth();
+        const gt = activeScenario.revealGroundTruth({ allowIncomplete: true });
         setRevealedGroundTruth(gt);
         const rootCause =
           activeHypothesis && "rootCauseCategory" in activeHypothesis && typeof activeHypothesis.rootCauseCategory === "string"
@@ -325,7 +345,7 @@ export const App: React.FC<AppProps> = ({
             : undefined;
         const match = activeHypothesis
           ? matchDiagnosis(gt, activeHypothesis.title, activeHypothesis.description, rootCause)
-          : { isMatch: false, score: 0, reason: "Investigation ended before empirical verification.", matchedTags: [] };
+          : { isMatch: false, score: 0, reason: "Agent diagnosis incomplete / unmatched.", matchedTags: [] };
         setMatchResult(match);
         setViewMode("reveal");
       } catch (err) {
@@ -345,14 +365,28 @@ export const App: React.FC<AppProps> = ({
     setViewMode("welcome");
     setRevealedGroundTruth(null);
     setMatchResult(null);
-    if (resolvedHypothesisStore) {
-      resolvedHypothesisStore.clear();
-    }
-    if (resolvedEvidenceStore) {
-      resolvedEvidenceStore.clear();
-    }
+
+    resetInvestigationSession({
+      scenarioSession: activeScenario,
+      virtualAdapter: resolvedAdapter as any,
+      experimentStore: experimentRunner?.getStore() ?? (typeof window !== "undefined" ? window.__experimentStore : undefined),
+      evidenceStore: resolvedEvidenceStore,
+      hypothesisStore: resolvedHypothesisStore,
+      benchAgentReset: resetAgent,
+      toolRegistrar: resolvedRegistrar,
+    });
+
     handleStartMystery();
-  }, [handleStartMystery, resolvedHypothesisStore, resolvedEvidenceStore]);
+  }, [
+    handleStartMystery,
+    activeScenario,
+    resolvedAdapter,
+    experimentRunner,
+    resolvedEvidenceStore,
+    resolvedHypothesisStore,
+    resetAgent,
+    resolvedRegistrar,
+  ]);
 
   return (
     <div
@@ -424,6 +458,9 @@ export const App: React.FC<AppProps> = ({
           onToggleConnect={handleToggleConnect}
           onProceedToRepair={() => setViewMode("repair")}
           onOpenDevInspector={() => setDevInspectorOpen(true)}
+          agentMode={agentMode}
+          onSwitchToDemo={() => setAgentMode("demo")}
+          onRetryGemini={retryAvailability}
           labChromeRef={labChromeRef}
           labMainSceneRef={labMainSceneRef}
           agentRailRef={agentRailRef}
@@ -459,6 +496,7 @@ export const App: React.FC<AppProps> = ({
             toolsUsedCount={agentState.activity.filter((a) => a.status === "completed").length}
             experimentsCount={evidenceRecords.filter((e) => e.type === "test_result").length}
             humanInterventionsCount={evidenceRecords.filter((e) => e.source === "human").length}
+            isVerified={activeScenario?.isVerified ?? false}
             onRunAnotherMystery={handleRunAnotherMystery}
             onReturnToWorkbench={() => setViewMode("investigation")}
           />

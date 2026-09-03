@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
   HttpBenchAgentProvider,
   fetchBenchAgentAvailability,
 } from "@/infrastructure/bench-agent/http-provider";
+import { DeterministicBenchAgentProvider } from "@/infrastructure/bench-agent/deterministic-provider";
 import { runBenchAgent } from "@/infrastructure/bench-agent/run-bench-agent";
 import type {
   AgentFunctionCall,
+  AgentMode,
   BenchAgentEvent,
+  BenchAgentProvider,
   BenchAgentRunResult,
 } from "@/infrastructure/bench-agent/types";
 import type { RegisteredTool } from "@/infrastructure/webmcp/types";
@@ -31,9 +34,10 @@ export type BenchAgentProviderStatus =
   | "unconfigured"
   | "configured"
   | "live"
-  | "error";
-
+  | "error"
+  | "demo";
 interface BenchAgentStateBase {
+  readonly agentMode?: AgentMode;
   readonly goal: string;
   readonly runGoal?: string;
   readonly activity: readonly BenchAgentActivity[];
@@ -88,12 +92,16 @@ type ActiveBenchAgentState = Extract<
 
 export interface UseBenchAgentResult {
   readonly state: BenchAgentState;
+  readonly agentMode: AgentMode;
+  readonly setAgentMode: (mode: AgentMode) => void;
   readonly setGoal: (goal: string) => void;
   readonly start: () => void;
   readonly sendObservation: (observation: string) => void;
   readonly stop: () => void;
   readonly approve: () => void;
   readonly deny: () => void;
+  readonly retryAvailability: () => void;
+  readonly reset: () => void;
 }
 
 interface PendingApproval {
@@ -173,18 +181,25 @@ function resultState(
   result: BenchAgentRunResult,
 ): BenchAgentState {
   const isSuccess = result.status === "completed" || result.status === "stopped" || result.status === "step-limit";
+  const isDemo = current.agentMode === "demo";
   const nextProviderStatus: BenchAgentProviderStatus =
-    result.status === "failed" ? "error" : isSuccess && result.steps > 0 ? "live" : current.providerStatus;
+    isDemo
+      ? "demo"
+      : result.status === "failed"
+      ? "error"
+      : isSuccess && result.steps > 0
+      ? "live"
+      : current.providerStatus;
 
   const common = {
+    agentMode: current.agentMode,
     goal: current.goal,
     runGoal: current.runGoal,
     activity: current.activity,
-    providerAvailable: true,
+    providerAvailable: isDemo ? true : result.status !== "failed",
     providerStatus: nextProviderStatus,
     steps: result.steps,
   };
-
   switch (result.status) {
     case "completed":
       return { ...common, status: "completed", assessment: result.text };
@@ -210,10 +225,33 @@ function stepCount(activity: readonly BenchAgentActivity[]): number {
   return activity.length;
 }
 
-export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
-  const [provider] = useState(() => new HttpBenchAgentProvider());
-  const [state, setReactState] = useState<BenchAgentState>(initialState);
-  const stateRef = useRef<BenchAgentState>(initialState);
+export function useBenchAgent(
+  isConnected: boolean,
+  initialMode?: AgentMode
+): UseBenchAgentResult {
+  const resolvedInitialMode: AgentMode =
+    initialMode ??
+    (typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("agent") === "demo"
+      ? "demo"
+      : "gemini");
+
+  const [agentMode, setAgentModeState] = useState<AgentMode>(resolvedInitialMode);
+  const agentModeRef = useRef<AgentMode>(resolvedInitialMode);
+  agentModeRef.current = agentMode;
+
+  const httpProvider = useMemo(() => new HttpBenchAgentProvider(), []);
+  const demoProvider = useMemo(() => new DeterministicBenchAgentProvider(), []);
+  const activeProvider: BenchAgentProvider = agentMode === "demo" ? demoProvider : httpProvider;
+
+  const [state, setReactState] = useState<BenchAgentState>(() => ({
+    ...initialState,
+    agentMode: resolvedInitialMode,
+    checkingAvailability: resolvedInitialMode === "gemini",
+    providerAvailable: resolvedInitialMode === "demo",
+    providerStatus: resolvedInitialMode === "demo" ? "demo" : "unconfigured",
+  }));
+  const stateRef = useRef<BenchAgentState>(state);
   const mountedRef = useRef(true);
   const controllerRef = useRef<AbortController | null>(null);
   const pendingApprovalRef = useRef<PendingApproval | null>(null);
@@ -227,53 +265,142 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
     }
   }, []);
 
-  useEffect(() => {
-    let current = true;
+  const checkAvailability = useCallback(async () => {
+    if (agentModeRef.current !== "gemini") {
+      commit({
+        status: "idle",
+        checkingAvailability: false,
+        agentMode: "demo",
+        goal: stateRef.current.goal,
+        activity: stateRef.current.activity,
+        providerAvailable: true,
+        providerStatus: "demo",
+      });
+      return;
+    }
 
-    void fetchBenchAgentAvailability()
-      .then((availability) => {
-        if (!current || !mountedRef.current) return;
-        const previous = stateRef.current;
-        if (availability.available) {
-          commit({
-            status: "idle",
-            checkingAvailability: false,
-            goal: previous.goal,
-            activity: [],
-            providerAvailable: true,
-            providerStatus: previous.providerStatus === "live" ? "live" : "configured",
-          });
-          return;
-        }
+    try {
+      const availability = await fetchBenchAgentAvailability();
+      if (!mountedRef.current || agentModeRef.current !== "gemini") return;
+      const previous = stateRef.current;
+      if (availability.available) {
         commit({
-          status: "unavailable",
+          status: "idle",
+          checkingAvailability: false,
+          agentMode: "gemini",
           goal: previous.goal,
+          activity: [],
+          providerAvailable: true,
+          providerStatus: previous.providerStatus === "live" ? "live" : "configured",
+        });
+        return;
+      }
+      commit({
+        status: "unavailable",
+        agentMode: "gemini",
+        goal: previous.goal,
+        activity: [],
+        providerAvailable: false,
+        providerStatus: "error",
+        message: "Google API quota is currently unavailable.",
+      });
+    } catch (error: unknown) {
+      if (!mountedRef.current || agentModeRef.current !== "gemini") return;
+      const previous = stateRef.current;
+      const requestId =
+        typeof (error as { requestId?: unknown })?.requestId === "string"
+          ? (error as { requestId: string }).requestId
+          : undefined;
+      commit({
+        status: "failed",
+        agentMode: "gemini",
+        goal: previous.goal,
+        activity: [],
+        providerAvailable: false,
+        providerStatus: "error",
+        steps: 0,
+        requestId,
+        message:
+          error instanceof Error && error.message.trim().length > 0
+            ? error.message
+            : "Google API quota is currently unavailable.",
+      });
+    }
+  }, [commit]);
+
+  useEffect(() => {
+    if (agentMode === "gemini") {
+      void checkAvailability();
+    } else {
+      commit({
+        status: "idle",
+        checkingAvailability: false,
+        agentMode: "demo",
+        goal: stateRef.current.goal,
+        activity: [],
+        providerAvailable: true,
+        providerStatus: "demo",
+      });
+    }
+  }, [agentMode, checkAvailability, commit]);
+
+  const setAgentMode = useCallback(
+    (mode: AgentMode) => {
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+        controllerRef.current = null;
+      }
+      pendingApprovalRef.current = null;
+      lastInteractionIdRef.current = undefined;
+      demoProvider.reset();
+      setAgentModeState(mode);
+      agentModeRef.current = mode;
+
+      if (mode === "demo") {
+        commit({
+          status: "idle",
+          checkingAvailability: false,
+          agentMode: "demo",
+          goal: stateRef.current.goal,
+          activity: [],
+          providerAvailable: true,
+          providerStatus: "demo",
+        });
+      } else {
+        commit({
+          status: "idle",
+          checkingAvailability: true,
+          agentMode: "gemini",
+          goal: stateRef.current.goal,
           activity: [],
           providerAvailable: false,
           providerStatus: "unconfigured",
-          message: "Gemini API key is not configured.",
         });
-      })
-      .catch((error: unknown) => {
-        if (!current || !mountedRef.current) return;
-        const previous = stateRef.current;
-        const requestId = typeof (error as { requestId?: unknown })?.requestId === "string" ? (error as { requestId: string }).requestId : undefined;
-        commit({
-          status: "failed",
-          goal: previous.goal,
-          activity: [],
-          providerAvailable: false,
-          providerStatus: "error",
-          steps: 0,
-          requestId,
-          message: error instanceof Error ? error.message : "Unable to check Bench Agent availability.",
-        });
-      });
+        void checkAvailability();
+      }
+    },
+    [commit, checkAvailability, demoProvider]
+  );
 
-    return () => {
-      current = false;
-    };
-  }, [commit]);
+  const reset = useCallback(() => {
+    if (controllerRef.current) {
+      controllerRef.current.abort();
+      controllerRef.current = null;
+    }
+    pendingApprovalRef.current = null;
+    lastInteractionIdRef.current = undefined;
+    demoProvider.reset();
+    const currentMode = agentModeRef.current;
+    commit({
+      status: "idle",
+      checkingAvailability: currentMode === "gemini",
+      agentMode: currentMode,
+      goal: "",
+      activity: [],
+      providerAvailable: currentMode === "demo" ? true : stateRef.current.providerAvailable,
+      providerStatus: currentMode === "demo" ? "demo" : stateRef.current.providerStatus,
+    });
+  }, [commit, demoProvider]);
 
   const setGoal = useCallback(
     (goal: string) => {
@@ -289,11 +416,19 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
       pendingApprovalRef.current = null;
       const current = stateRef.current;
       if (current.status === "approval") {
+        const approvedCall = current.approval.call;
+        const nextActivity = current.activity.some((a) => a.call.id === approvedCall.id)
+          ? current.activity.map((a) =>
+              a.call.id === approvedCall.id ? { ...a, status: "requested" as const } : a
+            )
+          : [...current.activity, { call: approvedCall, status: "requested" as const }];
+
         commit({
           status: "investigating",
+          agentMode: current.agentMode,
           goal: current.goal,
           runGoal: current.runGoal,
-          activity: current.activity,
+          activity: nextActivity,
           providerAvailable: true,
           providerStatus: current.providerStatus,
           steps: current.steps,
@@ -330,9 +465,12 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
     const modelContext = document.modelContext;
     if (!goal || !previous.providerAvailable || isActive(previous)) return;
 
+    const isDemo = agentModeRef.current === "demo";
+
     if (!modelContext) {
       commit({
         status: "failed",
+        agentMode: previous.agentMode,
         goal: previous.goal,
         activity: [],
         providerAvailable: true,
@@ -350,11 +488,12 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
 
     commit({
       status: "investigating",
-      goal: previous.goal,
+      agentMode: previous.agentMode,
+      goal,
       runGoal: goal,
       activity: [],
       providerAvailable: true,
-      providerStatus: previous.providerStatus === "live" ? "live" : "configured",
+      providerStatus: isDemo ? "demo" : previous.providerStatus === "live" ? "live" : "configured",
       steps: 0,
     });
     const onEvent = (event: BenchAgentEvent) => {
@@ -365,22 +504,30 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
       if (event.type === "approval-requested") {
         commit({
           status: "approval",
+          agentMode: current.agentMode,
           goal: current.goal,
           runGoal: current.runGoal,
           activity,
           providerAvailable: true,
-          providerStatus: "live",
+          providerStatus: isDemo ? "demo" : "live",
           steps: stepCount(activity),
           approval: { call: event.call, tool: event.tool },
         });
         return;
       }
-      commit({ ...current, activity, providerStatus: "live", steps: stepCount(activity) });
+      commit({
+        ...current,
+        status: "investigating",
+        activity,
+        agentMode: current.agentMode,
+        providerStatus: isDemo ? "demo" : "live",
+        steps: stepCount(activity),
+      });
     };
     void runBenchAgent({
       goal,
       modelContext,
-      provider,
+      provider: activeProvider,
       signal: controller.signal,
       onEvent,
       requestApproval: ({ call, tool }) => {
@@ -396,11 +543,12 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
           const current = stateRef.current;
           commit({
             status: "approval",
+            agentMode: current.agentMode,
             goal: current.goal,
             runGoal: current.runGoal,
             activity: current.activity,
             providerAvailable: true,
-            providerStatus: "live",
+            providerStatus: isDemo ? "demo" : "live",
             steps: stepCount(current.activity),
             approval: { call, tool },
           });
@@ -426,6 +574,7 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
         if (controller.signal.aborted) {
           commit({
             status: "stopped",
+            agentMode: current.agentMode,
             goal: current.goal,
             runGoal: current.runGoal,
             activity: current.activity,
@@ -435,20 +584,24 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
           });
           return;
         }
-        const reqId = typeof (error as { requestId?: unknown })?.requestId === "string" ? (error as { requestId: string }).requestId : undefined;
+        const reqId =
+          typeof (error as { requestId?: unknown })?.requestId === "string"
+            ? (error as { requestId: string }).requestId
+            : undefined;
         commit({
           status: "failed",
+          agentMode: stateRef.current.agentMode,
           goal: current.goal,
           runGoal: current.runGoal,
           activity: current.activity,
-          providerAvailable: true,
-          providerStatus: "error",
+          providerAvailable: isDemo ? true : false,
+          providerStatus: isDemo ? "demo" : "error",
           steps: stepCount(current.activity),
           requestId: reqId,
           message: error instanceof Error ? error.message : "Bench Agent failed.",
         });
       });
-  }, [commit, provider]);
+  }, [activeProvider, commit]);
 
   const sendObservation = useCallback(
     (observation: string) => {
@@ -457,9 +610,12 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
       const modelContext = document.modelContext;
       if (!trimmed || !previous.providerAvailable || isActive(previous)) return;
 
+      const isDemo = agentModeRef.current === "demo";
+
       if (!modelContext) {
         commit({
           status: "failed",
+          agentMode: previous.agentMode,
           goal: previous.goal,
           activity: previous.activity,
           providerAvailable: true,
@@ -477,11 +633,12 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
 
       commit({
         status: "investigating",
+        agentMode: previous.agentMode,
         goal: previous.goal,
         runGoal: trimmed,
         activity: previous.activity,
         providerAvailable: true,
-        providerStatus: previous.providerStatus === "live" ? "live" : "configured",
+        providerStatus: isDemo ? "demo" : previous.providerStatus === "live" ? "live" : "configured",
         steps: stepCount(previous.activity),
       });
       const onEvent = (event: BenchAgentEvent) => {
@@ -492,24 +649,32 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
         if (event.type === "approval-requested") {
           commit({
             status: "approval",
+            agentMode: current.agentMode,
             goal: current.goal,
             runGoal: current.runGoal,
             activity,
             providerAvailable: true,
-            providerStatus: "live",
+            providerStatus: isDemo ? "demo" : "live",
             steps: stepCount(activity),
             approval: { call: event.call, tool: event.tool },
           });
           return;
         }
-        commit({ ...current, activity, providerStatus: "live", steps: stepCount(activity) });
+        commit({
+          ...current,
+          status: "investigating",
+          activity,
+          agentMode: current.agentMode,
+          providerStatus: isDemo ? "demo" : "live",
+          steps: stepCount(activity),
+        });
       };
 
       void runBenchAgent({
         goal: trimmed,
         previousInteractionId: lastInteractionIdRef.current,
         modelContext,
-        provider,
+        provider: activeProvider,
         signal: controller.signal,
         onEvent,
         requestApproval: ({ call, tool }) => {
@@ -525,11 +690,12 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
             const current = stateRef.current;
             commit({
               status: "approval",
+              agentMode: current.agentMode,
               goal: current.goal,
               runGoal: current.runGoal,
               activity: current.activity,
               providerAvailable: true,
-              providerStatus: "live",
+              providerStatus: isDemo ? "demo" : "live",
               steps: stepCount(current.activity),
               approval: { call, tool },
             });
@@ -555,6 +721,7 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
           if (controller.signal.aborted) {
             commit({
               status: "stopped",
+              agentMode: current.agentMode,
               goal: current.goal,
               runGoal: current.runGoal,
               activity: current.activity,
@@ -564,21 +731,25 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
             });
             return;
           }
-          const reqId = typeof (error as { requestId?: unknown })?.requestId === "string" ? (error as { requestId: string }).requestId : undefined;
+          const reqId =
+            typeof (error as { requestId?: unknown })?.requestId === "string"
+              ? (error as { requestId: string }).requestId
+              : undefined;
           commit({
             status: "failed",
+            agentMode: stateRef.current.agentMode,
             goal: current.goal,
             runGoal: current.runGoal,
             activity: current.activity,
-            providerAvailable: true,
-            providerStatus: "error",
+            providerAvailable: isDemo ? true : false,
+            providerStatus: isDemo ? "demo" : "error",
             steps: stepCount(current.activity),
             requestId: reqId,
             message: error instanceof Error ? error.message : "Bench Agent failed.",
           });
         });
     },
-    [commit, provider],
+    [activeProvider, commit]
   );
 
   useEffect(() => {
@@ -602,11 +773,15 @@ export function useBenchAgent(isConnected: boolean): UseBenchAgentResult {
 
   return {
     state,
+    agentMode,
+    setAgentMode,
     setGoal,
     start,
     sendObservation,
     stop,
     approve: () => settleApproval(true),
     deny: () => settleApproval(false),
+    retryAvailability: checkAvailability,
+    reset,
   };
 }

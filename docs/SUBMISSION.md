@@ -25,7 +25,7 @@ By leveraging the browser's emerging `document.modelContext` standard:
 
 ## What It Does
 Ohmni turns the browser into an interactive hardware diagnostic lab:
-- **Blind Mystery Fault Challenge**: A hardware fault is injected into a virtual or physical ESP32-S3 controller. Neither Gemini nor the human is told what the fault is. The ground truth is cryptographically sealed outside the agent's context.
+- **Blind Mystery Fault Challenge**: A hardware fault is injected into a virtual or physical ESP32-S3 controller. Neither Gemini nor the human is told what the fault is. The ground truth is sealed outside the agent's context.
 - **Autonomous Empirical Investigation**: Gemini discovers 19 native WebMCP instruments (oscilloscope sampling, reset history logs, I²C bus scanners, logic state analyzers) and autonomously investigates the symptom.
 - **Physical Safety Gate**: When Gemini needs to run an active physical test (like cycling a high-load cooling relay), the browser pauses and demands human approval (`[Approve]` / `[Deny]`).
 - **Human Collaboration Loop**: Gemini synthesizes an evidence-backed hypothesis and asks the human for physical assistance: *"I need your hands. Move jumper JP1 from the shared 3.3V rail to the external 5V supply."*

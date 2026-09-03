@@ -5,6 +5,7 @@
 
 import {
   ALL_SCENARIO_IDS,
+  ENABLED_SCENARIO_IDS,
   SCENARIOS,
 } from "./definitions";
 import type {
@@ -111,12 +112,13 @@ export function createScenarioSession(options: CreateScenarioOptions = {}): Scen
   let scenarioId = options.scenarioId;
 
   if (!scenarioId) {
+    const candidates = ENABLED_SCENARIO_IDS.length > 0 ? ENABLED_SCENARIO_IDS : ALL_SCENARIO_IDS;
     if (options.seed !== undefined) {
-      const index = pickWithSeed(options.seed, ALL_SCENARIO_IDS.length);
-      scenarioId = ALL_SCENARIO_IDS[index];
+      const index = pickWithSeed(options.seed, candidates.length);
+      scenarioId = candidates[index];
     } else {
-      const index = pickRandom(ALL_SCENARIO_IDS.length);
-      scenarioId = ALL_SCENARIO_IDS[index];
+      const index = pickRandom(candidates.length);
+      scenarioId = candidates[index];
     }
   }
 

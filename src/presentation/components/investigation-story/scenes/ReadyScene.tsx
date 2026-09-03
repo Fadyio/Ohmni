@@ -24,6 +24,7 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
   isConnected = true,
   relayState = "open",
   railVoltage = 3.31,
+  onStartInvestigation,
 }) => {
   const shouldReduceMotion = useReducedMotion();
   const [rotX, setRotX] = useState<number>(2);
@@ -65,32 +66,66 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
         padding: "1rem 0",
       }}
     >
-      {/* Title & Description */}
-      <div>
+      {/* Title & Symptom Hierarchy */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "center" }}>
+        <span
+          style={{
+            fontSize: "11px",
+            fontWeight: 800,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--ohmni-lab-brand, #4967FF)",
+          }}
+        >
+          TARGET HARDWARE
+        </span>
         <h2
           style={{
-            fontSize: "26px",
+            fontSize: "24px",
             fontWeight: 800,
             color: "var(--ohmni-lab-text)",
             letterSpacing: "-0.02em",
-            margin: "0 0 6px",
+            margin: 0,
           }}
         >
-          Diagnostic workbench online.
+          Mystery Controller
         </h2>
         <p
           style={{
-            margin: 0,
+            margin: "2px 0 0",
             fontSize: "14px",
             color: "var(--ohmni-lab-muted)",
             maxWidth: "540px",
             lineHeight: 1.5,
           }}
         >
-          The environmental controller hardware is energized and bound to the WebMCP instrument mesh. The AI agent will begin physical measurements on demand.
+          <strong>Symptom:</strong> Controller resets when fan starts.
         </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "6px" }}>
+          <span style={{ fontSize: "13px", color: "var(--ohmni-lab-verified, #27966B)", fontWeight: 700 }}>
+            ● Agent: Ready.
+          </span>
+          {onStartInvestigation && (
+            <button
+              type="button"
+              data-testid="start-investigation-btn"
+              id="start-investigation-btn"
+              onClick={onStartInvestigation}
+              className="btn-primary"
+              style={{
+                padding: "8px 18px",
+                fontSize: "13.5px",
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <span>Start investigation</span>
+            </button>
+          )}
+        </div>
       </div>
-
       {/* Hero Hardware Object Container with 3D Parallax */}
       <motion.div
         id="hardware-target-node"

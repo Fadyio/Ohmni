@@ -101,7 +101,8 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
 
           {/* Sealed Truth Indicator */}
           <div
-            title="The scenario state is held outside the model/tool context and is revealed only after verification."
+            data-testid="sealed-truth-indicator"
+            title="The scenario state is held outside the model context and is revealed only after verification."
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -117,7 +118,7 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
             }}
           >
             <Lock size={12} />
-            <span>SEALED GROUND TRUTH</span>
+            <span>Hidden from agent context</span>
           </div>
         </div>
 
@@ -125,14 +126,14 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
         <div>
           <h2
             style={{
-              fontSize: "22px",
+              fontSize: "24px",
               fontWeight: 800,
               letterSpacing: "-0.02em",
               color: "var(--ohmni-lab-text, #0F172A)",
               margin: "0 0 6px 0",
             }}
           >
-            Mystery Hardware Investigation
+            BLIND HARDWARE CHALLENGE
           </h2>
           <p
             style={{
@@ -142,8 +143,8 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
               margin: 0,
             }}
           >
-            A physical or configuration fault has been injected into this {session.deviceModel}.
-            Neither you nor Gemini has been told what it is.
+            A fault has been injected into the virtual controller.
+            Gemini / Demo Agent does not know the answer.
           </p>
         </div>
 
@@ -189,15 +190,19 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
         </div>
 
         {/* Blind Rules summary */}
+        {/* Ground Truth Status */}
         <div
           style={{
-            fontSize: "12.5px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            fontSize: "13px",
             color: "var(--ohmni-lab-secondary, #64748B)",
-            lineHeight: 1.5,
-            padding: "0.5rem 0",
+            padding: "0.25rem 0",
           }}
         >
-          Ground truth remains cryptographically sealed until Gemini reaches an experimentally verified diagnosis or you reveal it.
+          <Lock size={14} color="var(--ohmni-lab-action, #D97706)" />
+          <span><strong>GROUND TRUTH:</strong> Hidden from agent context until reveal.</span>
         </div>
 
         {/* Action Buttons */}
@@ -222,8 +227,8 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
             onClick={onBegin}
             className="btn-primary"
             style={{
-              padding: "12px 24px",
-              fontSize: "14.5px",
+              padding: "12px 28px",
+              fontSize: "15px",
               fontWeight: 700,
               display: "inline-flex",
               alignItems: "center",
@@ -231,7 +236,7 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
             }}
           >
             <Play size={16} />
-            <span>Begin Investigation</span>
+            <span>Begin</span>
             <ArrowRight size={16} />
           </button>
         </div>

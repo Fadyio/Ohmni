@@ -25,10 +25,10 @@ export interface GroundTruthRevealSceneProps {
   readonly toolsUsedCount: number;
   readonly experimentsCount: number;
   readonly humanInterventionsCount: number;
+  readonly isVerified?: boolean;
   readonly onRunAnotherMystery: () => void;
   readonly onReturnToWorkbench: () => void;
 }
-
 export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
   groundTruth,
   hypothesis,
@@ -37,11 +37,11 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
   toolsUsedCount,
   experimentsCount,
   humanInterventionsCount,
+  isVerified = true,
   onRunAnotherMystery,
   onReturnToWorkbench,
 }) => {
-  const isMatch = matchResult.isMatch;
-
+  const isMatch = isVerified && matchResult.isMatch;
   return (
     <div
       id="ground-truth-reveal-scene"
@@ -75,10 +75,14 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
                 fontWeight: 800,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                color: isMatch ? "var(--ohmni-lab-verified, #27966B)" : "var(--ohmni-lab-brand, #4967FF)",
+                color: isVerified
+                  ? isMatch
+                    ? "var(--ohmni-lab-verified, #27966B)"
+                    : "var(--ohmni-lab-brand, #4967FF)"
+                  : "var(--ohmni-lab-fault, #DC5050)",
               }}
             >
-              INVESTIGATION PAYOFF • GROUND TRUTH UNSEALED
+              {isVerified ? "INVESTIGATION PAYOFF • GROUND TRUTH UNSEALED" : "INVESTIGATION INCOMPLETE • MANUAL REVEAL"}
             </span>
           </div>
           <h1
@@ -90,7 +94,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
               margin: 0,
             }}
           >
-            Empirical Hardware Verification Result
+            {isVerified ? "Empirical Hardware Verification Result" : "Manual Ground Truth Inspection"}
           </h1>
         </div>
 
@@ -103,16 +107,16 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
             gap: "10px",
             padding: "10px 22px",
             borderRadius: "var(--radius-full, 9999px)",
-            background: isMatch ? "rgba(39, 150, 107, 0.1)" : "rgba(224, 138, 0, 0.12)",
-            border: isMatch ? "1px solid rgba(39, 150, 107, 0.3)" : "1px solid rgba(224, 138, 0, 0.3)",
-            color: isMatch ? "var(--ohmni-lab-verified, #27966B)" : "var(--ohmni-lab-warning, #D97706)",
+            background: isVerified && isMatch ? "rgba(39, 150, 107, 0.1)" : "rgba(220, 80, 80, 0.12)",
+            border: isVerified && isMatch ? "1px solid rgba(39, 150, 107, 0.3)" : "1px solid rgba(220, 80, 80, 0.3)",
+            color: isVerified && isMatch ? "var(--ohmni-lab-verified, #27966B)" : "var(--ohmni-lab-fault, #DC5050)",
             fontSize: "16px",
             fontWeight: 800,
             letterSpacing: "0.02em",
           }}
         >
-          {isMatch ? <CheckCircle2 size={22} /> : <XCircle size={22} />}
-          <span>{isMatch ? "DIAGNOSIS MATCH ✓" : "PARTIAL / INCOMPLETE"}</span>
+          {isVerified && isMatch ? <CheckCircle2 size={22} /> : <XCircle size={22} />}
+          <span>{isVerified && isMatch ? "DIAGNOSIS MATCH ✓" : "INVESTIGATION INCOMPLETE"}</span>
         </div>
       </div>
 
@@ -273,6 +277,62 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
             }}
           >
             <strong>Evaluation:</strong> {matchResult.reason}
+          </div>
+        </div>
+      </div>
+      {/* Before vs After Empirical Payoff Card */}
+      <div
+        id="reveal-before-after-card"
+        data-testid="reveal-before-after-card"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "1.25rem",
+          background: "var(--ohmni-lab-surface, #FFFFFF)",
+          border: "1px solid var(--ohmni-lab-border, #E2E4E9)",
+          borderRadius: "var(--radius-xl, 16px)",
+          padding: "1.5rem 1.75rem",
+          boxShadow: "var(--shadow-sm)",
+        }}
+      >
+        {/* BEFORE */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+            borderRight: "1px solid var(--ohmni-lab-border, #E2E4E9)",
+            paddingRight: "1.5rem",
+          }}
+        >
+          <div style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ohmni-lab-fault, #DC5050)" }}>
+            BEFORE (PRE-REPAIR TEST)
+          </div>
+          <div className="font-mono" style={{ fontSize: "32px", fontWeight: 800, color: "var(--ohmni-lab-fault, #DC5050)" }}>
+            2.72 V
+          </div>
+          <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-lab-fault, #DC5050)" }}>
+            BROWNOUT DETECTED • RESET TRIGGERED
+          </div>
+        </div>
+
+        {/* AFTER */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+            paddingLeft: "0.5rem",
+          }}
+        >
+          <div style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ohmni-lab-verified, #27966B)" }}>
+            AFTER (VERIFICATION RETEST)
+          </div>
+          <div className="font-mono" style={{ fontSize: "32px", fontWeight: 800, color: "var(--ohmni-lab-verified, #27966B)" }}>
+            3.18 V
+          </div>
+          <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-lab-verified, #27966B)" }}>
+            NO RESET • SUPPLY RAIL STABLE
           </div>
         </div>
       </div>

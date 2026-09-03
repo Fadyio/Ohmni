@@ -26,7 +26,7 @@ export interface InvestigationNarrativeRailProps {
   readonly onStopAgent: () => void;
   readonly onApprove?: () => void;
   readonly onDeny?: () => void;
-  readonly onSelectScene?: (scene: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed") => void;
+  readonly onSelectScene?: (scene: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null) => void;
 }
 
 export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProps> = ({
@@ -34,6 +34,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
   onSetGoal,
   onStartAgent,
   onStopAgent,
+  onSelectScene,
 }) => {
   const active = agentState.status === "investigating" || agentState.status === "approval";
   const isIdle = agentState.status === "idle" || agentState.status === "stopped";
@@ -375,6 +376,9 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               WAITING FOR YOU
             </div>
             <div
+              data-testid="waiting-approval-notice"
+              id="waiting-approval-notice"
+              onClick={() => onSelectScene?.(null)}
               style={{
                 background: "rgba(255, 181, 74, 0.08)",
                 border: "1px solid rgba(255, 181, 74, 0.35)",
@@ -383,6 +387,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                 display: "flex",
                 flexDirection: "column",
                 gap: "6px",
+                cursor: "pointer",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-action)", fontSize: "11px", fontWeight: 700 }}>
@@ -454,7 +459,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               justifyContent: "space-between",
             }}
           >
-            <span>HISTORY</span>
+            <span>INVESTIGATION RECORD</span>
             {completedEvents.length > 0 && <span>({completedEvents.length})</span>}
           </div>
 
@@ -491,12 +496,24 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               <div
                 key={evt.id}
                 data-testid="bench-agent-activity-row"
+                onClick={() => {
+                  if (evt.tool.includes("reset") || evt.tool.includes("history")) {
+                    onSelectScene?.("observing");
+                  } else if (evt.tool.includes("relay") || evt.tool.includes("stress")) {
+                    onSelectScene?.("running");
+                  } else if (evt.tool.includes("hypothesis")) {
+                    onSelectScene?.("hypothesis");
+                  } else if (evt.tool.includes("evidence")) {
+                    onSelectScene?.("evidence");
+                  }
+                }}
                 style={{
                   display: "flex",
                   alignItems: "flex-start",
                   gap: "10px",
                   padding: "6px 0",
                   position: "relative",
+                  cursor: onSelectScene ? "pointer" : "default",
                 }}
               >
                 <div

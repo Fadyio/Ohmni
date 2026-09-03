@@ -223,17 +223,17 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
           }}
         >
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-brand)", fontSize: "13px", fontWeight: 700, textTransform: "uppercase" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-brand)", fontSize: "12.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
               <Wrench size={15} />
-              Human Physical Intervention
+              THE AGENT NEEDS YOUR HANDS
             </div>
 
             <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-ink)", margin: "8px 0 12px", lineHeight: 1.2 }}>
-              "{interventionTitle}"
+              Move JP1: Shared 3.3V → External 5V
             </h2>
 
             <p className="body-text" style={{ fontSize: "15px", lineHeight: 1.6, margin: 0 }}>
-              <strong>Root Cause:</strong> {rootCauseText}
+              <strong>Why:</strong> {rootCauseText}
             </p>
           </div>
 
@@ -302,9 +302,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
 
             <div style={{ fontSize: "12px", color: jumperPosition === "5V" ? "#E2E8F0" : "#94A3B8" }}>
               {jumperPosition === "5V"
-                ? (hasVerified
-                    ? "CONFIGURATION CHANGED • EMPIRICALLY VERIFIED"
-                    : "CONFIGURATION CHANGED — NOT YET VERIFIED")
+                ? "PHYSICAL CONFIGURATION CHANGED • Verification required."
                 : "Jumper connected to shared 3.3V microcontroller rail."}
             </div>
 
@@ -402,6 +400,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     onClick={handleNotifyAgent}
                     className="btn-primary"
                     data-testid="tell-gemini-repair-btn"
+                    id="tell-agent-repair-btn"
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -419,7 +418,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     }}
                   >
                     <Send size={14} />
-                    <span>Tell Gemini I changed it</span>
+                    <span>Tell agent I've changed it</span>
                   </button>
                 )}
               </div>

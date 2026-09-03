@@ -13,7 +13,8 @@
 
 import React from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle, RotateCcw, Bot } from "lucide-react";
+import type { AgentMode } from "@/infrastructure/bench-agent/types";
 import { ReadyScene } from "./scenes/ReadyScene";
 import { ObservingScene } from "./scenes/ObservingScene";
 import { TestRequestScene } from "./scenes/TestRequestScene";
@@ -42,6 +43,9 @@ export interface DynamicInvestigationSceneProps {
   readonly onDenyTest: () => void;
   readonly onProceedToRepair?: () => void;
   readonly onStartAgent?: () => void;
+  readonly agentMode?: AgentMode;
+  readonly onSwitchToDemo?: () => void;
+  readonly onRetryGemini?: () => void;
   readonly activeSceneOverride?: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null;
 }
 
@@ -59,9 +63,11 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   onDenyTest,
   onProceedToRepair,
   onStartAgent,
+  agentMode = "gemini",
+  onSwitchToDemo,
+  onRetryGemini,
   activeSceneOverride,
 }) => {
-  // Reset history must ONLY be considered inspected if read_reset_history successfully completed
   const resetActivity = agentState.activity.find(
     (a) =>
       (a.call.name === "read_reset_history" ||
@@ -104,9 +110,15 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   // Determine active scene based on real domain state
   const computeActiveScene = (): "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" => {
     if (activeSceneOverride) return activeSceneOverride;
+    if (agentState.status === "approval") {
+      const toolName = agentState.approval.tool.name;
+      if (classifyTool(toolName, agentState.approval.tool.annotations) === "physical") {
+        return "test-request";
+      }
+    }
     if (
-      experimentStatus === "running" ||
       relayState === "closed" ||
+      (experimentStatus === "running" && hypothesis === null) ||
       (agentState.status === "investigating" &&
         agentState.activity.some((a) => (a.call.name.includes("relay") || a.call.name.includes("stress")) && a.status !== "completed"))
     ) {
@@ -137,14 +149,17 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
       }}
     >
       {/* Agent Failure Diagnostic Banner */}
-      {agentState.status === "failed" && (
+      {/* Gemini Unavailable / Error Card */}
+      {agentMode === "gemini" && (agentState.status === "failed" || agentState.status === "unavailable" || agentState.providerStatus === "error") ? (
         <motion.div
+          id="gemini-unavailable-card"
+          data-testid="gemini-unavailable-card"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           style={{
             background: "rgba(220, 80, 80, 0.06)",
             border: "1px solid rgba(220, 80, 80, 0.28)",
-            borderRadius: "var(--radius-lg)",
+            borderRadius: "var(--radius-lg, 12px)",
             padding: "1.5rem 1.75rem",
             marginBottom: "1.5rem",
             display: "flex",
@@ -152,7 +167,70 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             gap: "10px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--ohmni-lab-fault)", fontSize: "13px", fontWeight: 700 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--ohmni-lab-fault, #DC5050)", fontSize: "13px", fontWeight: 800 }}>
+            <AlertTriangle size={18} />
+            <span>GEMINI UNAVAILABLE</span>
+          </div>
+          <p style={{ margin: 0, fontSize: "14px", color: "var(--ohmni-lab-muted, #64748B)", lineHeight: 1.5 }}>
+            Google API quota is currently unavailable.
+          </p>
+          <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+            {onRetryGemini && (
+              <button
+                type="button"
+                data-testid="retry-gemini-btn"
+                onClick={onRetryGemini}
+                className="btn-secondary"
+                style={{
+                  padding: "8px 16px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <RotateCcw size={14} />
+                <span>Retry Gemini</span>
+              </button>
+            )}
+            {onSwitchToDemo && (
+              <button
+                type="button"
+                data-testid="continue-demo-agent-btn"
+                onClick={onSwitchToDemo}
+                className="btn-primary"
+                style={{
+                  padding: "8px 16px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <Bot size={14} />
+                <span>Continue with Demo Agent</span>
+              </button>
+            )}
+          </div>
+        </motion.div>
+      ) : agentState.status === "failed" ? (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            background: "rgba(220, 80, 80, 0.06)",
+            border: "1px solid rgba(220, 80, 80, 0.28)",
+            borderRadius: "var(--radius-lg, 12px)",
+            padding: "1.5rem 1.75rem",
+            marginBottom: "1.5rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--ohmni-lab-fault, #DC5050)", fontSize: "13px", fontWeight: 700 }}>
             <AlertTriangle size={18} />
             <span>AGENT INVESTIGATION INTERRUPTED</span>
           </div>
@@ -188,7 +266,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             </div>
           )}
         </motion.div>
-      )}
+      ) : null}
 
       {/* Scene Render Container */}
       <AnimatePresence mode="wait">

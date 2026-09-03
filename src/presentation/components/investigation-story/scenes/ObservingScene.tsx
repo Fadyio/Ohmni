@@ -124,7 +124,7 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
           OBSERVING • HARDWARE STATE
         </div>
         <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "6px 0 0", letterSpacing: "-0.02em" }}>
-          Microcontroller Reset History
+          {hasInspectedResetHistory ? "RESET HISTORY" : "Microcontroller Reset History"}
         </h2>
         <p style={{ margin: "6px 0 0", fontSize: "14.5px", color: "var(--ohmni-lab-muted)" }}>
           {isParseError
@@ -241,6 +241,27 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
         </div>
       </div>
 
+      {/* What this tells us statement */}
+      {hasInspectedResetHistory && hasBrownout && (
+        <div
+          style={{
+            background: "rgba(220, 80, 80, 0.05)",
+            border: "1px solid rgba(220, 80, 80, 0.2)",
+            borderRadius: "var(--radius-md, 8px)",
+            padding: "1rem 1.25rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "4px",
+          }}
+        >
+          <div style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ohmni-lab-fault, #DC5050)" }}>
+            What this tells us
+          </div>
+          <div style={{ fontSize: "14.5px", fontWeight: 600, color: "var(--ohmni-lab-text, #0F172A)" }}>
+            "Recent resets were caused by supply brownout."
+          </div>
+        </div>
+      )}
       {/* Live Oscilloscope Baseline Strip */}
       <div
         style={{

@@ -71,7 +71,7 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
       id="test-request-scene"
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -287,29 +287,28 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
           <div>
             <h2
               style={{
-                fontSize: "24px",
+                fontSize: "22px",
                 fontWeight: 800,
                 color: "var(--ohmni-lab-text)",
-                margin: "0 0 8px",
+                margin: "0 0 12px",
                 letterSpacing: "-0.02em",
-                lineHeight: 1.25,
+                lineHeight: 1.3,
               }}
             >
-              {isRelayTool ? "Gemini wants to stress-test the relay." : `Gemini requests authorization for ${toolName}.`}
+              Gemini wants to energize the cooling fan relay for up to 500 ms while measuring supply voltage.
             </h2>
 
-            <div style={{ margin: "10px 0 16px" }}>
-              <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-lab-text)", marginBottom: "6px" }}>
-                What it will do:
+            {/* WHY Section */}
+            <div style={{ margin: "12px 0" }}>
+              <div style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ohmni-lab-brand, #4967FF)", marginBottom: "4px" }}>
+                WHY
               </div>
-              <ul style={{ margin: 0, paddingLeft: "1.2rem", fontSize: "13.5px", color: "var(--ohmni-lab-muted)", lineHeight: 1.6 }}>
-                <li>Energize relay briefly to induce load</li>
-                <li>Watch the MCU supply rail for voltage sag</li>
-                <li>Abort immediately if hardware resets</li>
-              </ul>
+              <p style={{ margin: 0, fontSize: "14px", color: "var(--ohmni-lab-text)", lineHeight: 1.5 }}>
+                To see whether the fan load reproduces the reset.
+              </p>
             </div>
 
-            {/* Controlled Safety Envelope Card */}
+            {/* SAFETY Section */}
             <div
               style={{
                 background: "var(--ohmni-lab-soft-raised)",
@@ -319,22 +318,23 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
                 display: "flex",
                 flexDirection: "column",
                 gap: "8px",
+                marginTop: "12px",
               }}
             >
-              <div className="font-mono" style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--ohmni-lab-text)", textTransform: "uppercase" }}>
-                CONTROLLED SAFETY ENVELOPE
+              <div className="font-mono" style={{ fontSize: "11px", fontWeight: 800, color: "var(--ohmni-lab-action)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                SAFETY
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--ohmni-lab-muted)" }}>
-                <Clock size={13} color="var(--ohmni-lab-action)" />
-                <span>Maximum actuation: <strong>500 ms</strong></span>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--ohmni-lab-text)" }}>
+                <AlertTriangle size={14} color="var(--ohmni-lab-fault)" />
+                <span>Auto-abort on reset</span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--ohmni-lab-muted)" }}>
-                <AlertTriangle size={13} color="var(--ohmni-lab-fault)" />
-                <span>Automatic abort on reset</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--ohmni-lab-text)" }}>
+                <Clock size={14} color="var(--ohmni-lab-action)" />
+                <span>Maximum 500 ms</span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--ohmni-lab-muted)" }}>
-                <Activity size={13} color="var(--ohmni-lab-signal)" />
-                <span>Live 60fps voltage monitoring</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--ohmni-lab-text)" }}>
+                <Activity size={14} color="var(--ohmni-lab-verified)" />
+                <span>Relay returns open</span>
               </div>
             </div>
           </div>

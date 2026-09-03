@@ -36,6 +36,8 @@ export interface AgentTurnResult {
   readonly text?: string;
 }
 
+export type AgentMode = "gemini" | "demo";
+
 export interface BenchAgentProvider {
   turn(
     request: AgentTurnRequest,

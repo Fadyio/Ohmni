@@ -160,7 +160,7 @@ export const Ohmni3DWordmark: React.FC<Ohmni3DWordmarkProps> = ({
                 position: "relative",
                 transformStyle: "preserve-3d",
                 fontFamily: "var(--font-sans)",
-                fontSize: isHero ? "clamp(48px, 7.2vw, 102px)" : "22px",
+                fontSize: isHero ? "clamp(26px, 3.8vw, 52px)" : "20px",
                 color: "#111318",
                 textTransform: "uppercase",
                 padding: isHero ? "0 0.025em" : "0 0.02em",

@@ -5,9 +5,11 @@ import type { DeviceEvent, ResetEvent, VoltageSampleEvent } from "@/domain/devic
 interface DeviceInfoData {
   chip: string;
   firmwareVersion: string;
-  relayPowerSource: string;
+  boardIdentifier?: string;
+  protocolVersion?: string;
   nominalVoltage: number;
   relayState: string;
+  capabilities?: string[];
 }
 
 interface VoltageData {
@@ -82,7 +84,8 @@ describe("VirtualDeviceAdapter - Domain Foundation & Deterministic Physics", () 
       expect(result.ok).toBe(true);
       expect(result.data.chip).toBe("ESP32-S3");
       expect(result.data.firmwareVersion).toBe("1.0.0");
-      expect(result.data.relayPowerSource).toBe("3v3");
+      expect((result.data as unknown as Record<string, unknown>).relayPowerSource).toBeUndefined();
+      expect(result.data.boardIdentifier).toBe("ESP32-S3-DEVKITC-1");
     });
 
     it("measures baseline supply voltage at nominal ~3.3V", async () => {

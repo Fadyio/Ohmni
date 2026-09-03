@@ -17,8 +17,12 @@ export interface VirtualDeviceConfig {
   readonly initialSensorAddress?: "0x76" | "0x77";
   readonly firmwareTargetAddress?: "0x76" | "0x77";
   readonly initialSdaConnected?: boolean;
+  readonly initialResets?: readonly {
+    readonly timestamp: number;
+    readonly reason: ResetReason;
+    readonly message?: string;
+  }[];
 }
-
 export class VirtualDeviceAdapter implements DeviceAdapter {
   private connected = false;
   private relayPowerSource: RelayPowerSource = "3v3";
@@ -49,15 +53,36 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
 
     this.nominalVoltage = config.nominalVoltage ?? 3.30;
     this.brownoutThreshold = config.brownoutThreshold ?? 2.80;
-
-    // Initial power-on reset
-    this.resetHistory.push({
-      timestamp: Date.now() - 60_000,
-      reason: "POWER_ON",
-      message: "Initial system cold boot",
-    });
+    this.initResetHistory(config);
   }
 
+  private initResetHistory(config?: VirtualDeviceConfig): void {
+    this.resetHistory = [
+      {
+        timestamp: Date.now() - 60_000,
+        reason: "POWER_ON",
+        message: "Initial system cold boot",
+      },
+    ];
+    if (config?.initialResets) {
+      this.resetHistory.push(...config.initialResets);
+    }
+  }
+
+  public reset(config?: VirtualDeviceConfig): void {
+    this.relayPowerSource = config?.initialRelayPower ?? "3v3";
+    this.sensorAddress = config?.initialSensorAddress ?? "0x76";
+    this.firmwareTargetAddress = config?.firmwareTargetAddress ?? "0x76";
+    this.sdaConnected = config?.initialSdaConnected ?? true;
+    this.relayState = "open";
+
+    this.interventionPoints.clear();
+    this.interventionPoints.set("relay_power_jumper", this.relayPowerSource);
+    this.interventionPoints.set("sensor_address_selector", this.sensorAddress);
+    this.interventionPoints.set("sda_connection", this.sdaConnected ? "connected" : "unseated");
+
+    this.initResetHistory(config);
+  }
   public async connect(): Promise<void> {
     this.connected = true;
   }
@@ -223,10 +248,19 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
       ok: true,
       data: {
         chip: "ESP32-S3",
+        boardIdentifier: "ESP32-S3-DEVKITC-1",
+        protocolVersion: "1.0",
         firmwareVersion: "1.0.0",
-        relayPowerSource: this.relayPowerSource,
         nominalVoltage: this.nominalVoltage,
         relayState: this.relayState,
+        capabilities: [
+          "read_reset_history",
+          "read_system_health",
+          "measure_supply_voltage",
+          "run_relay_stress_test",
+          "scan_i2c_bus",
+          "read_sensor_status",
+        ],
       },
     };
   }
@@ -430,7 +464,7 @@ export class VirtualDeviceAdapter implements DeviceAdapter {
             2.780, 2.750, 2.730, 2.720, 2.720
           ];
 
-          const stepDelay = durationMs > 0 ? (durationMs * 0.4) / sagCurve.length : 0;
+          const stepDelay = (Math.max(durationMs, 250) * 0.4) / sagCurve.length;
           for (let s = 0; s < sagCurve.length; s++) {
             if (signal?.aborted) throw new Error("Capability execution aborted");
             const sampleVoltage = sagCurve[s];

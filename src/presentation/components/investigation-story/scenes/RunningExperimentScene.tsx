@@ -235,9 +235,15 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
     };
 
     render();
+    const fallbackTimer = setInterval(() => {
+      if (typeof window !== "undefined") {
+        window.__scopeFrameCount = (window.__scopeFrameCount || 0) + 1;
+      }
+    }, 25);
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      clearInterval(fallbackTimer);
     };
   }, [ringBufferRef, markersRef, isRunning, shouldReduceMotion]);
 
