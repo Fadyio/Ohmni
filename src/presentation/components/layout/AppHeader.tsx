@@ -14,32 +14,45 @@ import React, { useState, useRef, useEffect } from "react";
 import { ShieldCheck, MoreHorizontal, Terminal, Radio, Sliders, ExternalLink, Bot } from "lucide-react";
 import type { DeviceDescriptor } from "@/domain/device/descriptor";
 import type { ScenarioSession } from "@/domain/scenario/types";
+import type { AgentMode } from "@/infrastructure/bench-agent/types";
+import type { BenchAgentState } from "../../hooks/useBenchAgent";
+import { getAgentIdentity } from "@/presentation/types/agent-identity";
 import { useWebMCPTools } from "../../hooks/useWebMCPTools";
 import { WebMCPCapabilityDrawer } from "./WebMCPCapabilityDrawer";
 import { OHMNI_COPY, type WorkflowStage } from "../../copy/copy";
 
 export interface AppHeaderProps {
+  readonly headerRef?: React.Ref<HTMLElement | null>;
   readonly isConnected: boolean;
   readonly descriptor?: DeviceDescriptor | null;
   readonly statusVisual?: "nominal" | "reset" | "disconnected";
   readonly activeScenario?: ScenarioSession | null;
   readonly currentStage?: WorkflowStage;
+  readonly registeredToolCount?: number;
+  readonly agentMode?: AgentMode;
+  readonly agentState?: BenchAgentState;
   readonly onOpenDevInspector?: () => void;
   readonly onToggleConnect?: () => void;
   readonly onReturnToWorkbench?: () => void;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
+  headerRef,
   isConnected,
   descriptor,
   statusVisual = "nominal",
   activeScenario,
   currentStage = "OBSERVE",
+  registeredToolCount,
+  agentMode,
+  agentState,
   onOpenDevInspector,
   onToggleConnect,
   onReturnToWorkbench,
 }) => {
   const { tools, toolCount, isNative, isDiscovering } = useWebMCPTools();
+  const displayToolCount = registeredToolCount ?? toolCount;
+  const agentIdentity = getAgentIdentity(agentMode, agentState?.liveProvider, agentState?.liveModel);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -70,6 +83,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   return (
     <>
       <header
+        ref={headerRef}
         id="lab-header"
         data-testid="lab-header"
         style={{
@@ -219,8 +233,48 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             }}
           >
             <ShieldCheck size={13} />
-            <span>{isNative ? `Native WebMCP · ${toolCount} tools active` : `WebMCP · ${toolCount} tools active`}</span>
+            <span>{isNative ? `Native WebMCP · ${displayToolCount} tools active` : `WebMCP · ${displayToolCount} tools active`}</span>
           </button>
+
+          {(agentMode === "demo" || agentMode === "groq") && (
+            <span
+              data-testid={agentMode === "demo" ? "demo-provider-badge" : "groq-provider-badge"}
+              data-provider-badge="true"
+              id="provider-badge"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "3px 0",
+                color:
+                  agentMode === "demo"
+                    ? "var(--brand, #2B57FF)"
+                    : agentState?.providerAvailable
+                    ? "var(--verified, #16A34A)"
+                    : "var(--ink-tertiary, #8A92A0)",
+                fontSize: "11.5px",
+                fontWeight: 700,
+                letterSpacing: "0.02em",
+              }}
+            >
+              {agentMode === "demo" ? (
+                <>
+                  <Bot size={13} />
+                  <span>DEMO AGENT · Deterministic walkthrough</span>
+                </>
+              ) : agentState?.providerAvailable ? (
+                <>
+                  <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--verified, #16A34A)", boxShadow: "0 0 6px rgba(22, 163, 74, 0.8)" }} />
+                  <span>{agentIdentity.displayName} · Live</span>
+                </>
+              ) : (
+                <>
+                  <Bot size={13} />
+                  <span>{agentIdentity.displayName} · Connecting...</span>
+                </>
+              )}
+            </span>
+          )}
 
           {/* Connection state */}
           <span
@@ -282,6 +336,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               >
                 <button
                   type="button"
+                  data-testid="webmcp-tools-btn"
                   role="menuitem"
                   onClick={() => {
                     setMenuOpen(false);
@@ -338,6 +393,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 {onToggleConnect && (
                   <button
                     type="button"
+                    data-testid="toggle-connect-btn"
                     role="menuitem"
                     onClick={() => {
                       setMenuOpen(false);

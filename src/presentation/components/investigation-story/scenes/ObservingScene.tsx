@@ -221,7 +221,7 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink-secondary, #5C6470)" }}>
-              Software crashes
+              Software resets
             </span>
             <ShieldCheck size={16} color={hasInspectedResetHistory ? "var(--verified, #16A34A)" : "var(--ink-tertiary, #8A92A0)"} />
           </div>
@@ -258,7 +258,7 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
             Observed diagnostic finding
           </div>
           <div style={{ fontSize: "14.5px", fontWeight: 600, color: "var(--ink, #111318)", lineHeight: 1.45 }}>
-            "Recent resets were caused by the power rail falling below the MCU's operating threshold."
+            "Software crashes: 0. Power dropped below 2.8 V while the system was running."
           </div>
         </div>
       )}

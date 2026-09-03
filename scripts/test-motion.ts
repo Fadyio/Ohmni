@@ -631,6 +631,7 @@ async function runMotionTests(): Promise<void> {
   } finally {
     if (cdpClient) cdpClient.close();
     chromeProc.kill();
+    (server as any).closeAllConnections?.();
     server.close();
     try {
       rmSync(tempProfile, { recursive: true, force: true });
@@ -638,7 +639,11 @@ async function runMotionTests(): Promise<void> {
   }
 }
 
-runMotionTests().catch((err) => {
-  console.error(`\n❌ MOTION TEST FAILED: ${err.message}`);
-  process.exit(1);
-});
+runMotionTests()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error(`\n❌ MOTION TEST FAILED: ${err.message}`);
+    process.exit(1);
+  });

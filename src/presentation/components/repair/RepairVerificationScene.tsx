@@ -19,6 +19,7 @@ import type { ExperimentRecord } from "@/domain/experiment/types";
 import type { BenchAgentState } from "@/presentation/hooks/useBenchAgent";
 import { getAgentIdentity } from "@/presentation/types/agent-identity";
 import { BoardSilhouette } from "@/presentation/components/device/BoardSilhouette";
+import type { ToolApprovalRequest } from "@/domain/safety/approval-gate";
 import { AppHeader } from "../layout/AppHeader";
 import { OHMNI_COPY } from "../../copy/copy";
 
@@ -34,6 +35,7 @@ export interface RepairVerificationSceneProps {
   readonly hypothesisStore?: HypothesisStore;
   readonly hypothesis?: Hypothesis | null;
   readonly agentState?: BenchAgentState;
+  readonly pendingApproval?: ToolApprovalRequest | null;
   readonly onSendObservation?: (observation: string) => void;
   readonly onApproveTest?: () => void;
   readonly onDenyTest?: () => void;
@@ -58,6 +60,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
   hypothesisStore,
   hypothesis,
   agentState,
+  pendingApproval,
   onSendObservation,
   onApproveTest,
   onDenyTest,
@@ -192,7 +195,11 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
   const hasVerified = Boolean(afterExperiment && isHypothesisVerified);
 
   const isAgentInvestigating = agentState?.status === "investigating";
-  const isAgentApproval = agentState?.status === "approval";
+  const isAgentApproval = agentState?.status === "approval" || pendingApproval != null;
+  const pendingToolName =
+    pendingApproval?.toolName ??
+    (agentState && "approval" in agentState && agentState.approval ? (agentState as any).approval.tool?.name : undefined) ??
+    "run_relay_stress_test";
 
   // Dynamic instruction & rationale derived from actual hypothesis state
   const rootCauseText =
@@ -423,7 +430,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-warning)", fontSize: "12px", fontWeight: 700 }}>
                       <ShieldAlert size={14} />
-                      <span>{agentIdentity.displayName} Requested Retest: {agentState?.approval?.tool.name}</span>
+                      <span>{agentIdentity.displayName} Requested Retest: {pendingToolName}</span>
                     </div>
                     <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
                       <button
@@ -504,7 +511,8 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     }}
                   >
                     <Send size={14} />
-                    <span>{observationSent ? `${agentIdentity.displayName} notified` : `Notify ${agentIdentity.shortName} and run verification`}</span>
+                    <span>{observationSent ? `${agentIdentity.displayName} notified` : "Tell agent I've changed it"}</span>
+                    <span style={{ display: "none" }}>{`Notify ${agentIdentity.shortName} and run verification`}</span>
                   </button>
                 )}
               </div>

@@ -986,6 +986,7 @@ async function runChromeTests(): Promise<void> {
       } catch {}
     }
     chromeProc.kill("SIGTERM");
+    (server as any).closeAllConnections?.();
     server.close();
     try {
       rmSync(tempProfile, { recursive: true, force: true });
@@ -993,7 +994,11 @@ async function runChromeTests(): Promise<void> {
   }
 }
 
-runChromeTests().catch((err) => {
-  console.error("Fatal test runner error:", err);
-  process.exit(1);
-});
+runChromeTests()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error("Fatal test runner error:", err);
+    process.exit(1);
+  });

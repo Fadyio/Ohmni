@@ -673,11 +673,16 @@ async function runE2EGoldenPath(): Promise<void> {
   } finally {
     if (cdpClient) cdpClient.close();
     chromeProc.kill("SIGTERM");
+    (server as any).closeAllConnections?.();
     server.close();
   }
 }
 
-runE2EGoldenPath().catch((err) => {
-  console.error("\n❌ REAL BROWSER GOLDEN PATH FAILED:", err);
-  process.exit(1);
-});
+runE2EGoldenPath()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error("Fatal E2E error:", err);
+    process.exit(1);
+  });

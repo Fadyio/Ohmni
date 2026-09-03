@@ -277,20 +277,29 @@ async function runCapture() {
     await cdpClient.captureScreenshot("07-evidence.png");
 
     console.info("\n[8/14] Proposing hypothesis -> 08-diagnosis.png...");
-    await cdpClient.evaluate(`(() => {
+    await cdpClient.evaluate(`(async () => {
       const modelContext = window.__agentModelContext || document.modelContext;
+      const evidenceStore = window.__evidenceStore;
+      const evidenceIds = evidenceStore ? evidenceStore.getAll().map(e => e.id) : [];
       if (modelContext && modelContext.executeTool) {
-        modelContext.executeTool("propose_hypothesis", {
-          title: "Relay activation is collapsing the MCU supply rail.",
+        await modelContext.executeTool("propose_hypothesis", {
+          title: "Relay-induced MCU supply brownout reset",
+          description: "Relay coil inrush on the shared 3.3 V rail collapses MCU voltage below the reset threshold.",
+          confidence: "MEDIUM",
+          evidence_ids: evidenceIds,
+        });
+        await modelContext.executeTool("update_hypothesis", {
+          hypothesis_id: "H-001",
           confidence: "HIGH",
-          supporting_evidence_ids: ["E-001", "E-002", "E-003"],
+          evidence_ids: evidenceIds,
+          reason: "Empirical evidence from load experiment proves voltage collapses below 2.80V during relay activation.",
         });
       }
     })()`);
-    await sleep(600);
+    await sleep(800);
     await cdpClient.captureScreenshot("08-diagnosis.png");
 
-    console.info("\n[9/14] Requesting human intervention -> 09-human-action.png...");
+    console.info("\n[9/14] Moving to repair verification scene -> 09-human-action.png...");
     await cdpClient.evaluate(`(() => {
       const proceedBtn = document.querySelector("[data-testid='proceed-to-repair-btn']");
       if (proceedBtn) {
@@ -306,7 +315,7 @@ async function runCapture() {
         }
       }
     })()`);
-    await sleep(700);
+    await sleep(800);
     await cdpClient.captureScreenshot("09-human-action.png");
 
     console.info("\n[10/14] Moving JP1 jumper & running verification -> 10-verification.png...");
@@ -314,7 +323,7 @@ async function runCapture() {
       const jp1Btn = document.querySelector("[data-testid='simulate-jp1-btn']");
       if (jp1Btn) jp1Btn.click();
     })()`);
-    await sleep(400);
+    await sleep(500);
 
     // Tell agent I've changed it / run verification
     await cdpClient.evaluate(`(() => {
@@ -323,34 +332,55 @@ async function runCapture() {
     })()`);
     await sleep(500);
 
-    // If verification requires approval
+    // Run verification retest via modelContext
+    await cdpClient.evaluate(`(async () => {
+      const modelContext = window.__agentModelContext || document.modelContext;
+      if (modelContext && modelContext.executeTool) {
+        modelContext.executeTool("run_relay_stress_test", { duration_ms: 200 });
+      }
+    })()`);
+    await sleep(600);
+
+    // Click Authorize & Energize if approval appeared
     await cdpClient.evaluate(`(() => {
-      const approveBtn = document.querySelector("[data-testid='approval-approve-btn']") || document.querySelector("[data-testid='bench-agent-approve']");
+      const approveBtn = document.querySelector("[data-testid='repair-approve-btn']") ||
+                         document.querySelector("[data-testid='approval-approve-btn']") ||
+                         document.querySelector("#approve-test-btn");
       if (approveBtn) approveBtn.click();
     })()`);
-    await sleep(800);
+    await sleep(1000);
     await cdpClient.captureScreenshot("10-verification.png");
 
-    console.info("\n[11/14] Capturing final result -> 11-result.png...");
-    await sleep(600);
+    console.info("\n[11/14] Confirming hypothesis and revealing ground truth -> 11-result.png...");
+    await cdpClient.evaluate(`(() => {
+      try {
+        if (window.__activeScenario) {
+          window.__activeScenario.markVerified();
+        }
+        if (typeof window.__revealGroundTruth === "function") {
+          window.__revealGroundTruth();
+        }
+      } catch (e) {
+        console.error("reveal ground truth error:", e);
+      }
+    })()`);
+    await sleep(1000);
     await cdpClient.captureScreenshot("11-result.png");
 
     console.info("\n[12/14] Opening Connect Hardware modal -> 12-connect-hardware.png...");
-    // Return to landing or trigger connect hardware
     await cdpClient.send("Page.navigate", { url: serverUrl });
-    await sleep(600);
+    await sleep(800);
     await cdpClient.evaluate(`document.querySelector("[data-testid='connect-hardware-btn']").click()`);
-    await sleep(500);
+    await sleep(600);
     await cdpClient.captureScreenshot("12-connect-hardware.png");
 
-    console.info("\n[13/14] Testing physical device visualization -> 13-physical-device.png...");
+    console.info("\n[13/14] Connecting simulated serial hardware -> 13-physical-device.png...");
     await cdpClient.evaluate(`(() => {
-      const tryWithoutBtn = document.querySelector("[data-testid='try-without-hardware-btn']");
-      if (tryWithoutBtn) {
-        tryWithoutBtn.click();
-      }
+      const simBtn = document.querySelector("[data-testid='connect-simulated-serial-btn']") ||
+                     document.getElementById("connect-simulated-peer-btn");
+      if (simBtn) simBtn.click();
     })()`);
-    await sleep(700);
+    await sleep(1000);
     await cdpClient.captureScreenshot("13-physical-device.png");
 
     console.info("\n[14/14] Opening WebMCP Instrument Inspector drawer -> 14-webmcp-inspector.png...");
@@ -358,7 +388,7 @@ async function runCapture() {
       const badge = document.querySelector("[data-testid='webmcp-mode-badge']");
       if (badge) badge.click();
     })()`);
-    await sleep(600);
+    await sleep(700);
     await cdpClient.captureScreenshot("14-webmcp-inspector.png");
 
     console.info("\n[Video] Stopping screencast and encoding final-product-run.webm...");
@@ -381,7 +411,12 @@ async function runCapture() {
   } finally {
     if (cdpClient) cdpClient.close();
     chromeProc.kill("SIGTERM");
+    (server as any).closeAllConnections?.();
     server.close();
+    try {
+      rmSync(tmpProfile, { recursive: true, force: true });
+    } catch {}
+    process.exit(0);
   }
 }
 

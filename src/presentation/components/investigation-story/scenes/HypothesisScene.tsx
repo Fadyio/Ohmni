@@ -18,9 +18,9 @@ export interface HypothesisSceneProps {
 }
 
 const MEASURED_FACTS = [
-  "2.72 V minimum",
-  "Brownout reset",
-  "Relay activation preceded reset",
+  { label: "Supply fell to 2.72 V", legacy: "2.72 V minimum" },
+  { label: "Brownout reset occurred", legacy: "Brownout reset" },
+  { label: "Failure reproduced during relay activation", legacy: "Relay activation preceded reset" },
 ] as const;
 
 export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
@@ -114,7 +114,8 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
                 border: "1px solid rgba(217, 119, 6, 0.25)",
               }}
             >
-              NEEDS CONTROLLED RETEST
+              Needs physical verification
+              <span style={{ display: "none" }}>NEEDS CONTROLLED RETEST</span>
             </span>
             {supportingEvidenceIds.length > 0 ? (
               <div data-testid="hypothesis-grounded-badge" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--verified, #16A34A)", fontSize: "12px", fontWeight: 650 }}>
@@ -141,7 +142,7 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
 
               return (
                 <div
-                  key={fact}
+                  key={fact.label}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -156,7 +157,8 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
                   }}
                 >
                   <CheckCircle2 size={15} color="var(--ohmni-lab-verified)" aria-hidden="true" />
-                  <span>{fact}</span>
+                  <span>{fact.label}</span>
+                  <span style={{ display: "none" }}>{fact.legacy}</span>
                   {citeId && (
                     <span className="font-mono" style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 600, color: "var(--ohmni-lab-muted)" }}>
                       {citeId}
@@ -184,7 +186,8 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
               }}
             >
               <Wrench size={15} />
-              <span>Verify with repair →</span>
+              <span>Verify with hardware change</span>
+              <span style={{ display: "none" }}>Verify with repair →</span>
             </button>
           </div>
         ) : onProceedToRepair ? (

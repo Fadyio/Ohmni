@@ -640,8 +640,9 @@ export const App: React.FC<AppProps> = ({
   useEffect(() => {
     if (typeof window !== "undefined") {
       (window as unknown as { __revealGroundTruth?: () => void }).__revealGroundTruth = handleManualReveal;
+      (window as unknown as { __activeScenario?: typeof activeScenario }).__activeScenario = activeScenario;
     }
-  }, [handleManualReveal]);
+  }, [handleManualReveal, activeScenario]);
 
   // Action: Run another mystery
   const handleRunAnotherMystery = useCallback(() => {
@@ -774,6 +775,7 @@ export const App: React.FC<AppProps> = ({
             hypothesisStore={resolvedHypothesisStore}
             hypothesis={activeHypothesis}
             agentState={presentedAgentState}
+            pendingApproval={pendingApproval}
             onSendObservation={sendAgentObservation}
             onApproveTest={approveTest}
             onDenyTest={denyTest}
