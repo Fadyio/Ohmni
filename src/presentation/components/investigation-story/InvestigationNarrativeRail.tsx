@@ -3,32 +3,35 @@
  * Milestone 7.14 — Fix State Machine & Truthful Narrative Rail.
  *
  * Invariants:
- * 1. Truthful Completed Events: ONLY events with status === "completed" appear under History/Completed.
- * 2. Single Approval UI: When in approval state, right rail shows "WAITING FOR YOU" notice only.
- *    No duplicate Approve/Deny buttons in the sidebar. Main canvas owns the decision.
- * 3. Minimal Clean Rail:
- *    - Header: Agent ● Status
- *    - GOAL
- *    - CURRENT ACTION (if active or waiting approval)
- *    - HISTORY (clean vertical timeline)
+ * 1. Truthful Tool History: terminal domain-ledger outcomes retain their origin,
+ *    status, inputs, and factual result.
+ * 2. Single Approval UI: while approval is pending, the rail links back to the
+ *    main canvas without duplicating its Approve/Deny controls.
+ * 3. The default external-agent state exposes a copyable suggested prompt and
+ *    keeps the deterministic built-in demo as a secondary action.
  */
 
 import React, { useMemo, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { Square, Play, ShieldAlert, RotateCcw, Activity, Check } from "lucide-react";
+import { Square, ShieldAlert, RotateCcw, Activity, Check } from "lucide-react";
 import { buildToolReceipt, type BenchAgentState, type ToolReceipt } from "../../hooks/useBenchAgent";
 import type { InvestigationPhase } from "@/domain/investigation/lifecycle";
 import type { Hypothesis } from "@/domain/hypothesis/types";
-import { getAgentIdentity } from "@/presentation/types/agent-identity";
+import type { AgentMode } from "@/infrastructure/bench-agent/types";
+import type { ToolLedgerEntry } from "@/domain/investigation/tool-ledger";
+import type { ToolApprovalRequest } from "@/domain/safety/approval-gate";
 export interface InvestigationNarrativeRailProps {
   readonly agentState: BenchAgentState;
   readonly investigationPhase?: InvestigationPhase;
   readonly hypothesis?: Hypothesis | null;
+  readonly ledgerEntries?: readonly ToolLedgerEntry[];
+  readonly pendingApproval?: ToolApprovalRequest | null;
+  readonly agentMode?: AgentMode;
   readonly onSetGoal: (goal: string) => void;
   readonly onStartAgent: () => void;
   readonly onStopAgent: () => void;
   readonly onApprove?: () => void;
   readonly onDeny?: () => void;
+  readonly onSwitchToDemo?: () => void;
   readonly onSelectScene?: (scene: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null) => void;
 }
 
@@ -38,8 +41,9 @@ export function getNarrativeRailStatus(options: {
   readonly hypothesis?: Hypothesis | null;
   readonly isIdle: boolean;
   readonly active: boolean;
+  readonly isExternal?: boolean;
 }): string {
-  const { agentState, investigationPhase, hypothesis, isIdle, active } = options;
+  const { agentState, investigationPhase, hypothesis, isIdle, active, isExternal } = options;
 
   // 1. Terminal Verified status takes ultimate precedence
   if (investigationPhase === "verified") {
@@ -76,13 +80,12 @@ export function getNarrativeRailStatus(options: {
   if (investigationPhase === "observing") return "INVESTIGATING";
   if (investigationPhase === "connecting") return "CONNECTING";
 
-  // 8. Ready / Welcome
   if (
     investigationPhase === "welcome" ||
     investigationPhase === "challenge_ready" ||
     investigationPhase === "ready"
   ) {
-    return isIdle ? "Ready" : "READY";
+    return isExternal ? "READY FOR YOUR AGENT" : isIdle ? "Ready" : "READY";
   }
 
   // 9. Agent completed execution when no pending semantic phase
@@ -91,7 +94,7 @@ export function getNarrativeRailStatus(options: {
   }
 
   if (active) return "Live";
-  if (isIdle) return "Ready";
+  if (isIdle) return isExternal ? "READY FOR YOUR AGENT" : "Ready";
   return agentState.status.toUpperCase();
 }
 
@@ -99,15 +102,34 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
   agentState,
   investigationPhase,
   hypothesis = null,
+  ledgerEntries,
+  pendingApproval,
+  agentMode,
   onSetGoal,
   onStartAgent,
   onStopAgent,
+  onSwitchToDemo,
   onSelectScene,
 }) => {
-  const identity = getAgentIdentity(agentState.agentMode, agentState.liveProvider, agentState.liveModel);
-  const active = agentState.status === "investigating" || agentState.status === "approval";
-  const isIdle = agentState.status === "idle" || agentState.status === "stopped";
+  const effectiveAgentMode: AgentMode = agentMode ?? agentState.agentMode ?? "external";
+  const activeLedgerEntry = ledgerEntries?.findLast(
+    (entry) =>
+      entry.status === "requested" ||
+      entry.status === "waiting-approval" ||
+      entry.status === "running"
+  );
+  const active =
+    activeLedgerEntry !== undefined ||
+    pendingApproval != null ||
+    (ledgerEntries === undefined &&
+      (agentState.status === "investigating" || agentState.status === "approval"));
+  const isIdle =
+    activeLedgerEntry === undefined &&
+    pendingApproval == null &&
+    (agentState.status === "idle" || agentState.status === "stopped");
   const currentGoal = agentState.goal || "The controller restarts when the fan turns on.";
+  const suggestedPrompt =
+    "The controller restarts unexpectedly whenever the cooling fan relay turns on. Investigate the root cause using the available WebMCP diagnostic instruments, request physical help when needed, and experimentally verify the repair.";
 
 
   const [goalText, setGoalText] = useState(currentGoal);
@@ -152,28 +174,98 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
     }
   };
 
-  // Strictly filter completed events: status === "completed" ONLY
   const completedEvents = useMemo(() => {
-    const events: { id: string; title: string; tool: string; durationMs?: number; receipt: ToolReceipt }[] = [];
+    const events: {
+      id: string;
+      title: string;
+      tool: string;
+      durationMs?: number;
+      receipt: ToolReceipt;
+      origin: ToolLedgerEntry["origin"];
+      status: "completed" | "failed" | "denied";
+    }[] = [];
 
-    agentState.activity.forEach((act, idx) => {
-      if (act.status === "completed") {
+    if (ledgerEntries !== undefined) {
+      ledgerEntries.forEach((entry) => {
+        if (
+          entry.status !== "completed" &&
+          entry.status !== "failed" &&
+          entry.status !== "denied"
+        ) {
+          return;
+        }
+        const result =
+          typeof entry.result === "string"
+            ? entry.result
+            : entry.result === undefined
+            ? undefined
+            : JSON.stringify(entry.result, null, 2);
         events.push({
-          id: `evt-${idx}-${act.call.name}`,
-          title: getHumanToolName(act.call.name),
-          tool: act.call.name,
-          durationMs: act.durationMs,
-          receipt: buildToolReceipt(act),
+          id: entry.id,
+          title: getHumanToolName(entry.toolName),
+          tool: entry.toolName,
+          durationMs: entry.durationMs,
+          receipt: buildToolReceipt({
+            call: { id: entry.id, name: entry.toolName, arguments: entry.input },
+            status: entry.status,
+            result,
+            message: entry.error,
+            durationMs: entry.durationMs,
+          }),
+          origin: entry.origin,
+          status: entry.status,
+        });
+      });
+      return events;
+    }
+
+    agentState.activity.forEach((activity, index) => {
+      if (
+        activity.status === "completed" ||
+        activity.status === "failed" ||
+        activity.status === "denied"
+      ) {
+        events.push({
+          id: `evt-${index}-${activity.call.name}`,
+          title: getHumanToolName(activity.call.name),
+          tool: activity.call.name,
+          durationMs: activity.durationMs,
+          receipt: buildToolReceipt(activity),
+          origin: agentMode === "demo" ? "demo" : "groq",
+          status: activity.status,
         });
       }
     });
 
     return events;
-  }, [agentState.activity]);
+  }, [agentMode, agentState.activity, ledgerEntries]);
 
-  const activeTool = agentState.activity.length > 0 ? agentState.activity[agentState.activity.length - 1] : null;
-  const isExecutingTool = activeTool?.status === "requested" || activeTool?.status === "running";
-  const isWaitingApproval = agentState.status === "approval";
+  const agentActiveTool =
+    ledgerEntries === undefined && agentState.activity.length > 0
+      ? agentState.activity[agentState.activity.length - 1]
+      : null;
+  const activeToolName = activeLedgerEntry?.toolName ?? agentActiveTool?.call.name;
+  const activeToolInput = activeLedgerEntry?.input ?? agentActiveTool?.call.arguments ?? {};
+  const isExecutingTool =
+    activeLedgerEntry?.status === "requested" ||
+    activeLedgerEntry?.status === "running" ||
+    agentActiveTool?.status === "requested" ||
+    agentActiveTool?.status === "running";
+  const isWaitingApproval =
+    pendingApproval != null ||
+    activeLedgerEntry?.status === "waiting-approval" ||
+    (ledgerEntries === undefined && agentState.status === "approval");
+  const approvalToolName =
+    pendingApproval?.toolName ??
+    (ledgerEntries === undefined && agentState.status === "approval"
+      ? agentState.approval.tool.name
+      : activeLedgerEntry?.toolName);
+  const approvalInput =
+    pendingApproval?.input ??
+    (ledgerEntries === undefined && agentState.status === "approval"
+      ? agentState.approval.call?.arguments ?? (agentState.approval as unknown as { arguments?: Record<string, unknown> }).arguments
+      : activeLedgerEntry?.input) ??
+    {};
 
   return (
     <div
@@ -212,7 +304,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           />
           <div>
             <div style={{ fontSize: "13px", fontWeight: 750, color: "var(--ohmni-lab-text)", letterSpacing: "-0.01em" }}>
-              Investigation log · {identity.displayName}
+              {effectiveAgentMode === "demo" ? "Investigation log · Demo Agent" : "Investigation log"}
             </div>
             <div
               data-testid="bench-agent-status"
@@ -259,6 +351,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                   hypothesis,
                   isIdle,
                   active,
+                  isExternal: agentMode === "external",
                 })}
               </span>
             </div>
@@ -348,6 +441,73 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
             </div>
           )}
         </div>
+
+        {agentMode === "external" && isIdle && completedEvents.length === 0 && (
+          <div
+            data-testid="agent-ready-prompt"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+              padding: "1rem",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid rgba(73, 103, 255, 0.3)",
+              background: "rgba(73, 103, 255, 0.05)",
+            }}
+          >
+            <div
+              className="font-mono"
+              style={{
+                fontSize: "10.5px",
+                fontWeight: 800,
+                color: "var(--ohmni-lab-brand)",
+                letterSpacing: "0.06em",
+              }}
+            >
+              READY FOR YOUR AGENT
+            </div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-lab-muted)" }}>
+              SUGGESTED PROMPT
+            </div>
+            <p
+              data-testid="suggested-agent-prompt"
+              style={{
+                margin: 0,
+                fontSize: "12.5px",
+                lineHeight: 1.5,
+                color: "var(--ohmni-lab-text)",
+              }}
+            >
+              {suggestedPrompt}
+            </p>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                data-testid="copy-agent-prompt"
+                className="btn-primary"
+                onClick={() => {
+                  void navigator.clipboard.writeText(suggestedPrompt);
+                  setCopied(true);
+                  window.setTimeout(() => setCopied(false), 2000);
+                }}
+                style={{ padding: "7px 12px", fontSize: "12px", fontWeight: 700 }}
+              >
+                {copied ? "Copied" : "Copy prompt"}
+              </button>
+              {onSwitchToDemo && (
+                <button
+                  type="button"
+                  data-testid="try-built-in-demo"
+                  className="btn-secondary"
+                  onClick={onSwitchToDemo}
+                  style={{ padding: "7px 12px", fontSize: "12px", fontWeight: 650 }}
+                >
+                  Try built-in demo
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
 
 
@@ -459,27 +619,20 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                 <span>AUTHORIZATION REQUIRED</span>
               </div>
               <div style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--ohmni-lab-text)" }}>
-                {getHumanToolName(agentState.approval.tool.name)}
+                {getHumanToolName(approvalToolName ?? "run_relay_stress_test")}
               </div>
               <div className="font-mono" style={{ fontSize: "10.5px", color: "var(--ohmni-lab-muted)" }}>
-                {agentState.approval.tool.name}
+                {approvalToolName ?? "run_relay_stress_test"}
               </div>
               <pre style={{ margin: 0, fontSize: "10px", whiteSpace: "pre-wrap", color: "var(--ohmni-lab-muted)" }}>
-                {buildToolReceipt({
-                  call: agentState.approval.call ?? {
-                    id: "pending-approval",
-                    name: agentState.approval.tool.name,
-                    arguments: {},
-                  },
-                  status: "waiting-approval",
-                }).argumentsText}
+                {JSON.stringify(approvalInput, null, 2)}
               </pre>
               <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--ohmni-lab-muted)", lineHeight: 1.4 }}>
                 Review safety envelope and authorize test in the main canvas.
               </p>
             </div>
           </div>
-        ) : active && activeTool && isExecutingTool ? (
+        ) : active && activeToolName && isExecutingTool ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <div
               className="font-mono"
@@ -509,13 +662,13 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                 <span>EXECUTING INSTRUMENT</span>
               </div>
               <div style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--ohmni-lab-text)" }}>
-                {getHumanToolName(activeTool.call.name)}
+                {getHumanToolName(activeToolName)}
               </div>
               <div className="font-mono" style={{ fontSize: "10.5px", color: "var(--ohmni-lab-muted)" }}>
-                {activeTool.call.name}
+                {activeToolName}
               </div>
               <pre style={{ margin: 0, fontSize: "10px", whiteSpace: "pre-wrap", color: "var(--ohmni-lab-muted)" }}>
-                {buildToolReceipt(activeTool).argumentsText}
+                {JSON.stringify(activeToolInput, null, 2)}
               </pre>
             </div>
           </div>
@@ -580,7 +733,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                     onSelectScene?.("running");
                   } else if (evt.tool.includes("hypothesis")) {
                     onSelectScene?.("hypothesis");
-                  } else if (evt.tool.includes("evidence")) {
+                  } else if (evt.tool.includes("evidence") || evt.tool.includes("measure")) {
                     onSelectScene?.("evidence");
                   }
                 }}
@@ -608,7 +761,18 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                     zIndex: 1,
                   }}
                 >
-                  <Check size={11} color="var(--ohmni-lab-verified)" strokeWidth={3} />
+                  {evt.status === "completed" ? (
+                    <Check size={11} color="var(--ohmni-lab-verified)" strokeWidth={3} />
+                  ) : (
+                    <span
+                      style={{
+                        width: "7px",
+                        height: "7px",
+                        borderRadius: "50%",
+                        background: "var(--ohmni-lab-fault)",
+                      }}
+                    />
+                  )}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
                   <span style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--ohmni-lab-text)" }}>
@@ -617,8 +781,19 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                   <span className="font-mono" style={{ fontSize: "10px", color: "var(--ohmni-lab-muted)" }}>
                     {evt.tool}
                   </span>
-                  <span className="font-mono" style={{ fontSize: "9.5px", fontWeight: 700, color: "var(--ohmni-lab-verified)" }}>
-                    SUCCEEDED{evt.durationMs !== undefined ? ` · ${evt.durationMs} ms` : ""}
+                  <span
+                    className="font-mono"
+                    style={{
+                      fontSize: "9.5px",
+                      fontWeight: 700,
+                      color:
+                        evt.status === "completed"
+                          ? "var(--ohmni-lab-verified)"
+                          : "var(--ohmni-lab-fault)",
+                    }}
+                  >
+                    {evt.origin.toUpperCase()} · {evt.status.toUpperCase()}
+                    {evt.durationMs !== undefined ? ` · ${evt.durationMs} ms` : ""}
                   </span>
                   <pre style={{ margin: 0, fontSize: "9.5px", lineHeight: 1.35, whiteSpace: "pre-wrap", overflowWrap: "anywhere", color: "var(--ohmni-lab-muted)" }}>
                     {evt.receipt.argumentsText}
@@ -634,6 +809,21 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                   {evt.receipt.evidenceIds.length > 0 && (
                     <span className="font-mono" style={{ fontSize: "9.5px", color: "var(--ohmni-lab-brand)" }}>
                       Evidence: {evt.receipt.evidenceIds.join(", ")}
+                    </span>
+                  )}
+                  {evt.receipt.resultText && (
+                    <span
+                      data-testid="tool-result-summary"
+                      style={{
+                        fontSize: "10px",
+                        lineHeight: 1.35,
+                        color: "var(--ohmni-lab-text)",
+                        overflowWrap: "anywhere",
+                      }}
+                    >
+                      {evt.receipt.resultText.length > 160
+                        ? `${evt.receipt.resultText.slice(0, 157)}…`
+                        : evt.receipt.resultText}
                     </span>
                   )}
                   {evt.receipt.resultText && (
@@ -688,7 +878,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                     Waiting for approval
                   </span>
                   <span className="font-mono" style={{ fontSize: "10px", color: "var(--ohmni-lab-muted)" }}>
-                    {agentState.approval.tool.name}
+                    {approvalToolName ?? "run_relay_stress_test"}
                   </span>
                 </div>
               </div>

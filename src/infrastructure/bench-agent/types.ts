@@ -55,7 +55,7 @@ export interface AgentTurnResult {
   readonly text?: string;
 }
 
-export type AgentMode = "groq" | "demo";
+export type AgentMode = "external" | "groq" | "demo";
 
 export interface BenchAgentProvider {
   turn(
@@ -152,6 +152,12 @@ export interface RunBenchAgentOptions {
   readonly maxSteps?: number;
   readonly previousInteractionId?: string;
   readonly initialHistory?: readonly AgentTranscriptItem[];
+  /**
+   * When true, the registered WebMCP tool wrapper owns the approval pause.
+   * This keeps external and built-in invocations on the same coordinator gate.
+   */
+  readonly approvalHandledByModelContext?: boolean;
+  readonly agentMode?: Exclude<AgentMode, "external">;
 }
 
 export interface BenchAgentAvailability {

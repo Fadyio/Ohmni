@@ -11,6 +11,7 @@ import { VirtualDeviceAdapter } from "@/domain/device/virtual-adapter";
 import { InMemoryModelContext } from "@/infrastructure/webmcp/in-memory-model-context";
 import { MirroredModelContext } from "@/infrastructure/webmcp/mirrored-model-context";
 import { DeviceToolRegistrar } from "@/infrastructure/webmcp/device-tool-registrar";
+import { WebMCPExecutionCoordinator } from "@/infrastructure/webmcp/execution-coordinator";
 import { CapabilityRegistry } from "@/infrastructure/webmcp/capability-registry";
 import { TelemetryEventBus } from "@/domain/telemetry/bus";
 import { InMemoryExperimentStore } from "@/domain/experiment/store";
@@ -32,6 +33,9 @@ declare global {
     __experimentRunner?: ExperimentRunner;
     __modelContext?: InMemoryModelContext;
     __agentModelContext?: ModelContext;
+    __executionCoordinator?: WebMCPExecutionCoordinator;
+    __toolApprovalGate?: WebMCPExecutionCoordinator["approvalGate"];
+    __toolLedger?: WebMCPExecutionCoordinator["toolLedger"];
     __scopeFrameCount?: number;
     __webmcpMode?: "native" | "compatibility";
     __buildInfo?: {
@@ -51,13 +55,14 @@ console.info("[Ohmni] Hardware Diagnostic Workbench initialized.");
 const isNativeWebMCP =
   typeof document !== "undefined" &&
   Boolean((document as unknown as { modelContext?: unknown }).modelContext);
+const executionCoordinator = new WebMCPExecutionCoordinator();
 
 const nativeModelContext = isNativeWebMCP
   ? (document as unknown as { modelContext: ModelContext }).modelContext
   : undefined;
 const modelContext = nativeModelContext
-  ? new MirroredModelContext(nativeModelContext)
-  : new InMemoryModelContext();
+  ? new MirroredModelContext(nativeModelContext, executionCoordinator)
+  : new InMemoryModelContext(executionCoordinator);
 
 if (typeof document !== "undefined" && !isNativeWebMCP) {
   Object.defineProperty(document, "modelContext", {
@@ -70,6 +75,9 @@ if (typeof document !== "undefined" && !isNativeWebMCP) {
 if (typeof window !== "undefined") {
   window.__webmcpMode = isNativeWebMCP ? "native" : "compatibility";
   window.__agentModelContext = modelContext;
+  window.__executionCoordinator = executionCoordinator;
+  window.__toolApprovalGate = executionCoordinator.approvalGate;
+  window.__toolLedger = executionCoordinator.toolLedger;
   const sha = (import.meta.env.VITE_BUILD_SHA as string) || "development";
   window.__OHMNI_BUILD_SHA__ = sha;
   window.__buildInfo = {
@@ -126,6 +134,7 @@ if (typeof document !== "undefined") {
             experimentRunner={experimentRunner}
             evidenceStore={evidenceStore}
             hypothesisStore={hypothesisStore}
+            executionCoordinator={executionCoordinator}
           />
         </AppErrorBoundary>
       </React.StrictMode>

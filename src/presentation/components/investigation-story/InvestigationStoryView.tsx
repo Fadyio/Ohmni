@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useRef, useEffect } from "react";
-import { Bot, AlertTriangle, Sparkles, Lock, ShieldCheck, Terminal, Cpu, Radio, Sliders, MoreHorizontal } from "lucide-react";
+import { Bot, ShieldCheck, Terminal, Radio, Sliders, MoreHorizontal } from "lucide-react";
 import { DynamicInvestigationScene } from "./DynamicInvestigationScene";
 import { InvestigationNarrativeRail } from "./InvestigationNarrativeRail";
 import { WebMCPCapabilityDrawer } from "../layout/WebMCPCapabilityDrawer";
@@ -28,6 +28,8 @@ import { deriveInvestigationPhase } from "@/domain/investigation/lifecycle";
 import { classifyTool } from "@/domain/safety/tool-safety-policy";
 import { getAgentIdentity } from "@/presentation/types/agent-identity";
 import { useWebMCPTools } from "@/presentation/hooks/useWebMCPTools";
+import type { ToolLedgerEntry } from "@/domain/investigation/tool-ledger";
+import type { ToolApprovalRequest } from "@/domain/safety/approval-gate";
 
 export interface InvestigationStoryViewProps {
   readonly isConnected: boolean;
@@ -43,6 +45,9 @@ export interface InvestigationStoryViewProps {
   readonly agentState: BenchAgentState;
   readonly agentMode?: AgentMode;
   readonly activeScenario?: ScenarioSession | null;
+  readonly ledgerEntries?: readonly ToolLedgerEntry[];
+  readonly pendingApproval?: ToolApprovalRequest | null;
+  readonly registeredToolCount?: number;
   readonly onSetGoal: (goal: string) => void;
   readonly onStartAgent: () => void;
   readonly onStopAgent: () => void;
@@ -70,8 +75,11 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   evidenceRecords,
   hypothesis,
   agentState,
-  agentMode = "groq",
+  agentMode = "external",
   activeScenario,
+  ledgerEntries,
+  pendingApproval,
+  registeredToolCount,
   onSetGoal,
   onStartAgent,
   onStopAgent,
@@ -92,7 +100,27 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const agentIdentity = getAgentIdentity(agentMode, agentState.liveProvider, agentState.liveModel);
 
-  const activeToolName = agentState.activity.length > 0 ? agentState.activity[agentState.activity.length - 1].call.name : undefined;
+  const activeLedgerEntry = ledgerEntries?.findLast(
+    (entry) =>
+      entry.status === "requested" ||
+      entry.status === "waiting-approval" ||
+      entry.status === "running"
+  );
+  const activeToolName =
+    pendingApproval?.toolName ??
+    activeLedgerEntry?.toolName ??
+    (agentState.activity.length > 0
+      ? agentState.activity[agentState.activity.length - 1].call.name
+      : undefined);
+  const isAwaitingApproval =
+    pendingApproval !== null && pendingApproval !== undefined
+      ? true
+      : activeLedgerEntry?.status === "waiting-approval" ||
+        agentState.status === "approval";
+  const isToolRunning =
+    activeLedgerEntry?.status === "requested" ||
+    activeLedgerEntry?.status === "running" ||
+    agentState.status === "investigating";
 
   const isHumanInterventionCompleted = Boolean(
     evidenceRecords.some((e) => e.source === "human") ||
@@ -101,11 +129,11 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
 
   const investigationPhase: InvestigationPhase = deriveInvestigationPhase({
     isConnected,
-    isAgentRunning: agentState.status === "investigating",
+    isAgentRunning: isToolRunning,
     agentStatus:
-      agentState.status === "approval"
+      isAwaitingApproval
         ? "waiting_approval"
-        : agentState.status === "investigating"
+        : isToolRunning
         ? "running"
         : agentState.status === "failed"
         ? "failed"
@@ -116,7 +144,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
         : "idle",
     activeToolClass:
       activeToolName ? classifyTool(activeToolName) : undefined,
-    isAwaitingApproval: agentState.status === "approval",
+    isAwaitingApproval,
     isExperimentActive:
       experimentStatus === "running" &&
       !(hypothesis !== null && !isHumanInterventionCompleted),
@@ -130,13 +158,13 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
     hasStarted: true,
     failureMessage: agentState.status === "failed" ? agentState.message : undefined,
   });
-  const isNativeMode = typeof window !== "undefined" && window.__webmcpMode === "native";
-  const providerStatus = agentState.providerStatus;
   const {
     tools: webmcpTools,
     toolCount,
+    isNative: isNativeMode,
     isDiscovering,
   } = useWebMCPTools();
+  const materializedToolCount = registeredToolCount ?? toolCount;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -253,7 +281,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               }}
             />
             <span className="font-mono" style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ohmni-lab-text, #0F172A)" }}>
-              {descriptor?.name ?? "ESP32-S3 Environmental Controller (Virtual)"}
+              {descriptor?.name ?? "No target connected"}
             </span>
           </div>
         </div>
@@ -294,69 +322,71 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
           })}
         </div>
 
-        {/* Right: Native WebMCP (if native), Dynamic Agent Status, and ••• More Menu */}
+        {/* Right: WebMCP mode, explicitly active built-in provider, and ••• More Menu */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {isNativeMode && (
-            <span
-              data-testid="webmcp-mode-badge"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                padding: "3px 9px",
-                borderRadius: "var(--radius-full, 9999px)",
-                background: "rgba(39, 150, 107, 0.08)",
-                border: "1px solid rgba(39, 150, 107, 0.25)",
-                color: "var(--ohmni-lab-verified, #27966B)",
-                fontSize: "11px",
-                fontWeight: 600,
-              }}
-            >
-              <ShieldCheck size={12} />
-              <span>Native WebMCP · {toolCount} tools active</span>
-            </span>
-          )}
-
           <span
-            data-testid={agentMode === "demo" ? "demo-provider-badge" : "groq-provider-badge"}
-            data-provider-badge="true"
-            id="provider-badge"
+            data-testid="webmcp-mode-badge"
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "6px",
-              padding: "3px 0",
-              borderRadius: 0,
-              background: "transparent",
-              border: "none",
-              color:
-                agentMode === "demo" || agentState.agentMode === "demo"
-                  ? "var(--ohmni-lab-brand, #4967FF)"
-                  : agentState.providerAvailable
-                  ? "var(--ohmni-lab-verified, #27966B)"
-                  : "var(--ohmni-lab-muted, #64748B)",
-              fontSize: "11.5px",
-              fontWeight: 700,
-              letterSpacing: "0.02em",
+              gap: "5px",
+              padding: "3px 9px",
+              borderRadius: "var(--radius-full, 9999px)",
+              background: isNativeMode ? "rgba(39, 150, 107, 0.08)" : "rgba(73, 103, 255, 0.08)",
+              border: isNativeMode ? "1px solid rgba(39, 150, 107, 0.25)" : "1px solid rgba(73, 103, 255, 0.22)",
+              color: isNativeMode ? "var(--ohmni-lab-verified, #27966B)" : "var(--ohmni-lab-brand, #4967FF)",
+              fontSize: "11px",
+              fontWeight: 600,
             }}
           >
-            {agentMode === "demo" || agentState.agentMode === "demo" ? (
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <Bot size={13} />
-                <span>DEMO AGENT · Deterministic walkthrough</span>
-              </div>
-            ) : agentState.providerAvailable ? (
-              <>
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--ohmni-lab-verified, #27966B)", boxShadow: "0 0 6px rgba(39, 150, 107, 0.8)" }} />
-                <span>{agentIdentity.displayName} · Live</span>
-              </>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <Bot size={13} />
-                <span>{agentIdentity.displayName} · Connecting...</span>
-              </div>
-            )}
+            <ShieldCheck size={12} />
+            <span>
+              {isNativeMode ? "Native WebMCP" : "Compatibility mode"} · {materializedToolCount} tools active
+            </span>
           </span>
+
+          {(agentMode === "demo" || agentMode === "groq") && (
+            <span
+              data-testid={agentMode === "demo" ? "demo-provider-badge" : "groq-provider-badge"}
+              data-provider-badge="true"
+              id="provider-badge"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "3px 0",
+                borderRadius: 0,
+                background: "transparent",
+                border: "none",
+                color:
+                  agentMode === "demo"
+                    ? "var(--ohmni-lab-brand, #4967FF)"
+                    : agentState.providerAvailable
+                    ? "var(--ohmni-lab-verified, #27966B)"
+                    : "var(--ohmni-lab-muted, #64748B)",
+                fontSize: "11.5px",
+                fontWeight: 700,
+                letterSpacing: "0.02em",
+              }}
+            >
+              {agentMode === "demo" ? (
+                <>
+                  <Bot size={13} />
+                  <span>DEMO AGENT · Deterministic walkthrough</span>
+                </>
+              ) : agentState.providerAvailable ? (
+                <>
+                  <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--ohmni-lab-verified, #27966B)", boxShadow: "0 0 6px rgba(39, 150, 107, 0.8)" }} />
+                  <span>{agentIdentity.displayName} · Live</span>
+                </>
+              ) : (
+                <>
+                  <Bot size={13} />
+                  <span>{agentIdentity.displayName} · Connecting...</span>
+                </>
+              )}
+            </span>
+          )}
 
           {/* ••• More Menu */}
           <div ref={menuRef} style={{ position: "relative" }}>
@@ -521,6 +551,8 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
           <DynamicInvestigationScene
             descriptor={descriptor}
             agentState={agentState}
+            ledgerEntries={ledgerEntries}
+            pendingApproval={pendingApproval}
             experimentStatus={experimentStatus}
             relayState={relayState}
             resetCount={resetCount}
@@ -554,6 +586,10 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             agentState={agentState}
             investigationPhase={investigationPhase}
             hypothesis={hypothesis}
+            ledgerEntries={ledgerEntries}
+            pendingApproval={pendingApproval}
+            agentMode={agentMode}
+            onSwitchToDemo={onSwitchToDemo}
             onSetGoal={onSetGoal}
             onStartAgent={onStartAgent}
             onStopAgent={onStopAgent}

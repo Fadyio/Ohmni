@@ -13,12 +13,10 @@ import React from "react";
 import { useReducedMotion } from "motion/react";
 
 export interface AuthoredHardwareIllustrationProps {
-  readonly toolCount?: number;
   readonly isConnected?: boolean;
 }
 
 export const AuthoredHardwareIllustration: React.FC<AuthoredHardwareIllustrationProps> = ({
-  toolCount = 13,
   isConnected = false,
 }) => {
   const shouldReduceMotion = useReducedMotion();
@@ -39,7 +37,7 @@ export const AuthoredHardwareIllustration: React.FC<AuthoredHardwareIllustration
         userSelect: "none",
       }}
     >
-      {/* Top Floating Spec Badge */}
+      {/* Virtual device identity */}
       <div
         style={{
           display: "flex",

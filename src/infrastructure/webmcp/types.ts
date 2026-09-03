@@ -34,6 +34,8 @@ export interface ModelContextRegisterToolOptions {
 
 export interface ModelContextExecuteToolOptions {
   readonly signal?: AbortSignal;
+  readonly preApproved?: boolean;
+  readonly origin?: "external" | "groq" | "demo" | "user";
 }
 
 export interface ModelContext {

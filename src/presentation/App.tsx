@@ -14,12 +14,16 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import type { DeviceAdapter } from "@/domain/device/adapter";
 import type { DeviceToolRegistrar } from "@/infrastructure/webmcp/device-tool-registrar";
+import type { RegisteredTool } from "@/infrastructure/webmcp/types";
+import type { WebMCPExecutionCoordinator } from "@/infrastructure/webmcp/execution-coordinator";
 import type { ITelemetryEventBus } from "@/domain/telemetry/bus";
 import type { ExperimentRunner } from "@/domain/experiment/runner";
 import type { EvidenceStore } from "@/domain/evidence/store";
 import type { HypothesisStore } from "@/domain/hypothesis/store";
 import type { ScenarioSession, ScenarioGroundTruth, ScenarioId } from "@/domain/scenario/types";
 import type { AgentMode } from "@/infrastructure/bench-agent/types";
+import type { ToolLedgerEntry } from "@/domain/investigation/tool-ledger";
+import type { ToolApprovalRequest } from "@/domain/safety/approval-gate";
 import { resetInvestigationSession } from "@/domain/investigation/session-reset";
 import { ConnectHardwareModal } from "./components/welcome/ConnectHardwareModal";
 import { WebSerialTransport } from "@/infrastructure/serial/web-serial-transport";
@@ -37,7 +41,11 @@ import { DeveloperInspector } from "./components/inspector/DeveloperInspector";
 import { useDeviceState } from "./hooks/useDeviceState";
 import { useExperimentTimeline } from "./hooks/useExperimentTimeline";
 import { useOscilloscopeBuffer } from "./hooks/useOscilloscopeBuffer";
-import { useBenchAgent } from "./hooks/useBenchAgent";
+import {
+  useBenchAgent,
+  type BenchAgentActivity,
+  type BenchAgentState,
+} from "./hooks/useBenchAgent";
 import { useEvidenceStore } from "./hooks/useEvidenceStore";
 import { useHypothesisStore } from "./hooks/useHypothesisStore";
 import { useLandingToLabTransition } from "./hooks/useLandingToLabTransition";
@@ -46,6 +54,32 @@ import { useWebMCPTools } from "./hooks/useWebMCPTools";
 import { createScenarioSession, startMysteryScenario, matchDiagnosis, type DiagnosisMatchResult } from "@/domain/scenario";
 
 import "./theme/tokens.css";
+function serializeToolResult(result: unknown): string | undefined {
+  if (result === undefined) return undefined;
+  if (typeof result === "string") return result;
+  try {
+    return JSON.stringify(result);
+  } catch {
+    return String(result);
+  }
+}
+
+function activityFromLedger(
+  entries: readonly ToolLedgerEntry[]
+): readonly BenchAgentActivity[] {
+  return entries.map((entry) => ({
+    call: {
+      id: entry.id,
+      name: entry.toolName,
+      arguments: entry.input,
+    },
+    status: entry.status,
+    result: serializeToolResult(entry.result),
+    message: entry.error,
+    durationMs: entry.durationMs,
+  }));
+}
+
 
 export interface AppProps {
   readonly deviceAdapter?: DeviceAdapter;
@@ -54,6 +88,7 @@ export interface AppProps {
   readonly experimentRunner?: ExperimentRunner;
   readonly evidenceStore?: EvidenceStore;
   readonly hypothesisStore?: HypothesisStore;
+  readonly executionCoordinator?: WebMCPExecutionCoordinator;
 }
 
 export const App: React.FC<AppProps> = ({
@@ -63,6 +98,7 @@ export const App: React.FC<AppProps> = ({
   experimentRunner,
   evidenceStore,
   hypothesisStore,
+  executionCoordinator,
 }) => {
   const defaultVirtualAdapter = useMemo(() => {
     return deviceAdapter ?? (typeof window !== "undefined" ? window.__virtualDevice : undefined) ?? new VirtualDeviceAdapter();
@@ -78,6 +114,10 @@ export const App: React.FC<AppProps> = ({
   const resolvedBus = useMemo(() => {
     return telemetryBus ?? (typeof window !== "undefined" ? window.__telemetryBus : undefined);
   }, [telemetryBus]);
+  const resolvedCoordinator = useMemo(() => {
+    return executionCoordinator ??
+      (typeof window !== "undefined" ? window.__executionCoordinator : undefined);
+  }, [executionCoordinator]);
 
   const resolvedEvidenceStore = useMemo(() => {
     if (evidenceStore) return evidenceStore;
@@ -94,6 +134,36 @@ export const App: React.FC<AppProps> = ({
 
   // View mode: "welcome" | "investigation" | "repair" | "reveal"
   const [viewMode, setViewMode] = useState<"welcome" | "investigation" | "repair" | "reveal">("welcome");
+  const [ledgerEntries, setLedgerEntries] = useState<readonly ToolLedgerEntry[]>(
+    () => resolvedCoordinator ? [...resolvedCoordinator.toolLedger.getEntries()] : []
+  );
+  const [pendingApproval, setPendingApproval] = useState<ToolApprovalRequest | null>(
+    () => resolvedCoordinator?.approvalGate.getPendingApproval() ?? null
+  );
+
+  useEffect(() => {
+    if (!resolvedCoordinator) {
+      setLedgerEntries([]);
+      setPendingApproval(null);
+      return;
+    }
+
+    const syncLedger = () => {
+      setLedgerEntries([...resolvedCoordinator.toolLedger.getEntries()]);
+    };
+    syncLedger();
+    const unsubscribeLedger = resolvedCoordinator.toolLedger.subscribe(syncLedger);
+    const unsubscribeApproval = resolvedCoordinator.approvalGate.subscribe(setPendingApproval);
+    const unsubscribeIntervention = resolvedCoordinator.onHumanInterventionRequested(() => {
+      setViewMode("repair");
+    });
+
+    return () => {
+      unsubscribeLedger();
+      unsubscribeApproval();
+      unsubscribeIntervention();
+    };
+  }, [resolvedCoordinator]);
 
   // Mystery Scenario State
   const [activeScenario, setActiveScenario] = useState<ScenarioSession | null>(null);
@@ -139,9 +209,6 @@ export const App: React.FC<AppProps> = ({
     if (mode === "demo" || mode === "groq") {
       return mode;
     }
-    if (mode === "live") {
-      return "groq";
-    }
     return undefined;
   }, []);
 
@@ -157,11 +224,106 @@ export const App: React.FC<AppProps> = ({
     deny: denyAgent,
     retryAvailability,
     reset: resetAgent,
-  } = useBenchAgent(isConnected, queryAgentMode);
+  } = useBenchAgent(
+    isConnected,
+    queryAgentMode,
+    resolvedCoordinator !== undefined
+  );
 
   const { records: evidenceRecords } = useEvidenceStore(resolvedEvidenceStore);
   const { hypotheses } = useHypothesisStore(resolvedHypothesisStore);
   const { tools: registeredTools, isNative: isNativeWebMCP } = useWebMCPTools();
+  const presentedAgentState = useMemo<BenchAgentState>(() => {
+    const ledgerActivity = activityFromLedger(ledgerEntries);
+    if (pendingApproval) {
+      const call = {
+        id: pendingApproval.id,
+        name: pendingApproval.toolName,
+        arguments: pendingApproval.input,
+      };
+      const matchedTool = registeredTools.find(
+        (registeredTool) => registeredTool.name === pendingApproval.toolName
+      );
+      const tool: RegisteredTool = {
+        name: pendingApproval.toolName,
+        title: pendingApproval.toolTitle ?? matchedTool?.title,
+        description: matchedTool?.description || pendingApproval.why || pendingApproval.toolName,
+      };
+      const activity =
+        ledgerActivity.length > 0 ? ledgerActivity : agentState.activity;
+      return {
+        status: "approval",
+        agentMode,
+        liveProvider: agentState.liveProvider,
+        liveModel: agentState.liveModel,
+        goal: agentState.goal,
+        runGoal: agentState.runGoal,
+        activity,
+        providerAvailable: true,
+        providerStatus: agentState.providerStatus,
+        steps: activity.length,
+        approval: { call, tool },
+      };
+    }
+
+    if (agentMode !== "external") return agentState;
+
+    const common = {
+      agentMode: "external" as const,
+      goal: agentState.goal,
+      runGoal: agentState.runGoal,
+      activity: ledgerActivity,
+      providerAvailable: true,
+      providerStatus: "external" as const,
+    };
+    const lastEntry = ledgerEntries.at(-1);
+    if (lastEntry?.status === "running" || lastEntry?.status === "waiting-approval") {
+      return {
+        ...common,
+        status: "investigating",
+        steps: ledgerActivity.length,
+      };
+    }
+    if (lastEntry?.status === "failed") {
+      return {
+        ...common,
+        status: "failed",
+        steps: ledgerActivity.length,
+        message: lastEntry.error ?? `Tool '${lastEntry.toolName}' failed.`,
+      };
+    }
+    return {
+      ...common,
+      status: "idle",
+      checkingAvailability: false,
+    };
+  }, [agentMode, agentState, ledgerEntries, pendingApproval, registeredTools]);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as Window & { __benchAgentState?: BenchAgentState }).__benchAgentState =
+        presentedAgentState;
+    }
+  }, [presentedAgentState]);
+
+  const approveTest = useCallback(() => {
+    if (
+      pendingApproval &&
+      resolvedCoordinator?.approvalGate.approve(pendingApproval.id)
+    ) {
+      return;
+    }
+    approveAgent();
+  }, [approveAgent, pendingApproval, resolvedCoordinator]);
+
+  const denyTest = useCallback(() => {
+    if (
+      pendingApproval &&
+      resolvedCoordinator?.approvalGate.deny(pendingApproval.id)
+    ) {
+      return;
+    }
+    denyAgent();
+  }, [denyAgent, pendingApproval, resolvedCoordinator]);
 
   const activeHypothesis = hypotheses.length > 0 ? hypotheses[0] : null;
 
@@ -196,30 +358,81 @@ export const App: React.FC<AppProps> = ({
     }
   }, [queryScenarioId, activeScenario]);
 
+  const playWorkbenchEntryTransition = useCallback(() => {
+    playTransition(
+      {
+        rootContainerRef,
+        wordmarkRef,
+        heroTextRef,
+        hardwareVisualRef,
+        ctaButtonRef,
+        labChromeRef,
+        labMainSceneRef,
+        agentRailRef,
+      },
+      () => undefined
+    );
+  }, [playTransition]);
+
   // Action: Start Mystery Diagnosis
   const handleStartMystery = useCallback(() => {
-    setAgentMode(queryAgentMode ?? "groq");
+    const requestedMode = queryAgentMode ?? "external";
+    setAgentMode(requestedMode);
     setDeviceMode("virtual");
+    setActiveAdapter(defaultVirtualAdapter);
     const session = createScenarioSession({ scenarioId: queryScenarioId });
     setActiveScenario(session);
 
-    // Apply scenario initial configuration to virtual device
     const initConfig = session.getInitialDeviceConfig();
-    if (activeAdapter && typeof (activeAdapter as any).reset === "function") {
-      (activeAdapter as any).reset(initConfig);
-    } else if (activeAdapter && typeof activeAdapter.setInterventionPoint === "function") {
+    if (typeof (defaultVirtualAdapter as VirtualDeviceAdapter).reset === "function") {
+      (defaultVirtualAdapter as VirtualDeviceAdapter).reset(initConfig);
+    } else if (typeof defaultVirtualAdapter.setInterventionPoint === "function") {
       if (initConfig.initialRelayPower) {
-        activeAdapter.setInterventionPoint("relay_power_jumper", initConfig.initialRelayPower);
+        defaultVirtualAdapter.setInterventionPoint("relay_power_jumper", initConfig.initialRelayPower);
       }
       if (initConfig.initialSensorAddress) {
-        activeAdapter.setInterventionPoint("sensor_address_selector", initConfig.initialSensorAddress);
+        defaultVirtualAdapter.setInterventionPoint("sensor_address_selector", initConfig.initialSensorAddress);
       }
       if (initConfig.initialSdaConnected !== undefined) {
-        activeAdapter.setInterventionPoint("sda_connection", initConfig.initialSdaConnected ? "connected" : "unseated");
+        defaultVirtualAdapter.setInterventionPoint(
+          "sda_connection",
+          initConfig.initialSdaConnected ? "connected" : "unseated"
+        );
       }
     }
-    setShowMysteryIntro(true);
-  }, [queryScenarioId, activeAdapter, setAgentMode, queryAgentMode]);
+
+    if (requestedMode !== "external") {
+      setShowMysteryIntro(true);
+      return;
+    }
+
+    setShowMysteryIntro(false);
+    setViewMode("investigation");
+    const connectPromise = (async () => {
+      if (activeAdapter !== defaultVirtualAdapter && activeAdapter.isConnected()) {
+        resolvedRegistrar?.unregisterDevice(activeAdapter);
+        await activeAdapter.disconnect();
+      }
+      if (!defaultVirtualAdapter.isConnected()) {
+        await defaultVirtualAdapter.connect();
+      }
+      if (resolvedRegistrar) {
+        await resolvedRegistrar.registerDevice(defaultVirtualAdapter);
+      }
+    })();
+    void connectPromise.catch((err) => {
+      console.error("Failed to open agent-ready virtual workbench:", err);
+    });
+    playWorkbenchEntryTransition();
+  }, [
+    activeAdapter,
+    defaultVirtualAdapter,
+    playWorkbenchEntryTransition,
+    queryAgentMode,
+    queryScenarioId,
+    resolvedRegistrar,
+    setAgentMode,
+  ]);
 
   // Action: Begin Investigation from Mystery Intro Modal
   const handleBeginInvestigation = useCallback(async () => {
@@ -245,26 +458,14 @@ export const App: React.FC<AppProps> = ({
     void connectPromise.catch((err) => {
       console.error("Failed to connect hardware during transition:", err);
     });
-    // Execute GSAP transition in parallel
-    playTransition(
-      {
-        rootContainerRef,
-        wordmarkRef,
-        heroTextRef,
-        hardwareVisualRef,
-        ctaButtonRef,
-        labChromeRef,
-        labMainSceneRef,
-        agentRailRef,
-      },
-      () => undefined
-    );
-  }, [activeScenario, agentMode, setGoal, connect, activeAdapter, resolvedRegistrar, playTransition]);
+    playWorkbenchEntryTransition();
+  }, [activeScenario, agentMode, setGoal, connect, activeAdapter, resolvedRegistrar, playWorkbenchEntryTransition]);
 
   // Action: Deterministic Brownout Demo (Secondary CTA)
   const handleStartDemo = useCallback(() => {
     setAgentMode("demo");
     setDeviceMode("virtual");
+    setActiveAdapter(defaultVirtualAdapter);
     const session = createScenarioSession({ scenarioId: "brownout" });
     setActiveScenario(session);
 
@@ -276,6 +477,49 @@ export const App: React.FC<AppProps> = ({
     setGoal("The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.");
     setShowMysteryIntro(true);
   }, [setGoal, setAgentMode, defaultVirtualAdapter]);
+
+  const handleRunBuiltInDemo = useCallback(() => {
+    const session = createScenarioSession({ scenarioId: "brownout" });
+    const initConfig = session.getInitialDeviceConfig();
+    if (typeof (defaultVirtualAdapter as VirtualDeviceAdapter).reset === "function") {
+      (defaultVirtualAdapter as VirtualDeviceAdapter).reset(initConfig);
+    }
+
+    const launch = async () => {
+      if (activeAdapter !== defaultVirtualAdapter && activeAdapter.isConnected()) {
+        resolvedRegistrar?.unregisterDevice(activeAdapter);
+        await activeAdapter.disconnect();
+      }
+      if (!defaultVirtualAdapter.isConnected()) {
+        await defaultVirtualAdapter.connect();
+      }
+      if (resolvedRegistrar) {
+        await resolvedRegistrar.registerDevice(defaultVirtualAdapter);
+      }
+
+      setActiveAdapter(defaultVirtualAdapter);
+      setDeviceMode("virtual");
+      setActiveScenario(session);
+      setShowMysteryIntro(false);
+      setAgentMode("demo");
+      setGoal(
+        "The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments."
+      );
+      startAgent();
+    };
+
+    void launch().catch((err) => {
+      console.error("Failed to start built-in demo:", err);
+    });
+  }, [
+    activeAdapter,
+    defaultVirtualAdapter,
+    resolvedRegistrar,
+    setAgentMode,
+    setGoal,
+    startAgent,
+  ]);
+
 
   const handleConnectPhysical = useCallback(async () => {
     const transport = new WebSerialTransport({ baudRate: 115200 });
@@ -416,6 +660,8 @@ export const App: React.FC<AppProps> = ({
       benchAgentReset: resetAgent,
       toolRegistrar: resolvedRegistrar,
     });
+    resolvedCoordinator?.approvalGate.reset();
+    resolvedCoordinator?.toolLedger.reset();
 
     handleStartMystery();
   }, [
@@ -427,6 +673,7 @@ export const App: React.FC<AppProps> = ({
     resolvedHypothesisStore,
     resetAgent,
     resolvedRegistrar,
+    resolvedCoordinator,
   ]);
 
   return (
@@ -498,13 +745,16 @@ export const App: React.FC<AppProps> = ({
           markersRef={markersRef}
           evidenceRecords={evidenceRecords}
           hypothesis={activeHypothesis}
-          agentState={agentState}
+          agentState={presentedAgentState}
+          ledgerEntries={ledgerEntries}
+          pendingApproval={pendingApproval}
+          registeredToolCount={registeredTools.length}
           activeScenario={activeScenario}
           onSetGoal={setGoal}
           onStartAgent={startAgent}
           onStopAgent={stopAgent}
-          onApproveTest={approveAgent}
-          onDenyTest={denyAgent}
+          onApproveTest={approveTest}
+          onDenyTest={denyTest}
           onToggleConnect={handleToggleConnect}
           onProceedToRepair={() => setViewMode("repair")}
           onOpenDevInspector={() => setDevInspectorOpen(true)}
@@ -525,10 +775,10 @@ export const App: React.FC<AppProps> = ({
             evidenceStore={resolvedEvidenceStore}
             hypothesisStore={resolvedHypothesisStore}
             hypothesis={activeHypothesis}
-            agentState={agentState}
+            agentState={presentedAgentState}
             onSendObservation={sendAgentObservation}
-            onApproveTest={approveAgent}
-            onDenyTest={denyAgent}
+            onApproveTest={approveTest}
+            onDenyTest={denyTest}
             onReturnToInvestigation={() => setViewMode("investigation")}
           />
         </div>
@@ -542,7 +792,11 @@ export const App: React.FC<AppProps> = ({
             hypothesis={activeHypothesis}
             matchResult={matchResult}
             evidenceRecords={evidenceRecords}
-            toolsUsedCount={agentState.activity.filter((a) => a.status === "completed").length}
+            toolsUsedCount={
+              ledgerEntries.length > 0
+                ? ledgerEntries.filter((entry) => entry.status === "completed").length
+                : presentedAgentState.activity.filter((activity) => activity.status === "completed").length
+            }
             experimentsCount={evidenceRecords.filter((e) => e.type === "test_result").length}
             humanInterventionsCount={evidenceRecords.filter((e) => e.source === "human").length}
             isVerified={activeScenario?.isVerified ?? false}
@@ -562,10 +816,10 @@ export const App: React.FC<AppProps> = ({
         evidenceRecords={evidenceRecords}
         hypotheses={hypotheses}
         latestToolResult={
-          agentState.activity.length > 0
+          presentedAgentState.activity.length > 0
             ? {
-                toolName: agentState.activity[agentState.activity.length - 1].call.name,
-                result: agentState.activity[agentState.activity.length - 1].result ?? "",
+                toolName: presentedAgentState.activity[presentedAgentState.activity.length - 1].call.name,
+                result: presentedAgentState.activity[presentedAgentState.activity.length - 1].result ?? "",
                 timestamp: Date.now(),
               }
             : null
@@ -574,6 +828,8 @@ export const App: React.FC<AppProps> = ({
         providerName={
           agentMode === "demo"
             ? "Deterministic Demo Provider"
+            : agentMode === "external"
+            ? "External WebMCP Agent"
             : `${(agentState.liveProvider ?? "Groq").toUpperCase()} ${agentState.liveModel ?? "openai/gpt-oss-120b"} (Vercel Serverless)`
         }
       />

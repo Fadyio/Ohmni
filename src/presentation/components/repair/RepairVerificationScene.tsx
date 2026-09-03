@@ -622,7 +622,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     }}
                   >
                     <Send size={14} />
-                    <span>{observationSent ? `${agentIdentity.displayName} notified` : `Notify ${agentIdentity.displayName} and run verification`}</span>
+                    <span>{observationSent ? `${agentIdentity.displayName} notified` : `Notify ${agentIdentity.shortName} and run verification`}</span>
                   </button>
                 )}
               </div>

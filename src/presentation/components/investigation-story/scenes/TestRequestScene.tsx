@@ -17,21 +17,23 @@
 
 import React, { useState } from "react";
 import { motion } from "motion/react";
-import { ShieldAlert, Check, X, Zap, Clock, Activity, AlertTriangle, Cpu, Radio } from "lucide-react";
+import { ShieldAlert, Check, X, Zap, Clock, Activity, AlertTriangle } from "lucide-react";
 import gsap from "gsap";
+import type { ToolApprovalRequest } from "@/domain/safety/approval-gate";
 
 export interface TestRequestSceneProps {
   readonly onApprove: () => void;
   readonly onDeny: () => void;
   readonly toolName?: string;
   readonly agentDisplayName?: string;
+  readonly approvalRequest?: ToolApprovalRequest | null;
 }
 
 export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
   onApprove,
   onDeny,
   toolName = "run_relay_stress_test",
-  agentDisplayName = "Agent",
+  approvalRequest,
 }) => {
   const [isApproved, setIsApproved] = useState(false);
 
@@ -64,7 +66,6 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onDeny]);
 
-  const isRelayTool = toolName.includes("relay") || toolName.includes("stress");
 
   return (
     <motion.div
@@ -297,7 +298,7 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
                 lineHeight: 1.3,
               }}
             >
-              {agentDisplayName} wants to energize the cooling fan relay for up to 500 ms while measuring supply voltage.
+              Your agent wants to energize relay up to 500 ms.
             </h2>
 
             {/* WHY Section */}
@@ -306,7 +307,18 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
                 WHY
               </div>
               <p style={{ margin: 0, fontSize: "14px", color: "var(--ohmni-lab-text)", lineHeight: 1.5 }}>
-                To see whether the fan load reproduces the reset.
+                {approvalRequest?.why ?? "To see whether the fan load reproduces the reset."}
+              </p>
+            </div>
+
+            {/* WHAT WILL HAPPEN Section */}
+            <div style={{ margin: "12px 0" }}>
+              <div style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ohmni-lab-brand, #4967FF)", marginBottom: "4px" }}>
+                WHAT WILL HAPPEN
+              </div>
+              <p style={{ margin: 0, fontSize: "14px", color: "var(--ohmni-lab-text)", lineHeight: 1.5 }}>
+                {approvalRequest?.whatWillHappen ??
+                  "The relay will energize briefly while Ohmni monitors the MCU supply rail and aborts on reset."}
               </p>
             </div>
 
@@ -324,7 +336,7 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
               }}
             >
               <div className="font-mono" style={{ fontSize: "11px", fontWeight: 800, color: "var(--ohmni-lab-action)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                SAFETY
+                SAFETY LIMITS
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--ohmni-lab-text)" }}>
                 <AlertTriangle size={14} color="var(--ohmni-lab-fault)" />
@@ -338,6 +350,11 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
                 <Activity size={14} color="var(--ohmni-lab-verified)" />
                 <span>Relay returns open</span>
               </div>
+              {approvalRequest?.safetyLimits && (
+                <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted)", lineHeight: 1.4 }}>
+                  {approvalRequest.safetyLimits}
+                </div>
+              )}
             </div>
           </div>
 

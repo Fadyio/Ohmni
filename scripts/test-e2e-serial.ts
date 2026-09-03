@@ -322,7 +322,7 @@ async function runSerialE2ETest(): Promise<void> {
     const landingHeadline = await cdpClient.evaluate<string>(
       `document.querySelector("h1")?.textContent?.trim() || ""`
     );
-    if (!landingHeadline.includes("Give an AI agent instruments, not screenshots.")) {
+    if (!landingHeadline.includes("Give your AI agent instruments for the physical world.")) {
       throw new Error(`Unexpected hero headline: "${landingHeadline}"`);
     }
     console.info("[test:e2e:serial] ✓ Truthful hero headline verified.");
@@ -485,8 +485,12 @@ async function runSerialE2ETest(): Promise<void> {
     console.info("[test:e2e:serial] Executing run_relay_stress_test through ExperimentRunner...");
     const stressResult = await cdpClient.evaluate<{ experiment_id: string; evidence_ids: string[]; resetOccurred?: boolean }>(`
       (async () => {
+        const gate = window.__toolApprovalGate;
+        if (gate) {
+          setTimeout(() => gate.approve(), 50);
+        }
         const mc = window.__agentModelContext || document.modelContext;
-        const res = await mc.executeTool("run_relay_stress_test", { cycles: 2, duration_ms: 30 });
+        const res = await mc.executeTool("run_relay_stress_test", { cycles: 2, duration_ms: 30 }, { preApproved: true });
         return typeof res === "string" ? JSON.parse(res) : res;
       })()
     `);

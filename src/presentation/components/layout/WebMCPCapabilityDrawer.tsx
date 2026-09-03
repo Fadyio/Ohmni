@@ -1,31 +1,31 @@
 /**
  * WebMCP Capability Inspector Modal / Flyout.
  * Secondary debug & protocol inspection view.
- * Categorizes the dynamic tool surface with truthful product taxonomy:
- * - OBSERVE: Read-only physical sensors & telemetry.
- * - REASON: Agent evidence extraction & hypothesis synthesis.
- * - CONTROLLED TEST: Stateful DUT stress actuation (requires human approval).
+ * Categorizes the dynamic tool surface with the runtime safety policy:
+ * - OBSERVE and REASON tools run autonomously.
+ * - HUMAN REQUEST tools pause for the operator to complete a physical task.
+ * - PHYSICAL tools require explicit approval before actuation.
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import {
-  Radio,
-  X,
-  Search,
-  Cpu,
-  Zap,
-  Lightbulb,
-  ShieldAlert,
-  Layers,
-  Terminal,
-  FileCode,
-} from "lucide-react";
+import { Radio, X, Search } from "lucide-react";
+import { classifyTool } from "@/domain/safety/tool-safety-policy";
+import type { ToolExecutionClass } from "@/domain/safety/tool-safety-policy";
+import type { RegisteredTool } from "@/infrastructure/webmcp/types";
 import type { WebMCPToolInfo } from "../../hooks/useWebMCPTools";
+
+type ToolCategory = ToolExecutionClass;
+type ToolFilter = "all" | ToolCategory;
+
+interface InspectorTool extends WebMCPToolInfo {
+  readonly inputSchema?: Record<string, unknown>;
+  readonly annotations?: { readonly readOnlyHint?: boolean };
+}
 
 interface WebMCPCapabilityDrawerProps {
   readonly isOpen: boolean;
-  readonly tools: readonly WebMCPToolInfo[];
+  readonly tools: readonly InspectorTool[];
   readonly isDiscovering: boolean;
   readonly isNative: boolean;
   readonly onClose: () => void;
@@ -38,21 +38,48 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
   isNative,
   onClose,
 }) => {
-  const [filterCategory, setFilterCategory] = useState<"all" | "observe" | "reason" | "actuation">("all");
+  const [filterCategory, setFilterCategory] = useState<ToolFilter>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [discoveredTools, setDiscoveredTools] = useState<readonly RegisteredTool[]>([]);
 
-  const getToolCategory = (toolName: string): "observe" | "reason" | "actuation" => {
-    if (toolName === "run_relay_stress_test") return "actuation";
-    if (
-      toolName.includes("hypothesis") ||
-      toolName.includes("evidence")
-    ) {
-      return "reason";
+  useEffect(() => {
+    if (!isOpen || typeof document === "undefined") {
+      return;
     }
-    return "observe";
-  };
 
-  const getCategoryBadge = (category: "observe" | "reason" | "actuation") => {
+    let cancelled = false;
+    const modelContext = window.__agentModelContext ?? document.modelContext;
+    if (!modelContext || typeof modelContext.getTools !== "function") {
+      setDiscoveredTools([]);
+      return;
+    }
+
+    void modelContext
+      .getTools()
+      .then((registeredTools) => {
+        if (!cancelled) setDiscoveredTools(registeredTools);
+      })
+      .catch(() => {
+        if (!cancelled) setDiscoveredTools([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, tools]);
+
+  const schemaByToolName = useMemo<Readonly<Record<string, RegisteredTool["inputSchema"]>>>(
+    () => Object.fromEntries(discoveredTools.map((tool) => [tool.name, tool.inputSchema])),
+    [discoveredTools],
+  );
+
+  const getToolCategory = (tool: InspectorTool): ToolCategory =>
+    classifyTool(tool.name, {
+      ...tool.annotations,
+      readOnlyHint: tool.annotations?.readOnlyHint ?? tool.readOnly,
+    });
+
+  const getCategoryBadge = (category: ToolCategory) => {
     switch (category) {
       case "observe":
         return {
@@ -68,9 +95,16 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
           bg: "rgba(79, 107, 255, 0.12)",
           border: "rgba(79, 107, 255, 0.25)",
         };
-      case "actuation":
+      case "human_request":
         return {
-          label: "CONTROLLED TEST",
+          label: "HUMAN REQUEST",
+          color: "#F97316",
+          bg: "rgba(249, 115, 22, 0.12)",
+          border: "rgba(249, 115, 22, 0.25)",
+        };
+      case "physical":
+        return {
+          label: "PHYSICAL · APPROVAL",
           color: "var(--ohmni-warning)",
           bg: "rgba(244, 184, 96, 0.12)",
           border: "rgba(244, 184, 96, 0.25)",
@@ -79,7 +113,7 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
   };
 
   const filteredTools = tools.filter((t) => {
-    const category = getToolCategory(t.name);
+    const category = getToolCategory(t);
     if (filterCategory !== "all" && category !== filterCategory) return false;
     if (searchQuery.trim() !== "") {
       const q = searchQuery.toLowerCase();
@@ -151,12 +185,12 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
                 </div>
                 <div>
                   <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--ohmni-text-primary)" }}>
-                    WebMCP Instrument Inspector
+                    Agent Tool Inspector
                   </div>
                   <div className="metadata-text">
-                    {isNative
-                      ? `${tools.length} tools registered with native document.modelContext`
-                      : `${tools.length} tools available in compatibility mode`}
+                    {`${tools.length} runtime ${tools.length === 1 ? "tool" : "tools"} available to compatible agents${
+                      isDiscovering ? " · refreshing…" : ""
+                    }`}
                   </div>
                 </div>
               </div>
@@ -182,17 +216,18 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
                 flexWrap: "wrap",
               }}
             >
-              {/* Category Pills */}
-              <div style={{ display: "flex", gap: "6px" }}>
-                {[
+              {/* Safety class filters */}
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {([
                   { key: "all", label: `All (${tools.length})` },
                   { key: "observe", label: "Observe" },
                   { key: "reason", label: "Reason" },
-                  { key: "actuation", label: "Controlled Test" },
-                ].map((tab) => (
+                  { key: "human_request", label: "Human request" },
+                  { key: "physical", label: "Physical actuation" },
+                ] satisfies readonly { key: ToolFilter; label: string }[]).map((tab) => (
                   <button
                     key={tab.key}
-                    onClick={() => setFilterCategory(tab.key as any)}
+                    onClick={() => setFilterCategory(tab.key)}
                     style={{
                       padding: "4px 10px",
                       borderRadius: "var(--radius-full)",
@@ -266,8 +301,9 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
                 </div>
               ) : (
                 filteredTools.map((tool) => {
-                  const category = getToolCategory(tool.name);
+                  const category = getToolCategory(tool);
                   const badge = getCategoryBadge(category);
+                  const inputSchema = tool.inputSchema ?? schemaByToolName[tool.name];
                   return (
                     <div
                       key={tool.name}
@@ -321,6 +357,40 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
                       >
                         {tool.description || "Hardware diagnostic instrument"}
                       </p>
+                      {inputSchema && (
+                        <details
+                          style={{
+                            marginTop: "4px",
+                            borderTop: "1px solid var(--ohmni-border-subtle)",
+                            paddingTop: "6px",
+                          }}
+                        >
+                          <summary
+                            style={{
+                              cursor: "pointer",
+                              color: "var(--ohmni-text-muted)",
+                              fontSize: "11px",
+                            }}
+                          >
+                            Input schema
+                          </summary>
+                          <pre
+                            className="font-mono"
+                            style={{
+                              margin: "8px 0 0",
+                              padding: "8px",
+                              background: "var(--ohmni-surface-raised)",
+                              borderRadius: "var(--radius-sm)",
+                              color: "var(--ohmni-text-secondary)",
+                              fontSize: "10px",
+                              overflowX: "auto",
+                              whiteSpace: "pre-wrap",
+                            }}
+                          >
+                            {JSON.stringify(inputSchema, null, 2)}
+                          </pre>
+                        </details>
+                      )}
                     </div>
                   );
                 })

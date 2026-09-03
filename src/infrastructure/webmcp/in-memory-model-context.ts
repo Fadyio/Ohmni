@@ -11,15 +11,23 @@ import type {
   ModelContextRegisterToolOptions,
   ModelContextExecuteToolOptions,
 } from "./types";
+import type { WebMCPExecutionCoordinator } from "./execution-coordinator";
 
 interface StoredToolEntry {
   readonly tool: ModelContextTool;
   readonly registeredTool: RegisteredTool;
 }
 
+function isToolInput(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export class InMemoryModelContext extends EventTarget implements ModelContext {
   private readonly tools: Map<string, StoredToolEntry> = new Map();
 
+  constructor(private readonly coordinator?: WebMCPExecutionCoordinator) {
+    super();
+  }
   public async registerTool(
     tool: ModelContextTool,
     options?: ModelContextRegisterToolOptions
@@ -40,17 +48,18 @@ export class InMemoryModelContext extends EventTarget implements ModelContext {
       throw new Error(`Registration aborted for tool '${tool.name}'`);
     }
 
+    const effectiveTool = this.coordinator ? this.coordinator.wrapTool(tool) : tool;
+
     const registeredTool: RegisteredTool = {
-      name: tool.name,
-      title: tool.title,
-      description: tool.description,
-      inputSchema: tool.inputSchema,
-      annotations: tool.annotations,
+      name: effectiveTool.name,
+      title: effectiveTool.title,
+      description: effectiveTool.description,
+      inputSchema: effectiveTool.inputSchema,
+      annotations: effectiveTool.annotations,
     };
 
-    this.tools.set(tool.name, { tool, registeredTool });
+    this.tools.set(effectiveTool.name, { tool: effectiveTool, registeredTool });
     this.dispatchEvent(new Event("toolchange"));
-
     if (options?.signal) {
       const signal = options.signal;
       const onAbort = () => {
@@ -79,30 +88,37 @@ export class InMemoryModelContext extends EventTarget implements ModelContext {
       throw new Error(`Tool not found or unregistered: '${toolName}'`);
     }
 
-    if (options?.signal?.aborted) {
-      throw new Error(`Tool execution aborted for '${toolName}'`);
+    if (!this.coordinator && options?.signal?.aborted) {
+      throw new DOMException(`Tool execution aborted for '${toolName}'`, "AbortError");
     }
 
     let parsedInput: Record<string, unknown> = {};
     if (typeof input === "string") {
       const trimmed = input.trim();
       if (trimmed !== "") {
+        let parsed: unknown;
         try {
-          parsedInput = JSON.parse(trimmed);
+          parsed = JSON.parse(trimmed);
         } catch {
           throw new Error(`Invalid JSON input string for tool '${toolName}': ${trimmed}`);
         }
+        if (!isToolInput(parsed)) {
+          throw new Error(`Tool input for '${toolName}' must be a JSON object`);
+        }
+        parsedInput = parsed;
       }
-    } else if (input && typeof input === "object") {
+    } else {
       parsedInput = input;
     }
 
-    const rawResult = await entry.tool.execute(parsedInput, { signal: options?.signal });
+    const rawResult = this.coordinator
+      ? await this.coordinator.executeTool(entry.tool, parsedInput, options)
+      : await entry.tool.execute(parsedInput, { signal: options?.signal });
 
     if (typeof rawResult === "string") {
       return rawResult;
     }
 
-    return JSON.stringify(rawResult);
+    return JSON.stringify(rawResult) ?? "null";
   }
 }

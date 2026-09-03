@@ -30,10 +30,14 @@ import type { Hypothesis } from "@/domain/hypothesis/types";
 import type { BenchAgentState } from "../../hooks/useBenchAgent";
 import { getAgentIdentity } from "@/presentation/types/agent-identity";
 import type { DeviceDescriptor } from "@/domain/device/descriptor";
+import type { ToolLedgerEntry } from "@/domain/investigation/tool-ledger";
+import type { ToolApprovalRequest } from "@/domain/safety/approval-gate";
 
 export interface DynamicInvestigationSceneProps {
   readonly descriptor?: DeviceDescriptor | null;
   readonly agentState: BenchAgentState;
+  readonly ledgerEntries?: readonly ToolLedgerEntry[];
+  readonly pendingApproval?: ToolApprovalRequest | null;
   readonly experimentStatus: "idle" | "running" | "completed" | "failed" | "aborted" | string;
   readonly relayState: "open" | "closed";
   readonly resetCount: number;
@@ -55,6 +59,8 @@ export interface DynamicInvestigationSceneProps {
 export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps> = ({
   descriptor,
   agentState,
+  ledgerEntries,
+  pendingApproval,
   experimentStatus,
   relayState,
   resetCount,
@@ -67,39 +73,76 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   onDenyTest,
   onProceedToRepair,
   onStartAgent,
-  agentMode = "groq",
+  agentMode = "external",
   onSwitchToDemo,
   onRetryAgent,
   activeSceneOverride,
 }) => {
   const agentIdentity = getAgentIdentity(agentMode, agentState.liveProvider, agentState.liveModel);
-  const resetActivity = agentState.activity.find(
-    (a) =>
-      (a.call.name === "read_reset_history" ||
-        a.call.name.includes("read_reset_history") ||
-        a.call.name.includes("reset")) &&
-      a.status === "completed" &&
-      a.result !== undefined
+  const resetLedgerEntry = ledgerEntries?.findLast(
+    (entry) =>
+      (entry.toolName === "read_reset_history" ||
+        entry.toolName.includes("read_reset_history") ||
+        entry.toolName.includes("reset")) &&
+      entry.status === "completed" &&
+      entry.result !== undefined
   );
-  const hasInspectedResetHistory = Boolean(resetActivity);
-  const isStressToolRunning = agentState.activity.some(
-    (activity) =>
-      (activity.call.name.includes("relay") || activity.call.name.includes("stress")) &&
-      activity.status !== "completed"
+  const resetActivity =
+    ledgerEntries === undefined
+      ? agentState.activity.find(
+          (activity) =>
+            (activity.call.name === "read_reset_history" ||
+              activity.call.name.includes("read_reset_history") ||
+              activity.call.name.includes("reset")) &&
+            activity.status === "completed" &&
+            activity.result !== undefined
+        )
+      : undefined;
+  const hasInspectedResetHistory = Boolean(resetLedgerEntry ?? resetActivity);
+  const activeLedgerEntry = ledgerEntries?.findLast(
+    (entry) =>
+      entry.status === "requested" ||
+      entry.status === "waiting-approval" ||
+      entry.status === "running"
   );
+  const isStressToolRunning =
+    ledgerEntries !== undefined
+      ? Boolean(
+          activeLedgerEntry &&
+            (activeLedgerEntry.toolName.includes("relay") ||
+              activeLedgerEntry.toolName.includes("stress")) &&
+            activeLedgerEntry.status !== "waiting-approval"
+        )
+      : agentState.activity.some(
+          (activity) =>
+            (activity.call.name.includes("relay") ||
+              activity.call.name.includes("stress")) &&
+            activity.status !== "completed" &&
+            activity.status !== "waiting-approval"
+        );
 
   let parsedBrownout: number | string | undefined = undefined;
   let parsedWatchdog: number | string | undefined = undefined;
   let parsedSoftware: number | string | undefined = undefined;
   let isResetParseError = false;
 
-  if (hasInspectedResetHistory && resetActivity?.result) {
+  const resetResult = resetLedgerEntry?.result ?? resetActivity?.result;
+  if (hasInspectedResetHistory && resetResult !== undefined) {
     try {
-      const parsed = JSON.parse(resetActivity.result);
-      const resets = Array.isArray(parsed?.data?.resets)
-        ? parsed.data.resets
-        : Array.isArray(parsed?.resets)
-        ? parsed.resets
+      const parsed =
+        typeof resetResult === "string" ? JSON.parse(resetResult) : resetResult;
+      const result =
+        parsed && typeof parsed === "object"
+          ? (parsed as Record<string, unknown>)
+          : undefined;
+      const data =
+        result?.data && typeof result.data === "object"
+          ? (result.data as Record<string, unknown>)
+          : undefined;
+      const resets = Array.isArray(data?.resets)
+        ? data.resets
+        : Array.isArray(result?.resets)
+        ? result.resets
         : null;
 
       if (!resets) {
@@ -120,30 +163,46 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   // Determine active scene based on real domain state
   const computeActiveScene = (): "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" => {
     if (activeSceneOverride) return activeSceneOverride;
-    if (agentState.status === "approval") {
-      const toolName = agentState.approval.tool.name;
-      if (classifyTool(toolName, agentState.approval.tool.annotations) === "physical") {
-        return "test-request";
-      }
+
+    const approvalToolName =
+      pendingApproval?.toolName ??
+      (agentState.status === "approval"
+        ? agentState.approval.tool.name
+        : activeLedgerEntry?.status === "waiting-approval"
+        ? activeLedgerEntry.toolName
+        : undefined);
+    if (approvalToolName && classifyTool(approvalToolName) === "physical") {
+      return "test-request";
     }
+
     if (
       relayState === "closed" ||
       (experimentStatus === "running" && hypothesis === null) ||
-      (agentState.status === "investigating" &&
-        agentState.activity.some((a) => (a.call.name.includes("relay") || a.call.name.includes("stress")) && a.status !== "completed"))
+      isStressToolRunning
     ) {
       return "running";
     }
-    if (agentState.status === "approval") {
-      const toolName = agentState.approval.tool.name;
-      if (classifyTool(toolName, agentState.approval.tool.annotations) === "physical") {
-        return "test-request";
-      }
-    }
+
     if (hypothesis !== null) return "hypothesis";
     if (agentState.status === "completed") return "completed";
-    if (evidenceRecords.length > 0) return "evidence";
-    if (hasInspectedResetHistory) return "observing";
+
+    const latestLedgerEntry = ledgerEntries?.[ledgerEntries.length - 1];
+    const latestToolName = latestLedgerEntry?.toolName ?? "";
+    const hasEvidenceToolResult =
+      latestLedgerEntry?.status === "completed" &&
+      (latestToolName.includes("evidence") ||
+        latestToolName.includes("measure") ||
+        latestToolName.includes("stress"));
+    if (evidenceRecords.length > 0 || hasEvidenceToolResult) return "evidence";
+
+    const hasObservationTool =
+      latestLedgerEntry !== undefined &&
+      latestLedgerEntry.status !== "failed" &&
+      latestLedgerEntry.status !== "denied" &&
+      (latestToolName.includes("read_") ||
+        latestToolName.includes("history") ||
+        latestToolName.includes("reset"));
+    if (hasInspectedResetHistory || hasObservationTool) return "observing";
     return "ready";
   };
   const currentScene = computeActiveScene();
@@ -322,8 +381,13 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             key="test-request"
             onApprove={onApproveTest}
             onDeny={onDenyTest}
-            toolName={agentState.status === "approval" ? agentState.approval.tool.name : undefined}
-            agentDisplayName={agentIdentity.displayName}
+            toolName={
+              pendingApproval?.toolName ??
+              (agentState.status === "approval"
+                ? agentState.approval.tool.name
+                : activeLedgerEntry?.toolName)
+            }
+            approvalRequest={pendingApproval}
           />
         )}
 
@@ -333,7 +397,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             descriptor={descriptor}
             ringBufferRef={ringBufferRef}
             markersRef={markersRef}
-            isRunning={agentState.status === "investigating" && isStressToolRunning}
+            isRunning={isStressToolRunning}
             relayState={relayState}
             railVoltage={railVoltage}
             isVerification={evidenceRecords.some((record) => record.source === "human")}

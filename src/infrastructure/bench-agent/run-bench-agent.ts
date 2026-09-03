@@ -168,6 +168,8 @@ export async function runBenchAgent(
     signal,
     maxSteps = MAX_AGENT_STEPS,
     previousInteractionId: initialInteractionId,
+    approvalHandledByModelContext = false,
+    agentMode = "groq",
   } = options;
   const requestedStepLimit = Number.isFinite(maxSteps)
     ? Math.floor(maxSteps)
@@ -271,7 +273,10 @@ export async function runBenchAgent(
           });
           continue;
         }
-        if (requiresHumanApproval(currentTool.name, currentTool.annotations)) {
+        if (
+          requiresHumanApproval(currentTool.name, currentTool.annotations) &&
+          !approvalHandledByModelContext
+        ) {
           onEvent({ type: "approval-requested", call, tool: currentTool });
           const approved = await awaitWithAbort(
             requestApproval({ call, tool: currentTool }),
@@ -344,7 +349,11 @@ export async function runBenchAgent(
             modelContext.executeTool(
               currentTool,
               serializedArguments,
-              { signal }
+              {
+                signal,
+                preApproved: !approvalHandledByModelContext,
+                origin: agentMode,
+              }
             ),
             signal
           );

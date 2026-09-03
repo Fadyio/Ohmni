@@ -4,9 +4,8 @@
  */
 
 import React from "react";
-import { ArrowRight, Lock } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { AuthoredHardwareIllustration } from "./AuthoredHardwareIllustration";
-import { useWebMCPTools } from "../../hooks/useWebMCPTools";
 
 export interface WelcomeViewProps {
   readonly onStartMystery?: () => void;
@@ -27,7 +26,6 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
   ctaButtonRef,
   wordmarkRef,
 }) => {
-  const { toolCount, isNative } = useWebMCPTools();
 
   return (
     <div
@@ -64,17 +62,6 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
           alt="OHMNI"
           style={{ height: "28px", width: "auto" }}
         />
-        <span
-          style={{
-            fontSize: "12px",
-            fontWeight: 600,
-            color: "var(--ohmni-intro-secondary, #525866)",
-            opacity: isNative ? 1 : 0.72,
-          }}
-        >
-          {isNative ? "WebMCP ready" : "Browser compatibility mode"}
-        </span>
-
       </header>
 
       {/* Main Hero Container */}
@@ -98,7 +85,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
           style={{ display: "none" }}
         />
 
-        {/* Hero Narrative & Physical Hardware Grid */}
+        {/* Hero narrative and hardware visual */}
         <div
           style={{
             display: "grid",
@@ -131,7 +118,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   margin: 0,
                 }}
               >
-                Give an AI agent instruments, not screenshots.
+                Give your AI agent instruments for the physical world.
               </h1>
 
               <p
@@ -143,24 +130,32 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   maxWidth: "560px",
                 }}
               >
-                Coding agents can inspect software, but they cannot inspect the physical board on your desk.
-                Ohmni uses WebMCP to expose safe browser-native hardware instruments so an agent can measure,
-                run bounded tests, collect evidence, and ask you to make physical changes. Dangerous actions
-                require your approval; physical repairs require your hands.
-                <span style={{ display: "block", marginTop: "8px" }}>
-                  No hardware? Use the deterministic virtual ESP32 challenge.
-                </span>
+                Ohmni turns hardware measurements and controlled experiments into WebMCP tools. Bring ChatGPT,
+                Codex, or another compatible agent to inspect a virtual device or hardware connected over Web
+                Serial.
+              </p>
+              <p
+                style={{
+                  fontSize: "14px",
+                  lineHeight: 1.55,
+                  color: "var(--ohmni-intro-secondary, #525866)",
+                  margin: "4px 0 0",
+                  maxWidth: "560px",
+                }}
+              >
+                The agent can measure and reason autonomously. Physical actuation requires your approval, and
+                physical repairs require your hands.
               </p>
             </div>
 
             {/* Action CTAs */}
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px", marginTop: "4px" }}>
-              {/* Action 1: Live AI Diagnosis / Virtual Challenge */}
+              {/* Primary: agent-ready virtual workbench */}
               <button
                 ref={ctaButtonRef}
                 data-testid="start-mystery-btn"
                 id="start-mystery-btn"
-                onClick={onStartMystery ?? onStartDemo}
+                onClick={onStartMystery}
                 className="btn-primary"
                 style={{
                   padding: "13px 24px",
@@ -171,8 +166,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   gap: "8px",
                 }}
               >
-                <Lock size={15} />
-                <span>Start AI diagnosis</span>
+                <span>Open agent-ready workbench</span>
                 <ArrowRight size={16} />
               </button>
 
@@ -215,12 +209,9 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   textUnderlineOffset: "3px",
                 }}
               >
-                Try virtual challenge
+                Try built-in demo
               </button>
-              <span style={{ fontSize: "12px", color: "#94A3B8" }}>•</span>
-              <span style={{ fontSize: "12.5px", color: "#64748B" }}>No hardware required</span>
             </div>
-
 
             {/* Product principles */}
             <div
@@ -247,7 +238,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
               willChange: "transform, opacity",
             }}
           >
-            <AuthoredHardwareIllustration toolCount={toolCount} />
+            <AuthoredHardwareIllustration />
           </div>
         </div>
       </main>

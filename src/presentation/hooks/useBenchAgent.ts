@@ -10,7 +10,6 @@ import type {
   AgentMode,
   AgentTranscriptItem,
   BenchAgentEvent,
-  BenchAgentProvider,
   BenchAgentRunResult,
 } from "@/infrastructure/bench-agent/types";
 import type { RegisteredTool } from "@/infrastructure/webmcp/types";
@@ -103,7 +102,8 @@ export type BenchAgentProviderStatus =
   | "configured"
   | "live"
   | "error"
-  | "demo";
+  | "demo"
+  | "external";
 interface BenchAgentStateBase {
   readonly agentMode?: AgentMode;
   readonly liveProvider?: string;
@@ -303,7 +303,8 @@ function stepCount(activity: readonly BenchAgentActivity[]): number {
 
 export function useBenchAgent(
   isConnected: boolean,
-  initialMode?: AgentMode
+  initialMode?: AgentMode,
+  approvalHandledByModelContext = false
 ): UseBenchAgentResult {
   const resolvedInitialMode: AgentMode =
     initialMode ??
@@ -311,9 +312,10 @@ export function useBenchAgent(
       ? (() => {
           const p = new URLSearchParams(window.location.search).get("agent");
           if (p === "demo") return "demo";
-          return "groq";
+          if (p === "groq") return "groq";
+          return "external";
         })()
-      : "groq");
+      : "external");
 
   const [agentMode, setAgentModeState] = useState<AgentMode>(resolvedInitialMode);
   const agentModeRef = useRef<AgentMode>(resolvedInitialMode);
@@ -321,14 +323,18 @@ export function useBenchAgent(
 
   const httpProvider = useMemo(() => new HttpBenchAgentProvider(), []);
   const demoProvider = useMemo(() => new DeterministicBenchAgentProvider(), []);
-  const activeProvider: BenchAgentProvider = agentMode === "demo" ? demoProvider : httpProvider;
 
   const [state, setReactState] = useState<BenchAgentState>(() => ({
     ...initialState,
     agentMode: resolvedInitialMode,
-    checkingAvailability: resolvedInitialMode !== "demo",
-    providerAvailable: resolvedInitialMode === "demo",
-    providerStatus: resolvedInitialMode === "demo" ? "demo" : "unconfigured",
+    checkingAvailability: resolvedInitialMode === "groq",
+    providerAvailable: resolvedInitialMode !== "groq",
+    providerStatus:
+      resolvedInitialMode === "demo"
+        ? "demo"
+        : resolvedInitialMode === "external"
+        ? "external"
+        : "unconfigured",
   }));
   const stateRef = useRef<BenchAgentState>(state);
   const mountedRef = useRef(true);
@@ -350,6 +356,19 @@ export function useBenchAgent(
   }, []);
 
   const checkAvailability = useCallback(async () => {
+    if (agentModeRef.current === "external") {
+      commit({
+        status: "idle",
+        checkingAvailability: false,
+        agentMode: "external",
+        goal: stateRef.current.goal,
+        activity: stateRef.current.activity,
+        providerAvailable: true,
+        providerStatus: "external",
+      });
+      return;
+    }
+
     if (agentModeRef.current === "demo") {
       commit({
         status: "idle",
@@ -422,9 +441,9 @@ export function useBenchAgent(
   }, [commit]);
 
   useEffect(() => {
-    if (agentMode !== "demo") {
+    if (agentMode === "groq") {
       void checkAvailability();
-    } else {
+    } else if (agentMode === "demo") {
       commit({
         status: "idle",
         checkingAvailability: false,
@@ -433,6 +452,16 @@ export function useBenchAgent(
         activity: [],
         providerAvailable: true,
         providerStatus: "demo",
+      });
+    } else {
+      commit({
+        status: "idle",
+        checkingAvailability: false,
+        agentMode: "external",
+        goal: stateRef.current.goal,
+        activity: [],
+        providerAvailable: true,
+        providerStatus: "external",
       });
     }
   }, [agentMode, checkAvailability, commit]);
@@ -459,21 +488,30 @@ export function useBenchAgent(
           providerAvailable: true,
           providerStatus: "demo",
         });
+      } else if (mode === "external") {
+        commit({
+          status: "idle",
+          checkingAvailability: false,
+          agentMode: "external",
+          goal: stateRef.current.goal,
+          activity: [],
+          providerAvailable: true,
+          providerStatus: "external",
+        });
       } else {
         commit({
           status: "idle",
           checkingAvailability: true,
-          agentMode: mode,
-          liveProvider: mode,
+          agentMode: "groq",
+          liveProvider: "groq",
           goal: stateRef.current.goal,
           activity: [],
           providerAvailable: false,
           providerStatus: "unconfigured",
         });
-        void checkAvailability();
       }
     },
-    [commit, checkAvailability, demoProvider]
+    [commit, demoProvider]
   );
 
   const reset = useCallback(() => {
@@ -487,14 +525,19 @@ export function useBenchAgent(
     const currentMode = agentModeRef.current;
     commit({
       status: "idle",
-      checkingAvailability: currentMode !== "demo",
+      checkingAvailability: currentMode === "groq",
       agentMode: currentMode,
       liveProvider: stateRef.current.liveProvider,
       liveModel: stateRef.current.liveModel,
       goal: "",
       activity: [],
-      providerAvailable: currentMode === "demo" ? true : stateRef.current.providerAvailable,
-      providerStatus: currentMode === "demo" ? "demo" : stateRef.current.providerStatus,
+      providerAvailable: currentMode !== "groq" ? true : stateRef.current.providerAvailable,
+      providerStatus:
+        currentMode === "demo"
+          ? "demo"
+          : currentMode === "external"
+          ? "external"
+          : stateRef.current.providerStatus,
     });
   }, [commit, demoProvider]);
 
@@ -560,8 +603,12 @@ export function useBenchAgent(
     const goal =
       previous.goal.trim() ||
       "The controller restarts when the fan turns on. Investigate the cause using the available instruments.";
+    if (agentModeRef.current === "external") {
+      setAgentModeState("groq");
+      agentModeRef.current = "groq";
+    }
+    if (!goal || isActive(previous)) return;
     const modelContext = window.__agentModelContext ?? document.modelContext;
-    if (!goal || !previous.providerAvailable || isActive(previous)) return;
 
     const isDemo = agentModeRef.current === "demo";
 
@@ -631,6 +678,8 @@ export function useBenchAgent(
       provider: agentModeRef.current === "demo" ? demoProvider : httpProvider,
       signal: controller.signal,
       onEvent,
+      approvalHandledByModelContext,
+      agentMode: isDemo ? "demo" : "groq",
       requestApproval: ({ call, tool }) => {
         if (activeRunIdRef.current !== runId || controller.signal.aborted) {
           return Promise.resolve(false);
@@ -707,14 +756,27 @@ export function useBenchAgent(
           message: error instanceof Error ? error.message : "Bench Agent failed.",
         });
       });
-  }, [activeProvider, commit]);
+  }, [approvalHandledByModelContext, commit, demoProvider, httpProvider]);
 
   const sendObservation = useCallback(
     (observation: string) => {
       const trimmed = observation.trim();
       const previous = stateRef.current;
-      const modelContext = window.__agentModelContext ?? document.modelContext;
       if (!trimmed || !previous.providerAvailable) return;
+      if (agentModeRef.current === "external") {
+        commit({
+          status: "idle",
+          checkingAvailability: false,
+          agentMode: "external",
+          goal: previous.goal,
+          activity: previous.activity,
+          providerAvailable: true,
+          providerStatus: "external",
+        });
+        return;
+      }
+      const modelContext = window.__agentModelContext ?? document.modelContext;
+
 
       // A human-confirmed intervention supersedes any trailing diagnostic turn.
       // Abort it before starting the self-contained verification phase.
@@ -801,6 +863,8 @@ export function useBenchAgent(
         provider: agentModeRef.current === "demo" ? demoProvider : httpProvider,
         signal: controller.signal,
         onEvent,
+        approvalHandledByModelContext,
+        agentMode: isDemo ? "demo" : "groq",
         requestApproval: ({ call, tool }) => {
           if (activeRunIdRef.current !== runId || controller.signal.aborted) {
             return Promise.resolve(false);
@@ -877,7 +941,7 @@ export function useBenchAgent(
           });
         });
     },
-    [activeProvider, commit]
+    [approvalHandledByModelContext, commit, demoProvider, httpProvider]
   );
 
   useEffect(() => {
@@ -901,6 +965,7 @@ export function useBenchAgent(
 
   const providerLabel = useMemo(() => {
     if (agentMode === "demo") return "DEMO AGENT";
+    if (agentMode === "external") return "EXTERNAL AGENT";
     const p = state.liveProvider ?? "groq";
     return p.toUpperCase();
   }, [agentMode, state.liveProvider]);

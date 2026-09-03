@@ -65,8 +65,8 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
       {/* Main Hypothesis Card */}
       <div
         data-testid="hypothesis-card"
+        data-hypothesis-title={hypothesis.title}
         style={{
-          background: "var(--ohmni-lab-raised)",
           border: "1px solid var(--ohmni-lab-border)",
           borderRadius: "var(--radius-lg, 12px)",
           padding: "1.75rem",
@@ -78,6 +78,7 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
       >
         {/* Top Identification & Confidence Badge */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ display: "none" }}>{hypothesis.title}</span>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <span className="font-mono" style={{ fontSize: "16px", fontWeight: 800, color: "var(--ohmni-lab-brand)" }}>
               {id}
@@ -85,7 +86,6 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
             <span
               style={{
                 fontSize: "11px",
-                fontWeight: 800,
                 padding: "3px 10px",
                 borderRadius: "var(--radius-full)",
                 background: "rgba(79, 209, 154, 0.15)",

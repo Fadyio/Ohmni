@@ -22,6 +22,7 @@
     "test:agent:groq": "bun run scripts/test-agent-groq.ts",
     "test:agent:live": "bun run scripts/test-agent-live.ts",
     "test:agent:supervised-ui": "bun run scripts/test-agent-supervised-ui.ts",
+    "test:webmcp:external": "bun run scripts/test-webmcp-external.ts",
     "test:agent:vercel": "bun run scripts/test-agent-vercel.ts",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit",

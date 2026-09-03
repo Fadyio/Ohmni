@@ -11,14 +11,11 @@
 import React, { useState, useEffect } from "react";
 import {
   Usb,
-  Radio,
   AlertCircle,
   CheckCircle2,
   X,
   Loader2,
-  Cpu,
   ShieldCheck,
-  Play,
 } from "lucide-react";
 import {
   checkWebSerialSupport,
@@ -156,7 +153,7 @@ export const ConnectHardwareModal: React.FC<ConnectHardwareModalProps> = ({
                 Connect hardware
               </h2>
               <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted, #64748B)" }}>
-                Web Serial · 115200 baud · NDJSON v1
+                Connect a supported board, or continue with the simulator.
               </div>
             </div>
           </div>
@@ -180,25 +177,29 @@ export const ConnectHardwareModal: React.FC<ConnectHardwareModalProps> = ({
 
         {/* Modal Body */}
         <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          {/* Privacy & Browser-Local Boundary Banner */}
-          <div
+          <details
             style={{
-              padding: "0.85rem 1rem",
+              padding: "0.75rem 1rem",
               borderRadius: "8px",
               background: "#F8FAFC",
               border: "1px solid #E2E8F0",
               fontSize: "12.5px",
               lineHeight: 1.55,
               color: "#334155",
-              display: "flex",
-              gap: "10px",
             }}
           >
-            <ShieldCheck size={18} color="#27966B" style={{ flexShrink: 0, marginTop: "2px" }} />
-            <div>
-              <strong>Browser-Local Serial Transport:</strong> The USB serial connection stays browser-local. Structured diagnostic results may be shared with the selected AI provider when the agent reasons over them.
+            <summary style={{ cursor: "pointer", fontWeight: 700 }}>
+              Advanced technical details
+            </summary>
+            <div style={{ display: "flex", gap: "10px", marginTop: "0.75rem" }}>
+              <ShieldCheck size={18} color="#27966B" style={{ flexShrink: 0, marginTop: "2px" }} />
+              <div>
+                <strong>Web Serial · 115200 baud · NDJSON v1.</strong> The USB serial connection stays
+                browser-local. Structured diagnostic results may be shared with the selected AI provider when
+                the agent reasons over them.
+              </div>
             </div>
-          </div>
+          </details>
 
           {/* Browser Support Check */}
           {!supportCheck.supported ? (
@@ -229,7 +230,7 @@ export const ConnectHardwareModal: React.FC<ConnectHardwareModalProps> = ({
                 Steps to connect physical board:
               </div>
               <ol style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "13px", color: "#475569", lineHeight: 1.6 }}>
-                <li>Connect your ESP32 board to your computer via USB.</li>
+                <li>Connect your supported board to your computer via USB.</li>
                 <li>Close any active Arduino Serial Monitor or PlatformIO monitor.</li>
                 <li>Click <strong>Select Serial Port</strong> below and pick your device.</li>
               </ol>
@@ -287,31 +288,37 @@ export const ConnectHardwareModal: React.FC<ConnectHardwareModalProps> = ({
             background: "#F8FAFC",
             borderTop: "1px solid var(--ohmni-lab-border, #E2E4E9)",
             display: "flex",
-            alignItems: "center",
+            flexWrap: "wrap",
+            alignItems: "flex-end",
             justifyContent: "space-between",
-            gap: "10px",
+            gap: "16px",
           }}
         >
-          {/* Fallback option for testing without physical board */}
-          <button
-            type="button"
-            id="connect-simulated-peer-btn"
-            data-testid="connect-simulated-serial-btn"
-            onClick={handleSimulatedPeer}
-            className="btn-secondary"
-            style={{
-              fontSize: "12px",
-              padding: "6px 12px",
-              color: "#475569",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-start",
-              gap: "2px",
-            }}
-          >
-            <span style={{ fontWeight: 600 }}>Try without hardware</span>
-            <span style={{ fontSize: "10px", color: "#64748B" }}>Simulated device · same protocol path</span>
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px", maxWidth: "250px" }}>
+            <button
+              type="button"
+              id="connect-simulated-peer-btn"
+              data-testid="connect-simulated-serial-btn"
+              onClick={handleSimulatedPeer}
+              className="btn-secondary"
+              style={{
+                fontSize: "12px",
+                padding: "6px 12px",
+                color: "#475569",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                gap: "2px",
+              }}
+            >
+              <span style={{ fontWeight: 600 }}>Use simulator</span>
+              <span style={{ fontSize: "10px", color: "#64748B" }}>No hardware required · same serial protocol path</span>
+            </button>
+            <span style={{ fontSize: "10px", lineHeight: 1.35, color: "#64748B" }}>
+              The simulator verifies the browser workflow and protocol, not USB hardware, firmware, wiring, or
+              electrical behavior.
+            </span>
+          </div>
 
           <div style={{ display: "flex", gap: "10px" }}>
             <button

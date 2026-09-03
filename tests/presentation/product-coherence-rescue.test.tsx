@@ -99,16 +99,11 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
       expect(html).not.toContain("data-wordmark-variant");
 
       // 4. Hero must begin directly with required headline
-      expect(html).toContain("Give an AI agent instruments, not screenshots.");
-      expect(html).toContain("safe browser-native hardware instruments");
-      expect(html).toContain("deterministic virtual ESP32 challenge");
-
-      // 5. CTAs must remain intact
-      expect(html).toContain('id="start-mystery-btn"');
-      expect(html).toContain("Start AI diagnosis");
+      expect(html).toContain("Give your AI agent instruments for the physical world.");
+      expect(html).toContain("WebMCP tools");
+      expect(html).toContain("Open agent-ready workbench");
       expect(html).toContain('id="diagnose-demo-btn"');
-      expect(html).toContain("Try virtual challenge");
-
+      expect(html).toContain("Try built-in demo");
       // 6. Plain bottom metadata
       expect(html).toContain("Human-gated actuation · Evidence-backed diagnosis · Retest to verify");
     });

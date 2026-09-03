@@ -7,19 +7,27 @@
  * Shortcut: Cmd/Ctrl + Shift + D
  */
 
-import React, { useState } from "react";
-import { X, Copy, Check, Terminal, Shield, Cpu, Lock, Eye, Layers } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { X, Copy, Check, Terminal, Lock, Eye } from "lucide-react";
 import type { RegisteredTool } from "@/infrastructure/webmcp/types";
 import type { ScenarioSession } from "@/domain/scenario/types";
 import type { EvidenceRecord } from "@/domain/evidence/types";
 import type { Hypothesis } from "@/domain/hypothesis/types";
 import { classifyTool } from "@/domain/safety/tool-safety-policy";
 
+interface InspectorRegisteredTool {
+  readonly name: string;
+  readonly description?: string;
+  readonly readOnly?: boolean;
+  readonly inputSchema?: RegisteredTool["inputSchema"];
+  readonly annotations?: RegisteredTool["annotations"];
+}
+
 export interface DeveloperInspectorProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly isNativeWebMCP: boolean;
-  readonly registeredTools: readonly { readonly name: string; readonly description?: string; readonly annotations?: { readonly readOnlyHint?: boolean } }[];
+  readonly registeredTools: readonly InspectorRegisteredTool[];
   readonly activeScenario?: ScenarioSession | null;
   readonly evidenceRecords: readonly EvidenceRecord[];
   readonly hypotheses: readonly Hypothesis[];
@@ -38,9 +46,39 @@ export const DeveloperInspector: React.FC<DeveloperInspectorProps> = ({
   hypotheses,
   latestToolResult,
   activeExperimentId,
-  providerName = "Groq openai/gpt-oss-120b (Vercel Serverless)",
+  providerName = "External WebMCP agent",
 }) => {
   const [copiedSnippet, setCopiedSnippet] = useState(false);
+  const [discoveredTools, setDiscoveredTools] = useState<readonly RegisteredTool[]>([]);
+  useEffect(() => {
+    if (!isOpen || typeof document === "undefined") {
+      return;
+    }
+
+    let cancelled = false;
+    const modelContext = window.__agentModelContext ?? document.modelContext;
+    if (!modelContext || typeof modelContext.getTools !== "function") {
+      setDiscoveredTools([]);
+      return;
+    }
+
+    void modelContext
+      .getTools()
+      .then((tools) => {
+        if (!cancelled) setDiscoveredTools(tools);
+      })
+      .catch(() => {
+        if (!cancelled) setDiscoveredTools([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, registeredTools]);
+  const schemaByToolName = useMemo<Readonly<Record<string, RegisteredTool["inputSchema"]>>>(
+    () => Object.fromEntries(discoveredTools.map((tool) => [tool.name, tool.inputSchema])),
+    [discoveredTools],
+  );
   const buildSha =
     (typeof window !== "undefined" && window.__OHMNI_BUILD_SHA__) ||
     (import.meta.env.VITE_BUILD_SHA as string) ||
@@ -283,7 +321,11 @@ export const DeveloperInspector: React.FC<DeveloperInspectorProps> = ({
             }}
           >
             {registeredTools.map((tool) => {
-              const execClass = classifyTool(tool.name, tool.annotations);
+              const execClass = classifyTool(tool.name, {
+                ...tool.annotations,
+                readOnlyHint: tool.annotations?.readOnlyHint ?? tool.readOnly,
+              });
+              const inputSchema = tool.inputSchema ?? schemaByToolName[tool.name];
               const badgeColor =
                 execClass === "physical"
                   ? "#EAB308"
@@ -297,28 +339,46 @@ export const DeveloperInspector: React.FC<DeveloperInspectorProps> = ({
                 <div
                   key={tool.name}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
                     padding: "4px 6px",
                     borderRadius: "4px",
                     background: "#0F172A",
                     fontSize: "11px",
                   }}
                 >
-                  <span style={{ color: "#E2E8F0" }}>{tool.name}</span>
-                  <span
-                    style={{
-                      fontSize: "9.5px",
-                      fontWeight: 700,
-                      padding: "2px 5px",
-                      borderRadius: "3px",
-                      background: "rgba(255,255,255,0.06)",
-                      color: badgeColor,
-                    }}
-                  >
-                    {execClass}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ color: "#E2E8F0" }}>{tool.name}</span>
+                    <span
+                      style={{
+                        fontSize: "9.5px",
+                        fontWeight: 700,
+                        padding: "2px 5px",
+                        borderRadius: "3px",
+                        background: "rgba(255,255,255,0.06)",
+                        color: badgeColor,
+                      }}
+                    >
+                      {execClass}
+                    </span>
+                  </div>
+                  {inputSchema && (
+                    <details style={{ marginTop: "4px", color: "#94A3B8" }}>
+                      <summary style={{ cursor: "pointer", fontSize: "10px" }}>Input schema</summary>
+                      <pre
+                        style={{
+                          margin: "6px 0 2px",
+                          padding: "6px",
+                          borderRadius: "4px",
+                          background: "#020617",
+                          color: "#CBD5E1",
+                          fontSize: "9.5px",
+                          overflowX: "auto",
+                          whiteSpace: "pre-wrap",
+                        }}
+                      >
+                        {JSON.stringify(inputSchema, null, 2)}
+                      </pre>
+                    </details>
+                  )}
                 </div>
               );
             })}

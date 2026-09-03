@@ -6,6 +6,7 @@ import type {
   ModelContextTool,
   RegisteredTool,
 } from "./types";
+import type { WebMCPExecutionCoordinator } from "./execution-coordinator";
 
 /**
  * Keeps the browser's native registration surface authoritative for external
@@ -13,16 +14,22 @@ import type {
  * The native object is never replaced or patched.
  */
 export class MirroredModelContext implements ModelContext {
-  private readonly local = new InMemoryModelContext();
+  private readonly local: InMemoryModelContext;
 
-  public constructor(private readonly nativeContext: ModelContext) {}
+  public constructor(
+    private readonly nativeContext: ModelContext,
+    private readonly coordinator?: WebMCPExecutionCoordinator
+  ) {
+    this.local = new InMemoryModelContext(coordinator);
+  }
 
   public async registerTool(
     tool: ModelContextTool,
     options?: ModelContextRegisterToolOptions,
   ): Promise<void> {
-    await this.nativeContext.registerTool(tool, options);
-    await this.local.registerTool(tool, options);
+    const effectiveTool = this.coordinator ? this.coordinator.wrapTool(tool) : tool;
+    await this.nativeContext.registerTool(effectiveTool, options);
+    await this.local.registerTool(effectiveTool, options);
   }
 
   public getTools(): Promise<readonly RegisteredTool[]> {
