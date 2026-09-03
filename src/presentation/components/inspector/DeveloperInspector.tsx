@@ -1,9 +1,7 @@
 /**
  * Developer Inspector Component.
- * Master Milestone 8 — Protocol & Architecture Inspector (Phase 18).
- *
- * Provides proof of WebMCP compliance, modelContext status, and sealed scenario state
- * without cluttering the normal user experience.
+ * Provides technical verification of WebMCP compliance, document.modelContext status,
+ * protocol messages, and diagnostic state without cluttering user experience.
  * Shortcut: Cmd/Ctrl + Shift + D
  */
 

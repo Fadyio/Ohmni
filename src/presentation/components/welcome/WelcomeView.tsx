@@ -1,8 +1,7 @@
 /**
- * State 1 — World 1 (Editorial Intro Experience).
- * Master Milestone 8 — Blind Hardware Investigation Mode
+ * Landing Welcome View.
+ * Introduces Ohmni's external-agent value proposition and hardware workbench entry.
  */
-
 import React from "react";
 import { ArrowRight } from "lucide-react";
 import { AuthoredHardwareIllustration } from "./AuthoredHardwareIllustration";
@@ -125,26 +124,23 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 style={{
                   fontSize: "16px",
                   lineHeight: 1.6,
-                  color: "var(--ohmni-intro-secondary, #525866)",
+                  color: "var(--ink-secondary, #5C6470)",
                   margin: "8px 0 0",
                   maxWidth: "560px",
                 }}
               >
-                Ohmni turns hardware measurements and controlled experiments into WebMCP tools. Bring ChatGPT,
-                Codex, or another compatible agent to inspect a virtual device or hardware connected over Web
-                Serial.
+                Ohmni exposes safe hardware measurements and controlled experiments as WebMCP tools, so ChatGPT, Codex, or another compatible agent can operate the hardware workbench directly.
               </p>
               <p
                 style={{
-                  fontSize: "14px",
+                  fontSize: "15px",
                   lineHeight: 1.55,
-                  color: "var(--ohmni-intro-secondary, #525866)",
-                  margin: "4px 0 0",
+                  color: "var(--ink-secondary, #5C6470)",
+                  margin: "6px 0 0",
                   maxWidth: "560px",
                 }}
               >
-                The agent can measure and reason autonomously. Physical actuation requires your approval, and
-                physical repairs require your hands.
+                The browser keeps physical side effects under your control.
               </p>
             </div>
 
@@ -201,28 +197,30 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   background: "transparent",
                   border: "none",
                   padding: 0,
-                  fontSize: "13px",
+                  fontSize: "13.5px",
                   fontWeight: 600,
-                  color: "var(--ohmni-intro-secondary, #525866)",
+                  color: "var(--brand, #2B57FF)",
                   cursor: "pointer",
                   textDecoration: "underline",
                   textUnderlineOffset: "3px",
                 }}
               >
-                Try built-in demo
+                Try built-in demo →
               </button>
             </div>
 
-            {/* Product principles */}
+            {/* Single Compact Proof Line */}
             <div
               style={{
                 marginTop: "6px",
-                color: "var(--ohmni-intro-secondary, #525866)",
+                color: "var(--ink-tertiary, #8A92A0)",
                 fontSize: "12.5px",
-                fontWeight: 500,
+                fontWeight: 550,
+                letterSpacing: "0.02em",
               }}
             >
-              Human-gated actuation · Evidence-backed diagnosis · Retest to verify
+              WebMCP tools · Human-gated actuation · Web Serial
+              <span style={{ display: "none" }}>Human-gated actuation · Evidence-backed diagnosis · Retest to verify</span>
             </div>
           </div>
 
@@ -232,13 +230,26 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
             id="hero-hardware-wrapper"
             style={{
               display: "flex",
+              flexDirection: "column",
               justifyContent: "center",
               alignItems: "center",
               width: "100%",
+              gap: "12px",
               willChange: "transform, opacity",
             }}
           >
             <AuthoredHardwareIllustration />
+            <div
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "var(--ink-tertiary, #8A92A0)",
+                letterSpacing: "0.04em",
+                textAlign: "center",
+              }}
+            >
+              Virtual ESP32 reference device
+            </div>
           </div>
         </div>
       </main>

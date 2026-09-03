@@ -1,12 +1,6 @@
 /**
- * Floating Isometric 2D Hardware Visual for Welcome Experience (World 1).
- *
- * Requirements:
- * - Floats directly in composition (no outer white card container).
- * - Isometric/perspective 2D SVG hardware board: ESP32-S3, relay, fan, power rails.
- * - Sparse clean labels.
- * - Subtle idle animations: power LED breathes, current glow on rail, fan stationary, agent connection node dormant.
- * - Zero fake evidence or pre-scripted diagnostics.
+ * Floating 2D Hardware Visual for Reference Device Illustration.
+ * Polished SVG hardware board: ESP32-S3, relay, fan, power rails.
  */
 
 import React from "react";

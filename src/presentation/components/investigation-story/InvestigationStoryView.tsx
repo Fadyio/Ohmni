@@ -1,13 +1,6 @@
 /**
- * State 2 — World 2 (Focused Lab Mode Workbench).
- * Master Milestone 8 — Precision Workbench Layout.
- *
- * Requirements:
- * - Top Bar: Flat OHMNI logo | ESP32 Controller | Sealed Scenario Badge | Agent / WebMCP Provider Badge
- * - 70% Left Main Workbench Canvas / 30% Right Agent Column
- * - Cohesive Light Theme Canvas (#F4F5F7)
- * - Clean whitespace and typography; remove card wall
- * - Developer Inspector access
+ * Core Agent-Ready Workbench Layout.
+ * Provides a 70% live instrument surface and 30% external agent activity rail.
  */
 
 import React, { useState, useRef, useEffect } from "react";

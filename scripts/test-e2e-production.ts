@@ -323,6 +323,12 @@ async function runProductionAcceptance(): Promise<void> {
         prodDemoAgentResult = "FAIL";
       }
     } catch (err) {
+      const debugState = await cdpClient.evaluate(`({
+        body: document.body.innerText.slice(0, 400),
+        agentState: window.__benchAgentState,
+        activeScene: document.querySelector('[data-scene]')?.getAttribute('data-scene'),
+      })`);
+      console.info("[Production Debug State]:", debugState);
       console.error("[Production Demo Agent Error]:", err);
       prodDemoAgentResult = "FAIL";
     }

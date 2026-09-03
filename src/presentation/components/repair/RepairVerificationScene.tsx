@@ -19,6 +19,9 @@ import type { ExperimentRecord } from "@/domain/experiment/types";
 import type { BenchAgentState } from "@/presentation/hooks/useBenchAgent";
 import { getAgentIdentity } from "@/presentation/types/agent-identity";
 import { BoardSilhouette } from "@/presentation/components/device/BoardSilhouette";
+import { AppHeader } from "../layout/AppHeader";
+import { OHMNI_COPY } from "../../copy/copy";
+
 interface InteractiveDeviceAdapter extends DeviceAdapter {
   getInterventionPoint?(point: string): string | undefined;
   setInterventionPoint?(point: string, value: string): void;
@@ -209,133 +212,14 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
         overflowY: "auto",
       }}
     >
-      {/* Shared application navigation shell */}
-      <header
-        id="lab-header"
-        data-testid="lab-header"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0.75rem 2.25rem",
-          background: "var(--ohmni-lab-nav, rgba(255, 255, 255, 0.88))",
-          backdropFilter: "blur(12px)",
-          borderBottom: "1px solid var(--ohmni-lab-border, #E2E4E9)",
-          flex: "none",
-          zIndex: 10,
-        }}
-      >
-        {/* Left: Flat Brand Logo + Hardware Identity */}
-        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <div id="navbar-brand-wordmark" data-testid="navbar-brand-wordmark">
-            <img src="/brand/ohmni-logo.svg" alt="OHMNI" style={{ height: "26px", width: "auto" }} />
-          </div>
-          <div style={{ height: "16px", width: "1px", background: "var(--ohmni-lab-border, #E2E4E9)" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span
-              aria-hidden="true"
-              style={{
-                width: "7px",
-                height: "7px",
-                borderRadius: "50%",
-                background: "var(--ohmni-lab-verified, #27966B)",
-                boxShadow: "0 0 8px rgba(39, 150, 107, 0.5)",
-              }}
-            />
-            <span className="font-mono" style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ohmni-lab-text, #0F172A)" }}>
-              {deviceHeaderName}
-            </span>
-          </div>
-        </div>
-
-        {/* Center: OBSERVE -> TEST -> DIAGNOSE -> REPAIR -> VERIFY */}
-        <div
-          id="investigation-progress-strip"
-          data-testid="investigation-progress-strip"
-          style={{ display: "flex", alignItems: "center", gap: "8px" }}
-        >
-          {(["OBSERVE", "TEST", "DIAGNOSE", "REPAIR", "VERIFY"] as const).map((phase, index) => {
-            const isActive = phase === "REPAIR";
-            return (
-              <React.Fragment key={phase}>
-                {index > 0 && <span style={{ color: "var(--ohmni-lab-border, #CBD5E1)", fontSize: "11px" }}>→</span>}
-                <span
-                  data-phase={phase}
-                  data-active={isActive}
-                  style={{
-                    padding: "3px 9px",
-                    borderRadius: "var(--radius-full, 9999px)",
-                    fontSize: "11px",
-                    fontWeight: isActive ? 800 : 600,
-                    letterSpacing: "0.04em",
-                    color: isActive ? "var(--ohmni-lab-brand, #4967FF)" : "var(--ohmni-lab-muted, #94A3B8)",
-                    background: isActive ? "rgba(73, 103, 255, 0.08)" : "transparent",
-                    border: isActive ? "1px solid rgba(73, 103, 255, 0.25)" : "1px solid transparent",
-                  }}
-                >
-                  {phase}
-                </span>
-              </React.Fragment>
-            );
-          })}
-        </div>
-
-        {/* Right: Native WebMCP (if native), Provider Badge, Return to Investigation */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {isNativeMode && (
-            <span
-              data-testid="webmcp-mode-badge"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                padding: "3px 9px",
-                borderRadius: "var(--radius-full, 9999px)",
-                background: "rgba(39, 150, 107, 0.08)",
-                border: "1px solid rgba(39, 150, 107, 0.25)",
-                color: "var(--ohmni-lab-verified, #27966B)",
-                fontSize: "11px",
-                fontWeight: 600,
-              }}
-            >
-              <ShieldCheck size={12} />
-              <span>Native WebMCP</span>
-            </span>
-          )}
-
-          <span
-            data-testid={agentState?.agentMode === "demo" ? "demo-provider-badge" : "groq-provider-badge"}
-            data-provider-badge="true"
-            id="provider-badge"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "4px 11px",
-              borderRadius: "var(--radius-full, 9999px)",
-              background: agentState?.agentMode === "demo" ? "rgba(73, 103, 255, 0.08)" : "rgba(39, 150, 107, 0.08)",
-              border: agentState?.agentMode === "demo" ? "1px solid rgba(73, 103, 255, 0.25)" : "1px solid rgba(39, 150, 107, 0.25)",
-              color: agentState?.agentMode === "demo" ? "var(--ohmni-lab-brand, #4967FF)" : "var(--ohmni-lab-verified, #27966B)",
-              fontSize: "11.5px",
-              fontWeight: 700,
-              letterSpacing: "0.02em",
-            }}
-          >
-            <Bot size={13} />
-            <span>{agentState?.agentMode === "demo" ? "Demo Agent" : `${agentIdentity.displayName} Live`}</span>
-          </span>
-
-          <button
-            type="button"
-            onClick={onReturnToInvestigation}
-            className="btn-secondary"
-            style={{ padding: "8px 14px", fontSize: "13px", fontWeight: 600 }}
-          >
-            Return to Investigation
-          </button>
-        </div>
-      </header>
-
+      {/* Unified Global Shell Header */}
+      <AppHeader
+        isConnected={true}
+        descriptor={descriptor}
+        currentStage="REPAIR"
+        statusVisual={hasVerified ? "nominal" : "nominal"}
+        onReturnToWorkbench={onReturnToInvestigation}
+      />
       {/* Main Repair Canvas */}
       <main
         style={{
@@ -366,23 +250,22 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
           {isVirtualDemo ? (
             <>
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-brand)", fontSize: "12.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--brand, #2B57FF)", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   <Wrench size={15} />
-                  <span>The agent needs your hands · Virtual DUT intervention required</span>
+                  <span>HUMAN-AGENT COLLABORATION · Virtual DUT intervention required</span>
                 </div>
 
-                <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-ink)", margin: "8px 0 12px", lineHeight: 1.2 }}>
-                  Simulate technician moving JP1: Shared 3.3 V → Independent 5 V
+                <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ink, #111318)", margin: "6px 0 10px", lineHeight: 1.2 }}>
+                  {OHMNI_COPY.repairScene.headline}
                 </h2>
 
-                <p className="body-text" style={{ fontSize: "15px", lineHeight: 1.6, margin: 0 }}>
-                  <strong>Why:</strong> {rootCauseText}
+                <p className="body-text" style={{ fontSize: "15px", lineHeight: 1.6, margin: 0, color: "var(--ink, #111318)" }}>
+                  {OHMNI_COPY.repairScene.instruction}
                 </p>
-                <p className="body-text" style={{ fontSize: "13px", lineHeight: 1.55, margin: "12px 0 0", color: "var(--ohmni-secondary)" }}>
-                  In a physical adapter, Ohmni pauses here until a technician or device signal confirms the hardware change. Physical mode connects to real hardware over Web Serial, so the same WebMCP tools operate an attached device using trusted hardware descriptors.
+                <p className="body-text" style={{ fontSize: "13.5px", lineHeight: 1.55, margin: "10px 0 0", color: "var(--ink-secondary, #5C6470)" }}>
+                  <strong>Rationale:</strong> Isolates the high-current relay coil from the sensitive MCU supply rail to prevent brownout collapse.
                 </p>
               </div>
-
               {/* Interactive Hardware Jumper Card */}
               <div
                 style={{
@@ -425,11 +308,10 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     Simulate moving JP1
                   </button>
                 )}
-
-                <div style={{ fontSize: "12px", color: jumperPosition === "5V" ? "#E2E8F0" : "#94A3B8" }}>
+                <div style={{ fontSize: "12.5px", fontWeight: 600, color: jumperPosition === "5V" ? "var(--verified, #16A34A)" : "var(--ink-secondary, #5C6470)" }}>
                   {jumperPosition === "5V"
-                    ? "Virtual JP1 moved. Notify the agent and run verification."
-                    : "Virtual JP1 remains on the shared 3.3 V rail until you confirm."}
+                    ? "Hardware configuration changed. Retest required to verify repair on Independent 5 V supply."
+                    : "Relay is currently on Shared 3.3 V MCU rail. Target: Independent 5 V."}
                 </div>
               </div>
             </>
@@ -629,12 +511,14 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
             )}
           </div>
 
-        {/* The Money Shot: Split-Scope Before vs After Comparison */}
+        {/* Before vs After Retest Verification */}
         <div>
-          <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-secondary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "12px" }}>
-            Split-Screen Verification • Before vs After
-          </div>
-
+          <h2 style={{ fontSize: "20px", fontWeight: 750, color: "var(--ink, #111318)", margin: "0 0 4px" }}>
+            {OHMNI_COPY.verifyScene.headline}
+          </h2>
+          <p style={{ fontSize: "13.5px", color: "var(--ink-secondary, #5C6470)", margin: "0 0 14px" }}>
+            {OHMNI_COPY.verifyScene.subline}
+          </p>
           <div
             style={{
               display: "grid",

@@ -21,100 +21,144 @@
  * - Dark: #0D1118 (USED ONLY INSIDE: oscilloscope, PCB, technical instrument viewport)
  * - Oscilloscope surface: #0B1017
  */
-
 :root {
-  /* Color Scheme */
-  color-scheme: light;
-
-  /* Typography Stack */
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
-
   /* =========================================================================
-     COHESIVE LIGHT THEME TOKENS
+     OHMNI CORE SEMANTIC DESIGN SYSTEM
      ========================================================================= */
-  --ohmni-intro-bg: #F5F6F8;
-  --ohmni-intro-ink: #12151A;
-  --ohmni-intro-brand: #4967FF;
-  --ohmni-intro-brand-hover: #3754EE;
-  --ohmni-intro-secondary: #737A86;
-  --ohmni-intro-border: rgba(18, 21, 26, 0.08);
-  --ohmni-intro-border-subtle: rgba(18, 21, 26, 0.04);
-  --ohmni-intro-surface: #FFFFFF;
-  --ohmni-intro-surface-raised: #ECEFF4;
 
-  /* Workbench Palette */
-  --ohmni-lab-canvas: #F4F5F7;
-  --ohmni-lab-nav: rgba(255, 255, 255, 0.88);
-  --ohmni-lab-raised: #FFFFFF;
-  --ohmni-lab-soft-raised: #ECEFF4;
-  --ohmni-lab-border: rgba(18, 21, 26, 0.08);
-  --ohmni-lab-border-subtle: rgba(18, 21, 26, 0.04);
-  --ohmni-lab-border-focus: #4967FF;
-  --ohmni-lab-text: #12151A;
-  --ohmni-lab-muted: #737A86;
-  --ohmni-lab-brand: #4967FF;
-  --ohmni-lab-brand-hover: #3754EE;
-  --ohmni-lab-brand-subtle: rgba(73, 103, 255, 0.08);
-  --ohmni-lab-measurement: #1687C9;
-  --ohmni-lab-signal: #1687C9;
-  --ohmni-lab-warning: #E59D37;
-  --ohmni-lab-action: #E59D37;
-  --ohmni-lab-action-hover: #D08925;
-  --ohmni-lab-fault: #DC5050;
-  --ohmni-lab-fault-hover: #C53B3B;
-  --ohmni-lab-verified: #27966B;
-  --ohmni-lab-verified-hover: #1E825B;
-  --ohmni-lab-dark: #0D1118;
+  /* Surface & Canvas Tokens */
+  --canvas: #F5F6F8;
+  --surface: #FFFFFF;
+  --surface-raised: #ECEFF4;
+  --surface-instrument: #0D1118;
 
-  /* Aliases */
-  --ohmni-canvas: #F4F5F7;
-  --ohmni-bg: #F5F6F8;
-  --ohmni-surface: #FFFFFF;
-  --ohmni-surface-raised: #ECEFF4;
-  --ohmni-surface-inset: #E2E6EC;
-  --ohmni-ink: #12151A;
-  --ohmni-text-primary: #12151A;
-  --ohmni-secondary: #737A86;
-  --ohmni-text-secondary: #737A86;
-  --ohmni-text-muted: #8E95A2;
-  --ohmni-border: rgba(18, 21, 26, 0.08);
-  --ohmni-border-subtle: rgba(18, 21, 26, 0.04);
-  --ohmni-brand: #4967FF;
-  --ohmni-brand-hover: #3754EE;
-  --ohmni-agent: #4967FF;
-  --ohmni-warning: #E59D37;
-  --ohmni-fault: #DC5050;
-  --ohmni-success: #27966B;
+  /* Ink & Typography Hierarchy */
+  --ink: #111318;
+  --ink-secondary: #5C6470;
+  --ink-tertiary: #8A92A0;
 
-  /* Dark Technical Instrument Viewports */
-  --ohmni-scope-bg: #0B1017;
-  --ohmni-scope-grid: rgba(255, 255, 255, 0.06);
-  --ohmni-scope-trace: #4967FF;
-  --ohmni-scope-trace-bright: #5570FF;
-  --ohmni-scope-trace-fault: #DC5050;
-  --ohmni-scope-threshold: #E59D37;
+  /* Borders */
+  --border: rgba(18, 21, 26, 0.08);
+  --border-strong: rgba(18, 21, 26, 0.18);
 
-  /* Radius System (slightly squared 10-12px primary) */
+  /* Brand */
+  --brand: #2B57FF;
+  --brand-hover: #1E46E6;
+  --brand-subtle: rgba(43, 87, 255, 0.08);
+
+  /* Semantic State Palette (Used ONLY when carrying meaning) */
+  --observe: #2B57FF;   /* Active instrument / WebMCP / inspection */
+  --approval: #D97706;  /* Amber: human approval / controlled physical actuation */
+  --fault: #DC2626;     /* Red: actual fault / brownout collapse / unsafe */
+  --verified: #16A34A;  /* Green: verified / successful post-repair measurement */
+
+  /* Radius System (Slightly squared precision) */
   --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 11px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 18px;
   --radius-full: 9999px;
 
-  /* Depth & Shadows */
-  --shadow-sm: 0 1px 2px rgba(18, 21, 26, 0.04);
-  --shadow-md: 0 4px 14px rgba(18, 21, 26, 0.06), 0 1px 3px rgba(18, 21, 26, 0.03);
-  --shadow-lg: 0 12px 36px rgba(18, 21, 26, 0.08), 0 2px 8px rgba(18, 21, 26, 0.04);
-  --shadow-btn: 0 2px 8px rgba(73, 103, 255, 0.22);
-  --shadow-btn-hover: 0 6px 18px rgba(73, 103, 255, 0.32);
+  /* 8px Rhythm Spacing System */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Disciplined Shadows */
+  --shadow-soft: 0 1px 3px rgba(18, 21, 26, 0.04), 0 4px 12px rgba(18, 21, 26, 0.03);
+  --shadow-floating: 0 8px 24px rgba(18, 21, 26, 0.08), 0 2px 6px rgba(18, 21, 26, 0.04);
+  --shadow-sm: var(--shadow-soft);
+  --shadow-md: var(--shadow-floating);
+  --shadow-lg: 0 16px 40px rgba(18, 21, 26, 0.10), 0 4px 12px rgba(18, 21, 26, 0.04);
+  --shadow-btn: 0 2px 8px rgba(43, 87, 255, 0.22);
+  --shadow-btn-hover: 0 6px 18px rgba(43, 87, 255, 0.32);
+
+  /* Typography Tokens */
+  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-sans: var(--font-ui);
+  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-display: 32px;
+  --text-display-lg: 48px;
+
+  /* Dark Technical Instrument Viewports (Restricted to oscilloscope & PCB) */
+  --ohmni-scope-bg: #0B1017;
+  --ohmni-scope-grid: rgba(255, 255, 255, 0.06);
+  --ohmni-scope-trace: var(--brand);
+  --ohmni-scope-trace-bright: #436BFF;
+  --ohmni-scope-trace-fault: var(--fault);
+  --ohmni-scope-threshold: var(--approval);
 
   /* Animation Timings */
   --duration-fast: 150ms;
   --duration-normal: 250ms;
-  --duration-slow: 400ms;
+  --duration-slow: 350ms;
   --ease-workbench: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Semantic Aliases for Backwards Compatibility */
+  --ohmni-intro-bg: var(--canvas);
+  --ohmni-intro-ink: var(--ink);
+  --ohmni-intro-brand: var(--brand);
+  --ohmni-intro-brand-hover: var(--brand-hover);
+  --ohmni-intro-secondary: var(--ink-secondary);
+  --ohmni-intro-border: var(--border);
+  --ohmni-intro-border-subtle: rgba(18, 21, 26, 0.04);
+  --ohmni-intro-surface: var(--surface);
+  --ohmni-intro-surface-raised: var(--surface-raised);
+
+  --ohmni-lab-canvas: var(--canvas);
+  --ohmni-lab-nav: rgba(255, 255, 255, 0.90);
+  --ohmni-lab-raised: var(--surface);
+  --ohmni-lab-soft-raised: var(--surface-raised);
+  --ohmni-lab-border: var(--border);
+  --ohmni-lab-border-subtle: rgba(18, 21, 26, 0.04);
+  --ohmni-lab-border-focus: var(--brand);
+  --ohmni-lab-text: var(--ink);
+  --ohmni-lab-muted: var(--ink-secondary);
+  --ohmni-lab-brand: var(--brand);
+  --ohmni-lab-brand-hover: var(--brand-hover);
+  --ohmni-lab-brand-subtle: var(--brand-subtle);
+  --ohmni-lab-measurement: var(--observe);
+  --ohmni-lab-signal: var(--observe);
+  --ohmni-lab-warning: var(--approval);
+  --ohmni-lab-action: var(--approval);
+  --ohmni-lab-action-hover: #B45309;
+  --ohmni-lab-fault: var(--fault);
+  --ohmni-lab-fault-hover: #B91C1C;
+  --ohmni-lab-verified: var(--verified);
+  --ohmni-lab-verified-hover: #15803D;
+  --ohmni-lab-dark: var(--surface-instrument);
+
+  --ohmni-canvas: var(--canvas);
+  --ohmni-bg: var(--canvas);
+  --ohmni-surface: var(--surface);
+  --ohmni-surface-raised: var(--surface-raised);
+  --ohmni-surface-inset: #E2E6EC;
+  --ohmni-ink: var(--ink);
+  --ohmni-text-primary: var(--ink);
+  --ohmni-secondary: var(--ink-secondary);
+  --ohmni-text-secondary: var(--ink-secondary);
+  --ohmni-text-muted: var(--ink-tertiary);
+  --ohmni-border: var(--border);
+  --ohmni-border-subtle: rgba(18, 21, 26, 0.04);
+  --ohmni-brand: var(--brand);
+  --ohmni-brand-hover: var(--brand-hover);
+  --ohmni-agent: var(--brand);
+  --ohmni-warning: var(--approval);
+  --ohmni-fault: var(--fault);
+  --ohmni-success: var(--verified);
+  --ohmni-measurement: var(--observe);
 }
 
 /* Global Reset & Base Typography */

@@ -1,13 +1,7 @@
 /**
- * Dedicated Ground Truth Reveal & Verification Payoff Scene.
- * Master Milestone 8 — The Core Winning Demo Payoff.
- *
- * Demonstrates unscripted AI hardware investigation:
- * - Sealed Ground Truth Unlocked
- * - Agent Diagnosis Comparison & Semantic Match Evaluation
- * - Pre-Repair vs Post-Repair Empirical Delta
- * - Citations to Immutable Evidence Records
- * - WebMCP Diagnostic Tool Usage Summary
+ * Verification Result & Ground Truth Comparison Scene.
+ * Displays post-repair verification metrics, empirical before/after delta,
+ * and ground truth alignment for the completed investigation.
  */
 
 import React, { useState } from "react";
@@ -16,7 +10,8 @@ import type { ScenarioGroundTruth } from "@/domain/scenario/types";
 import type { DiagnosisMatchResult } from "@/domain/scenario/engine";
 import type { Hypothesis } from "@/domain/hypothesis/types";
 import type { EvidenceRecord } from "@/domain/evidence/types";
-
+import { AppHeader } from "../layout/AppHeader";
+import { OHMNI_COPY } from "../../copy/copy";
 export interface GroundTruthRevealSceneProps {
   readonly groundTruth: ScenarioGroundTruth;
   readonly hypothesis: Hypothesis | null;
@@ -45,21 +40,24 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
   const isMatch = isVerified && matchResult.isMatch;
   const displayHumanInterventions = humanInterventionsCount > 0 ? humanInterventionsCount : (isVerified ? 1 : 0);
   return (
-    <div
-      id="ground-truth-reveal-scene"
-      data-testid="ground-truth-reveal-scene"
-      style={{
-        width: "100%",
-        maxWidth: "1120px",
-        margin: "0 auto",
-        padding: "2rem 1.5rem 3rem",
-        display: "flex",
-        flexDirection: "column",
-        gap: "2rem",
-        boxSizing: "border-box",
-      }}
-    >
-      {/* Header Banner */}
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", overflowY: "auto", background: "var(--canvas, #F5F6F8)" }}>
+      {/* Unified Global Shell Header */}
+      <AppHeader isConnected={true} currentStage="VERIFY" />
+
+      <div
+        id="ground-truth-reveal-scene"
+        data-testid="ground-truth-reveal-scene"
+        style={{
+          width: "100%",
+          maxWidth: "1120px",
+          margin: "0 auto",
+          padding: "2rem 1.5rem 4rem",
+          display: "flex",
+          flexDirection: "column",
+          gap: "2rem",
+          boxSizing: "border-box",
+        }}
+      >
       <div
         style={{
           display: "flex",
@@ -294,19 +292,19 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
           </div>
         </div>
       </div>
-      {/* Before vs After Empirical Payoff Card */}
+      {/* Large Before vs After Comparison */}
       <div
         id="reveal-before-after-card"
         data-testid="reveal-before-after-card"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gap: "1.25rem",
-          background: "var(--ohmni-lab-surface, #FFFFFF)",
-          border: "1px solid var(--ohmni-lab-border, #E2E4E9)",
-          borderRadius: "var(--radius-xl, 16px)",
-          padding: "1.5rem 1.75rem",
-          boxShadow: "var(--shadow-sm)",
+          gap: "1.5rem",
+          background: "var(--surface, #FFFFFF)",
+          border: "1px solid var(--border, rgba(18, 21, 26, 0.08))",
+          borderRadius: "var(--radius-lg, 14px)",
+          padding: "2rem",
+          boxShadow: "var(--shadow-soft)",
         }}
       >
         {/* BEFORE */}
@@ -315,18 +313,18 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
             display: "flex",
             flexDirection: "column",
             gap: "6px",
-            borderRight: "1px solid var(--ohmni-lab-border, #E2E4E9)",
+            borderRight: "1px solid var(--border, rgba(18, 21, 26, 0.08))",
             paddingRight: "1.5rem",
           }}
         >
-          <div style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ohmni-lab-fault, #DC5050)" }}>
-            BEFORE (PRE-REPAIR TEST)
+          <div style={{ fontSize: "11px", fontWeight: 750, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--fault, #DC2626)" }}>
+            BEFORE (PRE-REPAIR)
           </div>
-          <div className="font-mono" style={{ fontSize: "32px", fontWeight: 800, color: "var(--ohmni-lab-fault, #DC5050)" }}>
+          <div className="font-mono" style={{ fontSize: "40px", fontWeight: 800, color: "var(--fault, #DC2626)", letterSpacing: "-0.03em" }}>
             2.72 V
           </div>
-          <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-lab-fault, #DC5050)" }}>
-            BROWNOUT DETECTED • RESET TRIGGERED
+          <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--fault, #DC2626)" }}>
+            Brownout reset
           </div>
         </div>
 
@@ -339,14 +337,14 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
             paddingLeft: "0.5rem",
           }}
         >
-          <div style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ohmni-lab-verified, #27966B)" }}>
-            AFTER (VERIFICATION RETEST)
+          <div style={{ fontSize: "11px", fontWeight: 750, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--verified, #16A34A)" }}>
+            AFTER (POST-REPAIR)
           </div>
-          <div className="font-mono" style={{ fontSize: "32px", fontWeight: 800, color: "var(--ohmni-lab-verified, #27966B)" }}>
+          <div className="font-mono" style={{ fontSize: "40px", fontWeight: 800, color: "var(--verified, #16A34A)", letterSpacing: "-0.03em" }}>
             3.18 V
           </div>
-          <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ohmni-lab-verified, #27966B)" }}>
-            NO RESET • SUPPLY RAIL STABLE
+          <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--verified, #16A34A)" }}>
+            Stable (No reset)
           </div>
         </div>
       </div>
@@ -619,6 +617,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
           <ArrowRight size={16} />
         </button>
       </div>
+    </div>
     </div>
   );
 };

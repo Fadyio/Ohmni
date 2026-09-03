@@ -118,14 +118,14 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
     >
       {/* Scene Header */}
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-signal)", fontSize: "12.5px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--brand, #2B57FF)", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           <Activity size={14} />
-          OBSERVING • HARDWARE STATE
+          <span>HARDWARE REGISTERS · read_reset_history</span>
         </div>
-        <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "6px 0 0", letterSpacing: "-0.02em" }}>
-          {hasInspectedResetHistory ? "RESET HISTORY" : "Microcontroller Reset History"}
+        <h2 style={{ fontSize: "26px", fontWeight: 750, color: "var(--ink, #111318)", margin: "4px 0 0", letterSpacing: "-0.02em" }}>
+          {hasInspectedResetHistory ? "Reset history" : "Microcontroller reset history"}
         </h2>
-        <p style={{ margin: "6px 0 0", fontSize: "14.5px", color: "var(--ohmni-lab-muted)" }}>
+        <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--ink-secondary, #5C6470)" }}>
           {isParseError
             ? "Unable to interpret reset-history response."
             : hasInspectedResetHistory
@@ -189,10 +189,10 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-muted)" }}>
-              WATCHDOG TIMER
+            <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink-secondary, #5C6470)" }}>
+              Watchdog resets
             </span>
-            <Clock size={16} color="var(--ohmni-lab-muted)" />
+            <Clock size={16} color="var(--ink-tertiary, #8A92A0)" />
           </div>
 
           <div className="font-mono" style={{ fontSize: "42px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "0.75rem 0 0.25rem", letterSpacing: "-0.03em" }}>
@@ -220,10 +220,10 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-muted)" }}>
-              SOFTWARE PANIC
+            <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink-secondary, #5C6470)" }}>
+              Software crashes
             </span>
-            <ShieldCheck size={16} color={hasInspectedResetHistory ? "var(--ohmni-lab-verified)" : "var(--ohmni-lab-muted)"} />
+            <ShieldCheck size={16} color={hasInspectedResetHistory ? "var(--verified, #16A34A)" : "var(--ink-tertiary, #8A92A0)"} />
           </div>
 
           <div className="font-mono" style={{ fontSize: "42px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "0.75rem 0 0.25rem", letterSpacing: "-0.03em" }}>
@@ -241,23 +241,24 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
       </div>
 
       {/* What this tells us statement */}
+      {/* Plain-English Interpretation */}
       {hasInspectedResetHistory && hasBrownout && (
         <div
           style={{
-            background: "rgba(220, 80, 80, 0.05)",
-            border: "1px solid rgba(220, 80, 80, 0.2)",
-            borderRadius: "var(--radius-md, 8px)",
+            background: "rgba(220, 38, 38, 0.05)",
+            border: "1px solid rgba(220, 38, 38, 0.18)",
+            borderRadius: "var(--radius-md, 10px)",
             padding: "1rem 1.25rem",
             display: "flex",
             flexDirection: "column",
             gap: "4px",
           }}
         >
-          <div style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ohmni-lab-fault, #DC5050)" }}>
-            What this tells us
+          <div style={{ fontSize: "11px", fontWeight: 750, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--fault, #DC2626)" }}>
+            Observed diagnostic finding
           </div>
-          <div style={{ fontSize: "14.5px", fontWeight: 600, color: "var(--ohmni-lab-text, #0F172A)" }}>
-            "Recent resets were caused by supply brownout."
+          <div style={{ fontSize: "14.5px", fontWeight: 600, color: "var(--ink, #111318)", lineHeight: 1.45 }}>
+            "Recent resets were caused by the power rail falling below the MCU's operating threshold."
           </div>
         </div>
       )}

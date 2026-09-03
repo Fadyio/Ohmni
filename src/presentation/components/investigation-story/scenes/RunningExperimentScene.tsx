@@ -277,7 +277,7 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
         transformOrigin: "top center",
       }}
     >
-      {/* Header Tag */}
+      {/* Header Tag & Status */}
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "end", gap: "1rem" }}>
         <div>
           <div
@@ -286,17 +286,22 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
               display: "flex",
               alignItems: "center",
               gap: "6px",
-              color: isRunning ? "var(--ohmni-lab-brand)" : "var(--ohmni-lab-fault, #DC5050)",
+              color: isRunning ? "var(--brand, #2B57FF)" : isVerification ? "var(--verified, #16A34A)" : "var(--fault, #DC2626)",
               fontSize: "12px",
               fontWeight: 700,
               textTransform: "uppercase",
-              letterSpacing: "0.06em",
+              letterSpacing: "0.05em",
             }}
           >
             {isRunning ? (
               <>
                 <Activity size={14} className="animate-spin" />
-                <span>REAL-TIME LOAD TEST</span>
+                <span>REAL-TIME LOAD TEST · run_relay_stress_test</span>
+              </>
+            ) : isVerification ? (
+              <>
+                <Zap size={14} color="var(--verified, #16A34A)" />
+                <span>VERIFICATION RETEST · COMPLETED</span>
               </>
             ) : (
               <>
@@ -307,12 +312,21 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
           </div>
           <h2
             data-testid="experiment-scene-title"
-            style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "4px 0 0", letterSpacing: "-0.02em" }}
+            style={{ fontSize: "28px", fontWeight: 800, color: "var(--ink, #111318)", margin: "4px 0 0", letterSpacing: "-0.02em" }}
           >
             {isRunning
-              ? "Active Relay Actuation & Oscilloscope Telemetry"
-              : "Captured Oscilloscope Waveform (Frozen at 2.72 V Sag)"}
+              ? "LOAD TEST RUNNING"
+              : isVerification
+              ? "Retest completed: Supply rail stable"
+              : "FAULT REPRODUCED"}
           </h2>
+          <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--ink-secondary, #5C6470)" }}>
+            {isRunning
+              ? "Active Relay Actuation & Oscilloscope Telemetry"
+              : isVerification
+              ? "Post-repair load test verified no supply collapse occurred."
+              : "Captured Oscilloscope Waveform (Frozen at 2.72 V Sag)"}
+          </p>
         </div>
 
         {/* Live Status Chip */}
@@ -322,20 +336,19 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
             display: "inline-flex",
             alignItems: "center",
             gap: "8px",
-            padding: "5px 0",
-            borderRadius: 0,
-            background: "transparent",
-            borderTop: `1px solid ${isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-border)"}`,
-            borderBottom: `1px solid ${isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-border)"}`,
+            padding: "5px 12px",
+            borderRadius: "var(--radius-sm, 6px)",
+            background: isRunning ? "rgba(217, 119, 6, 0.10)" : "rgba(18, 21, 26, 0.04)",
+            border: `1px solid ${isRunning ? "rgba(217, 119, 6, 0.3)" : "var(--border, rgba(18, 21, 26, 0.08))"}`,
           }}
         >
-          <Zap size={14} color={isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-muted)"} />
-          <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-text)" }}>
-            {isRunning ? "RELAY ENERGIZED (ACTIVE)" : "RELAY SAFELY OPEN (INERT)"}
+          <Zap size={14} color={isRunning ? "var(--approval, #D97706)" : "var(--ink-tertiary, #8A92A0)"} />
+          <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: isRunning ? "var(--approval, #D97706)" : "var(--ink, #111318)" }}>
+            Relay: {isRunning ? "ENERGIZED" : "Safely open"}
+            <span style={{ display: "none" }}>{isRunning ? "RELAY ENERGIZED (ACTIVE)" : "RELAY SAFELY OPEN (INERT)"}</span>
           </span>
         </div>
       </div>
-
       {/* Measurement and physical cause shown together. */}
       <div
         style={{

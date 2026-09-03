@@ -22,6 +22,7 @@ import { RunningExperimentScene } from "./scenes/RunningExperimentScene";
 import { EvidenceScene } from "./scenes/EvidenceScene";
 import { HypothesisScene } from "./scenes/HypothesisScene";
 import { AssessmentScene } from "./scenes/AssessmentScene";
+import { MeasurementScene } from "./scenes/MeasurementScene";
 import { classifyTool } from "@/domain/safety/tool-safety-policy";
 import type { TelemetryRingBuffer } from "@/domain/telemetry/ring-buffer";
 import type { ScopeEventMarker } from "../../hooks/useOscilloscopeBuffer";
@@ -53,7 +54,7 @@ export interface DynamicInvestigationSceneProps {
   readonly agentMode?: AgentMode;
   readonly onSwitchToDemo?: () => void;
   readonly onRetryAgent?: () => void;
-  readonly activeSceneOverride?: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null;
+  readonly activeSceneOverride?: "ready" | "observing" | "measurement" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null;
 }
 
 export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps> = ({
@@ -161,7 +162,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   }
 
   // Determine active scene based on real domain state
-  const computeActiveScene = (): "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" => {
+  const computeActiveScene = (): "ready" | "observing" | "measurement" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" => {
     if (activeSceneOverride) return activeSceneOverride;
 
     const approvalToolName =
@@ -188,13 +189,19 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
 
     const latestLedgerEntry = ledgerEntries?.[ledgerEntries.length - 1];
     const latestToolName = latestLedgerEntry?.toolName ?? "";
+
+    if (
+      latestLedgerEntry?.status === "completed" &&
+      latestToolName.includes("measure")
+    ) {
+      return "measurement";
+    }
+
     const hasEvidenceToolResult =
       latestLedgerEntry?.status === "completed" &&
       (latestToolName.includes("evidence") ||
-        latestToolName.includes("measure") ||
         latestToolName.includes("stress"));
     if (evidenceRecords.length > 0 || hasEvidenceToolResult) return "evidence";
-
     const hasObservationTool =
       latestLedgerEntry !== undefined &&
       latestLedgerEntry.status !== "failed" &&
@@ -374,6 +381,12 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             brownoutCount={parsedBrownout}
             watchdogCount={parsedWatchdog}
             softwarePanicCount={parsedSoftware}
+          />
+        )}
+        {currentScene === "measurement" && (
+          <MeasurementScene
+            key="measurement"
+            railVoltage={railVoltage}
           />
         )}
         {currentScene === "test-request" && (

@@ -184,13 +184,13 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
                   <Radio size={16} />
                 </div>
                 <div>
-                  <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--ohmni-text-primary)" }}>
-                    Agent Tool Inspector
+                  <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--ink, #111318)" }}>
+                    WebMCP Instrument Inspector
                   </div>
-                  <div className="metadata-text">
-                    {`${tools.length} runtime ${tools.length === 1 ? "tool" : "tools"} available to compatible agents${
-                      isDiscovering ? " · refreshing…" : ""
-                    }`}
+                  <div className="metadata-text" style={{ fontSize: "12px", color: "var(--ink-secondary, #5C6470)" }}>
+                    {isNative
+                      ? `${tools.length} instruments registered with document.modelContext`
+                      : `${tools.length} instruments registered with document.modelContext`}
                   </div>
                 </div>
               </div>
@@ -409,11 +409,8 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
                 lineHeight: 1.45,
               }}
             >
-              <div style={{ color: "var(--ohmni-text-primary, #F8FAFC)", fontWeight: 600 }}>
-                Physical mode is implemented over Web Serial. Device capabilities are discovered from the connected hardware descriptor and mapped through Ohmni's trusted instrument registry.
-              </div>
-              <div style={{ marginTop: "4px", fontSize: "11px", color: "var(--ohmni-text-muted, #64748B)" }}>
-                Automated tests verify the serial protocol path with a simulated peer. Electrical behavior still requires testing with an attached physical board.
+              <div style={{ color: "var(--ink-secondary, #5C6470)", fontSize: "12px", textAlign: "center" }}>
+                These tools are available to the agent currently viewing this page.
               </div>
             </div>
             <div

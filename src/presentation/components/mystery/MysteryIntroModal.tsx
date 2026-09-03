@@ -1,9 +1,6 @@
 /**
- * Mystery Fault Introduction Modal.
- * Master Milestone 8 — Blind Hardware Investigation Mode.
- *
- * Conceals hidden scenario ground truth from the user and agent,
- * displaying only the observable public symptom and sealed status.
+ * Sealed Challenge Introduction Modal.
+ * Displays observable symptom and scenario status while sealing root cause.
  */
 
 import React from "react";

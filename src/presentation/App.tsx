@@ -1,14 +1,13 @@
 /**
  * Root Application Component for OHMNI Hardware Diagnostic Workbench.
- * Master Milestone 8 — Blind Hardware Investigation + Product Hardening + Judge-Ready Release.
+ * Provides safe hardware instruments and controlled experiments for AI agents.
  *
- * Implements the Core Product Workflow:
- * 1. World 1: Welcome View (Editorial Narrative + 3D Brand Anchor)
- * 2. Mystery Intro: Sealed Ground Truth (Hidden from Agent Context) + Public Symptom
- * 3. World 2: Investigation Lab Mode (70% Live Scene + 30% Chronological Narrative)
- * 4. Human Intervention & Repair: First-Class Physical Manipulation + Continuation
- * 5. Ground Truth Reveal: Final Payoff comparing unsealed ground truth with agent diagnosis.
- * 6. Developer Inspector: Protocol compliance & modelContext proof [Cmd+Shift+D].
+ * Architecture:
+ * 1. Landing View: External-agent value proposition & device entry
+ * 2. Agent-Ready Workbench: 70% live instrument surface + 30% agent activity stream
+ * 3. Human Intervention & Physical Repair: First-class hardware change boundary
+ * 4. Verification Payoff: Side-by-side empirical before/after retest comparison
+ * 5. Developer Inspector: Protocol compliance & modelContext inspection [Cmd+Shift+D]
  */
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
@@ -433,6 +432,7 @@ export const App: React.FC<AppProps> = ({
     queryScenarioId,
     resolvedRegistrar,
     setAgentMode,
+    setGoal,
   ]);
 
   // Action: Begin Investigation from Mystery Intro Modal
@@ -688,7 +688,7 @@ export const App: React.FC<AppProps> = ({
         boxSizing: "border-box",
       }}
     >
-      {/* State 1: World 1 — Landing Welcome View */}
+      {/* Landing View */}
       {viewMode === "welcome" && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 40, boxSizing: "border-box" }}>
           <WelcomeView
@@ -722,12 +722,12 @@ export const App: React.FC<AppProps> = ({
         />
       )}
 
-      {/* State 2: World 2 — Lab Mode Workbench */}
+      {/* Workbench View */}
       <div
         style={{
           width: "100%",
           height: "100%",
-          display: viewMode === "repair" || viewMode === "reveal" ? "none" : "flex",
+          display: viewMode === "welcome" || viewMode === "repair" || viewMode === "reveal" ? "none" : "flex",
           flexDirection: "column",
           boxSizing: "border-box",
         }}

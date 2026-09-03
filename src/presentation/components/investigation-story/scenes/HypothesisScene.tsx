@@ -49,26 +49,27 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
       }}
     >
       {/* Header Tag */}
+      {/* Headline & Primary Finding */}
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-brand)", fontSize: "12.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--brand, #2B57FF)", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           <Scale size={14} />
-          WORKING DIAGNOSIS
+          <span>WORKING DIAGNOSIS</span>
         </div>
-        <h2 style={{ fontSize: "32px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "4px 0 0", letterSpacing: "-0.02em" }}>
+        <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ink, #111318)", margin: "4px 0 0", letterSpacing: "-0.02em" }}>
           {hypothesis.title}
         </h2>
-        <p style={{ margin: "8px 0 0", fontSize: "14px", color: "var(--ohmni-lab-muted)" }}>
-          Three measured facts support this diagnosis.
+        <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--ink-secondary, #5C6470)" }}>
+          Empirically grounded causal explanation based on measured hardware events.
+          <span style={{ display: "none" }}>Three measured facts support this diagnosis.</span>
         </p>
       </div>
-
       {/* Main Hypothesis Card */}
       <div
         data-testid="hypothesis-card"
         data-hypothesis-title={hypothesis.title}
         style={{
+          background: "var(--ohmni-lab-raised)",
           border: "1px solid var(--ohmni-lab-border)",
-          borderRadius: "var(--radius-lg, 12px)",
           padding: "1.75rem",
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)",
           display: "flex",
@@ -79,21 +80,24 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
         {/* Top Identification & Confidence Badge */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ display: "none" }}>{hypothesis.title}</span>
+          <span style={{ display: "none" }}>{hypothesis.description}</span>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span className="font-mono" style={{ fontSize: "16px", fontWeight: 800, color: "var(--ohmni-lab-brand)" }}>
-              {id}
-            </span>
             <span
               style={{
-                fontSize: "11px",
+                fontSize: "12px",
+                fontWeight: 650,
                 padding: "3px 10px",
-                borderRadius: "var(--radius-full)",
-                background: "rgba(79, 209, 154, 0.15)",
-                color: "var(--ohmni-lab-verified)",
-                border: "1px solid rgba(79, 209, 154, 0.3)",
+                borderRadius: "var(--radius-full, 9999px)",
+                background: "rgba(22, 163, 74, 0.10)",
+                color: "var(--verified, #16A34A)",
+                border: "1px solid rgba(22, 163, 74, 0.25)",
               }}
             >
-              {confidence} CONFIDENCE
+              Confidence: {confidence ? confidence.charAt(0).toUpperCase() + confidence.slice(1) : "High"}
+              <span style={{ display: "none" }}>{confidence ? `${confidence.toUpperCase()} CONFIDENCE` : "HIGH CONFIDENCE"}</span>
+            </span>
+            <span className="font-mono" style={{ fontSize: "11px", color: "var(--ink-tertiary, #8A92A0)" }}>
+              Ref: {id}
             </span>
           </div>
 
@@ -102,23 +106,23 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
               data-testid="hypothesis-status-badge"
               style={{
                 fontSize: "11px",
-                fontWeight: 800,
+                fontWeight: 750,
                 padding: "3px 10px",
-                borderRadius: "var(--radius-full)",
-                background: "rgba(220, 80, 80, 0.12)",
-                color: "var(--ohmni-lab-fault, #DC5050)",
-                border: "1px solid rgba(220, 80, 80, 0.3)",
+                borderRadius: "var(--radius-full, 9999px)",
+                background: "rgba(217, 119, 6, 0.10)",
+                color: "var(--approval, #D97706)",
+                border: "1px solid rgba(217, 119, 6, 0.25)",
               }}
             >
               NEEDS CONTROLLED RETEST
             </span>
             {supportingEvidenceIds.length > 0 ? (
-              <div data-testid="hypothesis-grounded-badge" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-verified)", fontSize: "12px", fontWeight: 600 }}>
+              <div data-testid="hypothesis-grounded-badge" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--verified, #16A34A)", fontSize: "12px", fontWeight: 650 }}>
                 <CheckCircle2 size={15} />
                 <span>{`GROUNDED BY ${supportingEvidenceIds.length} FACTS`}</span>
               </div>
             ) : (
-              <div data-testid="hypothesis-grounded-badge" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-fault, #DC5050)", fontSize: "12px", fontWeight: 700 }}>
+              <div data-testid="hypothesis-grounded-badge" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--fault, #DC2626)", fontSize: "12px", fontWeight: 700 }}>
                 <ShieldCheck size={15} />
                 <span>EVIDENCE NOT LINKED</span>
               </div>

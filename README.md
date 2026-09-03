@@ -2,124 +2,117 @@
 
 > **Give your AI agent instruments for the physical world.**
 
-Ohmni turns hardware measurements and controlled experiments into WebMCP tools. Bring ChatGPT, Codex, or another compatible agent to inspect a virtual device or hardware connected over Web Serial.
+Ohmni exposes safe hardware diagnostic instruments and controlled experiments as WebMCP tools on `document.modelContext`. Bring ChatGPT, Codex, or another compatible agent to inspect, test, and diagnose hardware directly through the browser.
 
-**Safety:** The agent can measure and reason autonomously. Physical actuation requires your approval, and physical repairs require your hands.
+[**Open Live Demo →**](https://ohmni-three.vercel.app)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
-[![WebMCP](https://img.shields.io/badge/API-WebMCP%20document.modelContext-4967FF)](https://github.com/Fadyio/Ohmni)
+[![WebMCP](https://img.shields.io/badge/API-WebMCP%20document.modelContext-4967FF)](https://github.com/Fadyio/ohmni)
 
-- **Open agent-ready workbench:** [https://ohmni-three.vercel.app](https://ohmni-three.vercel.app)
-- **Connect hardware:** follow the [physical hardware quickstart](docs/REAL-HARDWARE-QUICKSTART.md)
-- **Try built-in demo:** use the secondary demo action in the workbench; no Groq key is required for the deterministic walkthrough
-- **Judge walkthrough:** [docs/JUDGE-DEMO.md](docs/JUDGE-DEMO.md)
+---
 
-## What WebMCP uniquely enables
+## Problem
 
-A screenshot can show an oscilloscope, but it does not give an agent a reliable instrument. WebMCP lets a page publish named, typed tools on `document.modelContext`, so an external agent can discover and invoke the page's actual diagnostic operations instead of guessing coordinates or asking a human to transcribe every reading.
+AI agents are proficient at debugging code, but they are blind in the physical world. When an embedded controller crashes or an actuator stalls, agents are forced to guess based on user descriptions, analyze static screenshots, or hallucinate physical behaviors.
 
-In Ohmni, that means a bring-your-own external agent can:
+Physical debugging requires empirical measurement: probing power rails, reading reset registers, and running controlled load tests. Yet giving an autonomous agent unrestricted control over physical hardware risks burnt traces, damaged components, or runaway actuators.
 
-- discover the tools currently allowed by the connected device descriptor;
-- read reset history, system health, buses, sensors, and voltage as structured data;
-- request a bounded experiment and keep its tool promise pending while the browser asks the human to approve or deny actuation;
-- create evidence-linked hypotheses, request a hands-on intervention, and retest the same device path;
-- drive the same investigation history and workbench state as the optional built-in agents.
+Hardware needs an instrument layer with safety interlocks built into the runtime.
 
-The browser remains the hardware and safety boundary. A device cannot turn an arbitrary descriptor entry into an agent tool: only browser-owned factories in the trusted capability registry may materialize a capability.
+---
 
-## Exact execution architecture
+## The WebMCP Idea
+
+WebMCP allows web applications to register structured, typed tools directly on `document.modelContext`. External AI agents running in WebMCP-capable browsers (such as ChatGPT Desktop built-in browser or Chrome with WebMCP enabled) automatically discover these tools from the page.
+
+Ohmni turns the webpage into a calibrated hardware testbench:
+- Hardware registers, ADC channels, and bus scanners become **read-only diagnostic tools**.
+- Actuators and high-current stress tests become **human-gated experiment tools**.
+- The browser enforces safety envelopes, intercepts dangerous operations, and records an immutable evidence ledger.
+
+---
+
+## How it Works
+
+Ohmni establishes a strict tripartite division of responsibility:
 
 ```text
-  BYO external WebMCP agent                         Optional built-in agents
- (ChatGPT, Codex, compatible host)              (Groq or deterministic walkthrough)
-                │                                               │
-   native WebMCP │ getTools / executeTool          same tools only; no adapter bypass
-                │                                               │
-                ▼                                               ▼
-       ┌─────────────────────── MirroredModelContext ───────────────────────┐
-       │                                                                    │
-       │  native document.modelContext                 InMemoryModelContext │
-       │  (authoritative external surface)             (built-in execution)│
-       └──────────────────────────────┬─────────────────────────────────────┘
-                                      │ effective wrapped tool
-                                      ▼
-                         WebMCPExecutionCoordinator
-                    ┌─────────────────┼──────────────────┐
-                    │                 │                  │
-             invocation ledger   approval gate   intervention workflow
-             (shared UI state)    (Amber tools)   (human observation)
-                    └─────────────────┼──────────────────┘
-                                      │
-                  ┌───────────────────┴────────────────────┐
-                  │                                        │
-       DeviceToolRegistrar                       evidence + hypothesis tools
-        CapabilityRegistry                       immutable experiment records
-       (trusted factories only)                    and diagnostic reasoning
-                  │
-                  ▼
-             DeviceAdapter
-             ┌────┴──────────────────────────────────────────┐
-             │                                               │
-   VirtualDeviceAdapter                         SerialDeviceAdapter
-   deterministic virtual DUT             WebSerialTransport (`navigator.serial`)
-                                                           │
-                                              115200 baud, NDJSON protocol v1
-                                                           │
-                                                           ▼
-                                                attached microcontroller
+    AGENT                   OHMNI                   HUMAN
+Decides what to       Exposes trusted tools   Authorizes physical actuation
+inspect and test     Records immutable facts   Performs physical changes
+                     Enforces safety bounds    (jumpers, wiring, re-seating)
 ```
 
-When native WebMCP exists, registrations are mirrored to the browser's authoritative `document.modelContext` for the external agent and to the local execution context used by the optional built-in agents. Every effective tool is wrapped by the same coordinator, so origin does not bypass safety, evidence, or UI history. In a browser without native WebMCP, Ohmni installs its in-memory compatibility context for the built-in experience; a BYO browser-level agent still requires a WebMCP-capable host.
+1. **Agent:** Decides diagnostic strategy, invokes WebMCP tools, and synthesizes causal hypotheses based on measured evidence.
+2. **Ohmni:** Translates WebMCP tool calls into hardware actions, streams live oscilloscope waveforms, blocks physical side effects behind safety gates, and records evidence tokens.
+3. **Human:** Authorizes physical actuation with a single click and applies physical hardware changes when requested.
 
-## Two agent usage modes
+---
 
-1. **Bring your own external agent (primary):** a compatible ChatGPT, Codex, or other browser-level agent discovers the native tools on `document.modelContext` and drives the workbench. Ohmni does not require or start Groq for this mode.
-2. **Use a built-in agent (secondary):** opt into Groq when its endpoint is configured, or choose the deterministic walkthrough for a no-key fallback. Both are WebMCP consumers and use the same tool implementations as the external agent.
+## Use with ChatGPT / External Agent
 
-Either agent mode can reason over the virtual DUT. The external path can also operate descriptor-approved instruments from a device connected over Web Serial.
+Ohmni is built **external-agent first**. The built-in demo is a secondary walkthrough; the primary product path is operated by your own agent.
 
+### Quickstart with ChatGPT Desktop
 
-## Device mode 1: virtual DUT
+1. Open the **ChatGPT Desktop App** and launch its built-in browser.
+2. Navigate to [https://ohmni-three.vercel.app](https://ohmni-three.vercel.app).
+3. Click **[ Open agent-ready workbench ]**.
+4. ChatGPT will discover Ohmni's 19 registered instruments via `document.modelContext`.
+5. Enter the canonical prompt (or click **Copy prompt** in Ohmni's right rail):
 
-This is the default judge path and requires neither a physical board nor Groq.
+> "Investigate why this controller resets when the fan turns on. Use the available instruments. Gather evidence before proposing a cause. Do not perform physical actuation without my approval."
 
-1. Open the agent-ready workbench in a WebMCP-capable browser or agent host.
-2. Keep the default virtual device and copy the suggested prompt.
-3. Give that prompt to your external agent. It discovers and invokes Ohmni's registered page tools.
-4. Approve or deny the relay stress test in Ohmni—not in the agent chat. Approval releases the already-pending WebMCP call; denial leaves the relay open and returns a denial result.
-5. When the agent requests a repair, use the workbench's human-intervention UI to simulate moving virtual JP1, record the human observation, then ask the agent to continue and retest.
+6. Watch your agent autonomously read device registers and measure baseline voltage.
+7. When the agent requests a controlled load test (`run_relay_stress_test`), Ohmni's Amber safety gate appears. Click **[ Approve test ]**.
+8. After fault reproduction, follow your agent's request to move the relay power jumper, then confirm retest to verify the repair.
 
-Suggested prompt:
+Detailed step-by-step verification instructions: [docs/CHATGPT-SITE-TOOLS-TEST.md](docs/CHATGPT-SITE-TOOLS-TEST.md).
 
-> The controller restarts unexpectedly whenever the cooling fan relay turns on. Investigate the root cause using the available WebMCP diagnostic instruments, request human help at the device boundary when needed, and experimentally verify the repair.
+---
 
-The complete 19-step script, expected results, and a no-Groq fallback are in [docs/JUDGE-DEMO.md](docs/JUDGE-DEMO.md).
+## Virtual Challenge
 
-## Device mode 2: Web Serial device
+For evaluation without physical hardware, Ohmni includes a deterministic virtual reference device:
+- **Device:** Virtual ESP32 reference board with on-board relay, cooling fan circuit, and dual power rails.
+- **Symptom:** Microcontroller unexpectedly restarts whenever the relay energizes.
+- **Root Cause (Sealed Ground Truth):** The relay coil is erroneously wired to the shared 3.3 V MCU power rail instead of the independent 5 V supply. Coil inrush collapses the rail to 2.72 V, tripping the 2.80 V brownout detector (BOD).
+- **Repair:** Human moves jumper `JP1` from the shared 3.3 V rail to the independent 5 V supply.
+- **Verification:** Post-repair load test sags only to 3.18 V (safe), proving the fix experimentally.
 
-1. Use desktop Chrome, Edge, Opera, or Brave in a secure context (`https://` or `localhost`). Web Serial is not available in Safari or Firefox.
-2. Choose **Connect hardware**, select the serial port in the browser-owned picker, and keep the board at **115200 baud**.
-3. Ohmni sends `{"type":"hello","protocol":1}` followed by a newline. The peer must answer with a valid protocol-v1 `descriptor` message.
-4. `SerialDeviceAdapter` derives the displayed device identity and capabilities from that descriptor. Red, destructive, forbidden, unknown, or otherwise untrusted capabilities are not registered.
-5. Allowed capabilities become the external agent's WebMCP tools. RPC requests are correlated; cancellation sends a protocol cancel message; asynchronous events and chunked telemetry feed the workbench; reset boot text is quarantined and triggers re-handshake.
-6. Disconnecting aborts the device session, rejects active work, returns actuators to their safe state, and unregisters device tools through the session `AbortSignal`.
+---
 
-The reference protocol peer is in [`firmware/ohmni-esp32-reference/`](firmware/ohmni-esp32-reference/). Software support for this path is implemented by [`web-serial-transport.ts`](src/infrastructure/serial/web-serial-transport.ts), [`serial-device-adapter.ts`](src/infrastructure/serial/serial-device-adapter.ts), and [`protocol.ts`](src/infrastructure/serial/protocol.ts).
+## Physical Hardware / Web Serial
 
-## Optional built-in agents are secondary
+Ohmni connects to real microcontrollers over Web Serial:
+- **Connection:** Plug in an ESP32 or compatible MCU via USB, click **Connect hardware**, and select the serial port at **115200 baud**.
+- **Handshake:** Ohmni sends `{"type":"hello","protocol":1}\n`. The firmware responds with a protocol-v1 JSON descriptor declaring its capabilities.
+- **Security Firewall:** Untrusted, red, or destructive capabilities (flash erase, raw memory write, arbitrary serial commands) are stripped before tool registration.
+- **Protocol:** Bidirectional streaming NDJSON with correlated RPC IDs, asynchronous telemetry framing, and automatic re-handshake on bootloader reset text.
 
-External WebMCP is the product path. The default virtual workbench does not require, check, or start Groq.
+Firmware reference implementation: [`firmware/ohmni-esp32-reference/`](firmware/ohmni-esp32-reference/).
 
-- **Built-in Groq:** an opt-in convenience when the deployment has its Groq endpoint configured. It discovers and executes the same WebMCP tools; it does not call `DeviceAdapter` privately.
-- **Deterministic walkthrough:** the reliable offline/no-key fallback. Choose **Try built-in demo** to run the canonical brownout investigation through the same WebMCP tool surface, approval gate, evidence ledger, and intervention UI.
+---
 
-Neither fallback changes which tools exist or weakens the safety policy.
+## Safety Model
 
-## Real registration path
+| Tool Tier | Examples | Agent Permission | Runtime Interlock |
+|---|---|---|---|
+| **Green (Read-Only)** | `read_device_info`, `read_reset_history`, `measure_supply_voltage` | Autonomous execution | Executes immediately; results recorded in ledger |
+| **Amber (Actuation)** | `run_relay_stress_test` | Request only; cannot self-authorize | Tool promise pauses; UI displays Amber interlock; bounded to 500 ms max actuation; relay returns open on abort/timeout |
+| **Human Hands** | `request_human_intervention` | Request only | Instructs user to change physical jumper or wiring; user confirms in UI |
+| **Red (Forbidden)** | Flash erase, arbitrary memory writes, eFuse burning | Blocked | Stripped at capability registration; never exposed to model |
 
-Ohmni does not merely display tool-shaped JSON. This is the production registration loop, copied from [`src/infrastructure/webmcp/device-tool-registrar.ts`](src/infrastructure/webmcp/device-tool-registrar.ts):
+---
+
+## WebMCP Implementation
+
+Ohmni registers native WebMCP tools directly with `document.modelContext`.
+
+### Real Registration Example
+
+Copied directly from production source ([`src/infrastructure/webmcp/device-tool-registrar.ts`](src/infrastructure/webmcp/device-tool-registrar.ts)):
 
 ```ts
 for (const capability of descriptor.capabilities) {
@@ -136,7 +129,9 @@ for (const capability of descriptor.capabilities) {
 }
 ```
 
-`tool` is a real `ModelContextTool` produced by a trusted factory. For example, the current `measure_supply_voltage` factory in [`src/infrastructure/webmcp/capability-registry.ts`](src/infrastructure/webmcp/capability-registry.ts) is:
+### Real Instrument Definition
+
+Copied directly from production source ([`src/infrastructure/webmcp/capability-registry.ts`](src/infrastructure/webmcp/capability-registry.ts)):
 
 ```ts
 this.registerFactory("measure_supply_voltage", (adapter) => ({
@@ -159,62 +154,112 @@ this.registerFactory("measure_supply_voltage", (adapter) => ({
 }));
 ```
 
-The `AbortController` owns the device session: disconnecting it removes those registrations. The real source path is:
+---
 
-1. [`src/main.tsx`](src/main.tsx) — detects native WebMCP and creates the model context, registries, adapters, and stores.
-2. [`src/infrastructure/webmcp/mirrored-model-context.ts`](src/infrastructure/webmcp/mirrored-model-context.ts) — keeps native registration authoritative while providing the same effective tools to local consumers.
-3. [`src/infrastructure/webmcp/execution-coordinator.ts`](src/infrastructure/webmcp/execution-coordinator.ts) — wraps invocations with shared ledger, approval, and intervention behavior.
-4. [`src/infrastructure/webmcp/device-tool-registrar.ts`](src/infrastructure/webmcp/device-tool-registrar.ts) — registers only descriptor capabilities accepted by the registry and tears them down on disconnect.
-5. [`src/infrastructure/webmcp/capability-registry.ts`](src/infrastructure/webmcp/capability-registry.ts) — owns the vetted device-tool schemas and implementations.
-6. [`src/infrastructure/webmcp/evidence-tools.ts`](src/infrastructure/webmcp/evidence-tools.ts) and [`hypothesis-tools.ts`](src/infrastructure/webmcp/hypothesis-tools.ts) — register evidence and diagnostic-reasoning tools.
+## Architecture
 
-## Safety model
-
-| Class | Examples | Agent behavior | Browser behavior |
-|---|---|---|---|
-| Green / read-only | `read_reset_history`, `measure_supply_voltage`, `read_system_health` | May invoke autonomously | Runs through the adapter and records the result |
-| Amber / actuation | `run_relay_stress_test` | May request, but cannot self-authorize | Keeps the call pending; the human approves or denies; bounded execution returns relay to open on denial, abort, timeout, error, or disconnect |
-| Human hands | jumper, cable, component, or switch change | Calls `request_human_intervention` with target, instruction, and rationale | Opens the repair workflow; only the human applies the change and records an observation |
-| Red / forbidden | flash erase, raw memory write, arbitrary serial, eFuse or bootloader modification | Not available | Stripped before registration |
-
-The approval is attached to the tool execution path, not just to a button in the built-in demo. An external invocation therefore receives the same gate. `request_human_intervention` never silently changes device state.
-
-## Local development
-
-Prerequisites: [Bun](https://bun.sh) 1.2+ and a current Chromium browser.
-
-```bash
-git clone https://github.com/Fadyio/Ohmni.git
-cd Ohmni
-bun install
-bun run dev
+```text
+       BYO External WebMCP Agent                   Built-in Demo Agent
+     (ChatGPT, Codex, WebMCP Host)             (Deterministic Walkthrough)
+                  │                                         │
+     native WebMCP│ getTools / executeTool         same WebMCP tools
+                  ▼                                         ▼
+   ┌─────────────────────────── MirroredModelContext ───────────────────────────┐
+   │                                                                            │
+   │  native document.modelContext                     InMemoryModelContext     │
+   │  (authoritative external surface)                 (built-in execution)     │
+   └─────────────────────────────────────┬──────────────────────────────────────┘
+                                         │ wrapped tool call
+                                         ▼
+                            WebMCPExecutionCoordinator
+                       ┌─────────────────┼──────────────────┐
+                       │                 │                  │
+                Invocation Ledger   Approval Gate   Intervention Gate
+               (shared UI stream)   (Amber tools)   (physical repair)
+                       └─────────────────┼──────────────────┘
+                                         │
+                     ┌───────────────────┴────────────────────┐
+                     │                                        │
+          DeviceToolRegistrar                        EvidenceStore &
+          CapabilityRegistry                         HypothesisStore
+         (vetted tools only)                     (grounded verification)
+                     │
+                     ▼
+               DeviceAdapter
+         ┌───────────┴───────────────────────────┐
+         │                                       │
+   VirtualDeviceAdapter                 SerialDeviceAdapter
+  (reference simulation)              (WebSerialTransport API)
+                                                 │
+                                            115200 baud
+                                                 │
+                                                 ▼
+                                        Physical Hardware
 ```
 
-Open `http://localhost:5173`. Use a WebMCP-capable host for the external-agent path; use **Try built-in demo** for a browser-independent, no-key walkthrough.
+---
 
-Common verification commands maintained by the repository include:
+## Testing
+
+Ohmni is tested against automated suites in real headless Google Chrome:
 
 ```bash
+# Unit and domain invariant tests
 bun test
+
+# TypeScript type verification
 bun run typecheck
+
+# Production build bundle check
 bun run build
+
+# Web Serial NDJSON protocol & transport tests
 bun run test:serial
 bun run test:e2e:serial
+
+# Real Chrome WebMCP & CDP acceptance tests
 bun run test:chrome
+bun run test:e2e:demo
+bun run test:webmcp:external
+
+# Layout, motion, and chaos resilience tests
+bun run test:motion
+bun run test:visual
+bun run test:chaos
+bun run test:mystery
+
+# Comprehensive release gate
 bun run release:verify
 ```
 
-## Verification boundary
+---
 
-**Verified in software:** the virtual scenarios, tool schemas and lifecycle, safety firewall, shared approval flow, evidence and hypothesis state, Web Serial protocol parsing and lifecycle, and browser behavior exercised against virtual or simulated serial peers.
+## Real-Hardware Limitation
 
-**Not verified on a physical board:** electrical voltage/current values, ADC calibration, divider tolerances, noise floors, relay-coil inrush, flyback behavior, timing under real load, or successful repair of an attached device. The values shown in the virtual brownout challenge (including 3.31 V baseline, 2.72 V sag, and 3.18 V post-intervention result) are deterministic simulator outputs, not physical measurements.
+**Verified in software:** Virtual reference device physics, WebMCP registration and execution, Amber safety interlocks, evidence collection and hypothesis linking, Web Serial transport and framing, and automated Chrome browser flows.
+
+**Electrical verification:** Electrical validation (exact analog noise floor, real coil inrush dv/dt, divider tolerances, and attached physical hardware repair) requires physical breadboard hardware and external laboratory instruments.
 
 ```text
 PHYSICAL-BOARD ELECTRICAL VERIFICATION: NOT PERFORMED
 Web Serial software and protocol behavior have been exercised with simulated peers;
 an attached board and external instruments are still required for electrical validation.
 ```
+
+---
+
+## Run Locally
+
+```bash
+git clone https://github.com/Fadyio/ohmni.git
+cd ohmni
+bun install
+bun run dev
+```
+
+Open `http://localhost:5173` in Google Chrome.
+
+---
 
 ## License
 

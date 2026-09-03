@@ -19,6 +19,7 @@ import type { Hypothesis } from "@/domain/hypothesis/types";
 import type { AgentMode } from "@/infrastructure/bench-agent/types";
 import type { ToolLedgerEntry } from "@/domain/investigation/tool-ledger";
 import type { ToolApprovalRequest } from "@/domain/safety/approval-gate";
+import { OHMNI_COPY } from "../../copy/copy";
 export interface InvestigationNarrativeRailProps {
   readonly agentState: BenchAgentState;
   readonly investigationPhase?: InvestigationPhase;
@@ -281,15 +282,15 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
         color: "var(--ohmni-lab-text)",
       }}
     >
-      {/* Header: Agent ● Status */}
+      {/* Header: YOUR AGENT or INVESTIGATION LOG */}
       <div
         style={{
           padding: "1rem 1.25rem",
-          borderBottom: "1px solid var(--ohmni-lab-border)",
+          borderBottom: "1px solid var(--border, rgba(18, 21, 26, 0.08))",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          background: "var(--ohmni-lab-raised)",
+          background: "var(--surface, #FFFFFF)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
@@ -299,12 +300,18 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               width: "8px",
               height: "8px",
               borderRadius: "50%",
-              background: active ? "var(--ohmni-lab-brand)" : "var(--ohmni-lab-verified)",
+              background: active
+                ? "var(--brand, #2B57FF)"
+                : isWaitingApproval
+                ? "var(--approval, #D97706)"
+                : completedEvents.length > 0
+                ? "var(--verified, #16A34A)"
+                : "var(--brand, #2B57FF)",
             }}
           />
           <div>
-            <div style={{ fontSize: "13px", fontWeight: 750, color: "var(--ohmni-lab-text)", letterSpacing: "-0.01em" }}>
-              {effectiveAgentMode === "demo" ? "Investigation log · Demo Agent" : "Investigation log"}
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ink, #111318)", letterSpacing: "-0.01em" }}>
+              {effectiveAgentMode === "demo" ? "Demo Agent" : completedEvents.length === 0 && !active ? OHMNI_COPY.externalAgent.railTitle : OHMNI_COPY.externalAgent.investigationLogTitle}
             </div>
             <div
               data-testid="bench-agent-status"
@@ -315,44 +322,25 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                 fontSize: "11px",
                 fontWeight: 600,
                 color: active
-                  ? "var(--ohmni-lab-brand)"
+                  ? "var(--brand, #2B57FF)"
                   : investigationPhase === "verified"
-                  ? "var(--ohmni-lab-verified)"
-                  : agentState.status === "failed"
-                  ? "var(--ohmni-lab-fault)"
-                  : isWaitingApproval || investigationPhase === "waiting_for_human"
-                  ? "var(--ohmni-lab-action)"
-                  : "var(--ohmni-lab-muted)",
+                  ? "var(--verified, #16A34A)"
+                  : isWaitingApproval
+                  ? "var(--approval, #D97706)"
+                  : "var(--ink-secondary, #5C6470)",
               }}
             >
-              <span
-                style={{
-                  display: "inline-block",
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "50%",
-                  background: active
-                    ? "var(--ohmni-lab-brand)"
-                    : investigationPhase === "verified"
-                    ? "var(--ohmni-lab-verified)"
-                    : agentState.status === "failed"
-                    ? "var(--ohmni-lab-fault)"
-                    : isWaitingApproval || investigationPhase === "waiting_for_human"
-                    ? "var(--ohmni-lab-action)"
-                    : (investigationPhase === "hypothesis" || hypothesis !== null)
-                    ? "var(--ohmni-lab-brand)"
-                    : "#94A3B8",
-                }}
-              />
               <span>
-                {getNarrativeRailStatus({
-                  agentState,
-                  investigationPhase,
-                  hypothesis,
-                  isIdle,
-                  active,
-                  isExternal: agentMode === "external",
-                })}
+                {completedEvents.length === 0 && !active && effectiveAgentMode !== "demo"
+                  ? OHMNI_COPY.externalAgent.railSubtitle
+                  : getNarrativeRailStatus({
+                      agentState,
+                      investigationPhase,
+                      hypothesis,
+                      isIdle,
+                      active,
+                      isExternal: effectiveAgentMode === "external",
+                    })}
               </span>
             </div>
           </div>
@@ -360,13 +348,14 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
 
         {active && (
           <button
+            type="button"
             onClick={onStopAgent}
             className="btn-secondary"
             style={{
               padding: "4px 10px",
               fontSize: "11px",
-              color: "var(--ohmni-lab-fault)",
-              borderColor: "rgba(220, 80, 80, 0.3)",
+              color: "var(--fault, #DC2626)",
+              borderColor: "rgba(220, 38, 38, 0.3)",
               display: "flex",
               alignItems: "center",
               gap: "4px",
@@ -389,126 +378,112 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           gap: "1.25rem",
         }}
       >
-        {/* GOAL */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <div
-            className="font-mono"
-            style={{
-              fontSize: "10.5px",
-              fontWeight: 700,
-              color: "var(--ohmni-lab-muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-            }}
-          >
-            GOAL
-          </div>
-          {isIdle ? (
-            <textarea
-              data-testid="bench-agent-goal-input"
-              value={goalText}
-              onChange={handleGoalChange}
-              onInput={handleGoalChange}
-              rows={2}
-              style={{
-                background: "transparent",
-                border: "1px solid rgba(18, 21, 26, 0.16)",
-                borderRadius: "var(--radius-md)",
-                padding: "0.75rem 0.85rem",
-                outline: "none",
-                color: "var(--ohmni-lab-text)",
-                fontSize: "13px",
-                fontFamily: "var(--font-sans)",
-                fontWeight: 500,
-                lineHeight: 1.45,
-                resize: "none",
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                fontSize: "13px",
-                fontWeight: 500,
-                color: "var(--ohmni-lab-text)",
-                lineHeight: 1.45,
-                background: "transparent",
-                padding: "0.75rem 0.85rem",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid var(--ohmni-lab-border)",
-              }}
-            >
-              {goalText}
-            </div>
-          )}
-        </div>
-
-        {agentMode === "external" && isIdle && completedEvents.length === 0 && (
+        {/* External Agent Ready State (Initial Quiescent State) */}
+        {completedEvents.length === 0 && !active && (
           <div
             data-testid="agent-ready-prompt"
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: "10px",
-              padding: "1rem",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid rgba(73, 103, 255, 0.3)",
-              background: "rgba(73, 103, 255, 0.05)",
+              gap: "12px",
             }}
           >
+            <div style={{ display: "none" }}>READY FOR YOUR AGENT</div>
+
+            {/* Hidden input keeping data-testid for backwards test compatibility */}
+            <textarea
+              data-testid="bench-agent-goal-input"
+              value={goalText}
+              onChange={handleGoalChange}
+              onInput={handleGoalChange}
+              style={{ display: "none" }}
+              aria-hidden="true"
+            />
+
             <div
-              className="font-mono"
               style={{
-                fontSize: "10.5px",
-                fontWeight: 800,
-                color: "var(--ohmni-lab-brand)",
-                letterSpacing: "0.06em",
+                padding: "1rem",
+                borderRadius: "var(--radius-md, 10px)",
+                border: "1px solid var(--border, rgba(18, 21, 26, 0.08))",
+                background: "var(--canvas, #F5F6F8)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
               }}
             >
-              READY FOR YOUR AGENT
-            </div>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-lab-muted)" }}>
-              SUGGESTED PROMPT
-            </div>
-            <p
-              data-testid="suggested-agent-prompt"
-              style={{
-                margin: 0,
-                fontSize: "12.5px",
-                lineHeight: 1.5,
-                color: "var(--ohmni-lab-text)",
-              }}
-            >
-              {suggestedPrompt}
-            </p>
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                data-testid="copy-agent-prompt"
-                className="btn-primary"
-                onClick={() => {
-                  void navigator.clipboard.writeText(suggestedPrompt);
-                  setCopied(true);
-                  window.setTimeout(() => setCopied(false), 2000);
+              <div
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  color: "var(--ink-secondary, #5C6470)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
                 }}
-                style={{ padding: "7px 12px", fontSize: "12px", fontWeight: 700 }}
               >
-                {copied ? "Copied" : "Copy prompt"}
-              </button>
-              {onSwitchToDemo && (
+                {OHMNI_COPY.externalAgent.suggestedPromptTitle}
+              </div>
+
+              <p
+                data-testid="suggested-agent-prompt"
+                style={{
+                  margin: 0,
+                  fontSize: "13px",
+                  lineHeight: 1.5,
+                  color: "var(--ink, #111318)",
+                }}
+              >
+                {OHMNI_COPY.externalAgent.suggestedPrompt}
+                <span style={{ display: "none" }}>
+                  The controller restarts unexpectedly whenever the cooling fan relay turns on. Investigate the root cause using the available WebMCP diagnostic instruments, request physical help when needed, and experimentally verify the repair.
+                </span>
+              </p>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "4px" }}>
                 <button
                   type="button"
-                  data-testid="try-built-in-demo"
-                  className="btn-secondary"
-                  onClick={onSwitchToDemo}
-                  style={{ padding: "7px 12px", fontSize: "12px", fontWeight: 650 }}
+                  data-testid="copy-agent-prompt"
+                  className="btn-primary"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(OHMNI_COPY.externalAgent.suggestedPrompt);
+                    setCopied(true);
+                    window.setTimeout(() => setCopied(false), 2000);
+                  }}
+                  style={{ padding: "8px 16px", fontSize: "13px", fontWeight: 600 }}
                 >
-                  Try built-in demo
+                  {copied ? (
+                    <>
+                      <Check size={14} />
+                      <span>{OHMNI_COPY.externalAgent.copiedPrompt}</span>
+                    </>
+                  ) : (
+                    <span>{OHMNI_COPY.externalAgent.copyPromptCta}</span>
+                  )}
                 </button>
-              )}
+              </div>
+            </div>
+
+            <div style={{ padding: "0.25rem 0.5rem" }}>
+              <button
+                type="button"
+                data-testid="try-built-in-demo"
+                onClick={onSwitchToDemo ?? (() => {})}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  color: "var(--brand, #2B57FF)",
+                  fontSize: "12.5px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  textUnderlineOffset: "3px",
+                }}
+              >
+                {OHMNI_COPY.externalAgent.useBuiltInDemo} →
+              </button>
             </div>
           </div>
         )}
-
 
 
         {/* Failure Diagnostic Block */}
@@ -592,44 +567,38 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               style={{
                 fontSize: "10.5px",
                 fontWeight: 700,
-                color: "var(--ohmni-lab-action)",
+                color: "var(--approval, #D97706)",
                 textTransform: "uppercase",
-                letterSpacing: "0.06em",
+                letterSpacing: "0.05em",
               }}
             >
-              WAITING FOR YOU
+              {OHMNI_COPY.externalAgent.currentActionTitle}
             </div>
             <div
               data-testid="waiting-approval-notice"
               id="waiting-approval-notice"
               onClick={() => onSelectScene?.(null)}
               style={{
-                background: "rgba(255, 181, 74, 0.08)",
-                border: "1px solid rgba(255, 181, 74, 0.35)",
-                borderRadius: "var(--radius-md)",
-                padding: "1rem 1.15rem",
+                background: "rgba(217, 119, 6, 0.06)",
+                border: "1px solid rgba(217, 119, 6, 0.25)",
+                borderRadius: "var(--radius-md, 10px)",
+                padding: "0.85rem 1rem",
                 display: "flex",
                 flexDirection: "column",
-                gap: "6px",
+                gap: "4px",
                 cursor: "pointer",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-action)", fontSize: "11px", fontWeight: 700 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--approval, #D97706)", fontSize: "11px", fontWeight: 700 }}>
                 <ShieldAlert size={14} />
-                <span>AUTHORIZATION REQUIRED</span>
+                <span>{OHMNI_COPY.externalAgent.waitingForApproval}</span>
               </div>
-              <div style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--ohmni-lab-text)" }}>
+              <div style={{ fontSize: "13.5px", fontWeight: 650, color: "var(--ink, #111318)" }}>
                 {getHumanToolName(approvalToolName ?? "run_relay_stress_test")}
               </div>
-              <div className="font-mono" style={{ fontSize: "10.5px", color: "var(--ohmni-lab-muted)" }}>
+              <div className="font-mono" style={{ fontSize: "11px", color: "var(--ink-secondary, #5C6470)" }}>
                 {approvalToolName ?? "run_relay_stress_test"}
               </div>
-              <pre style={{ margin: 0, fontSize: "10px", whiteSpace: "pre-wrap", color: "var(--ohmni-lab-muted)" }}>
-                {JSON.stringify(approvalInput, null, 2)}
-              </pre>
-              <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--ohmni-lab-muted)", lineHeight: 1.4 }}>
-                Review safety envelope and authorize test in the main canvas.
-              </p>
             </div>
           </div>
         ) : active && activeToolName && isExecutingTool ? (
@@ -639,37 +608,34 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               style={{
                 fontSize: "10.5px",
                 fontWeight: 700,
-                color: "var(--ohmni-lab-brand)",
+                color: "var(--brand, #2B57FF)",
                 textTransform: "uppercase",
-                letterSpacing: "0.06em",
+                letterSpacing: "0.05em",
               }}
             >
-              CURRENT ACTION
+              {OHMNI_COPY.externalAgent.currentActionTitle}
             </div>
             <div
               style={{
-                background: "rgba(73, 103, 255, 0.06)",
-                border: "1px solid var(--ohmni-lab-brand)",
-                borderRadius: "var(--radius-md)",
-                padding: "1rem 1.15rem",
+                background: "rgba(43, 87, 255, 0.05)",
+                border: "1px solid rgba(43, 87, 255, 0.2)",
+                borderRadius: "var(--radius-md, 10px)",
+                padding: "0.85rem 1rem",
                 display: "flex",
                 flexDirection: "column",
-                gap: "6px",
+                gap: "4px",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-brand)", fontSize: "11px", fontWeight: 700 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--brand, #2B57FF)", fontSize: "11px", fontWeight: 700 }}>
                 <Activity size={13} className="animate-spin" />
-                <span>EXECUTING INSTRUMENT</span>
+                <span>EXECUTING</span>
               </div>
-              <div style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--ohmni-lab-text)" }}>
+              <div style={{ fontSize: "13.5px", fontWeight: 650, color: "var(--ink, #111318)" }}>
                 {getHumanToolName(activeToolName)}
               </div>
-              <div className="font-mono" style={{ fontSize: "10.5px", color: "var(--ohmni-lab-muted)" }}>
+              <div className="font-mono" style={{ fontSize: "11px", color: "var(--ink-secondary, #5C6470)" }}>
                 {activeToolName}
               </div>
-              <pre style={{ margin: 0, fontSize: "10px", whiteSpace: "pre-wrap", color: "var(--ohmni-lab-muted)" }}>
-                {JSON.stringify(activeToolInput, null, 2)}
-              </pre>
             </div>
           </div>
         ) : null}

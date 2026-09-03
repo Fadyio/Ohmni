@@ -1,12 +1,6 @@
 /**
- * GSAP Transition Hook: Welcome (World 1) -> Lab Mode (World 2).
- * Milestone 7.14 — Truthful Transition Choreography (No Content Overlap).
- *
- * Sequence:
- * 0–250ms:   Headline and copy exit completely before hardware moves into their region.
- * 200–550ms: OHMNI 3D wordmark compresses and travels smoothly to top-left navigation position.
- * 300–750ms: Hardware PCB visual moves into the central workbench canvas position.
- * 600–900ms: Lab chrome and 70/30 workbench appear cleanly.
+ * GSAP Transition Hook: Landing View -> Workbench.
+ * Choreographs smooth entrance into the 70/30 workbench layout.
  */
 
 import { useRef, useCallback } from "react";
