@@ -120,7 +120,7 @@ describe("Phase 2 & 5 — DeterministicBenchAgentProvider", () => {
       tools: [],
     });
     expect(turn6.functionCalls.length).toBe(0);
-    expect(turn6.text).toContain("Waiting for human");
+    expect(turn6.text).toContain("Waiting for the human to explicitly simulate moving virtual JP1");
 
     // Turn 7: Human technician reports moving JP1 to 5V
     const turn7 = await provider.turn({
@@ -154,15 +154,25 @@ describe("Phase 2 & 5 — DeterministicBenchAgentProvider", () => {
       tools: [],
     });
     expect(turn8.functionCalls.length).toBe(1);
-    expect(turn8.functionCalls[0].name).toBe("update_hypothesis");
-    expect((turn8.functionCalls[0].arguments as any).hypothesis_id).toBe("HYP-001");
-    expect((turn8.functionCalls[0].arguments as any).confidence).toBe("HIGH");
+    expect(turn8.functionCalls[0].name).toBe("list_evidence");
+    expect((turn8.functionCalls[0].arguments as any).experiment_id).toBe("exp_verification_123");
+
+    const evidenceResult: AgentFunctionResult = {
+      type: "function_result",
+      name: "list_evidence",
+      call_id: turn8.functionCalls[0].id,
+      result: [{ type: "text", text: JSON.stringify([{ id: "E-006" }, { id: "E-007" }]) }],
+    };
+    const evidenceTurn = await provider.turn({ input: [evidenceResult], tools: [] });
+    expect(evidenceTurn.functionCalls[0].name).toBe("update_hypothesis");
+    expect((evidenceTurn.functionCalls[0].arguments as any).hypothesis_id).toBe("HYP-001");
+    expect((evidenceTurn.functionCalls[0].arguments as any).evidence_ids).toEqual(["E-006", "E-007"]);
 
     // Turn 9: Confidence elevated to HIGH, provider calls confirm_hypothesis
     const updateResult: AgentFunctionResult = {
       type: "function_result",
       name: "update_hypothesis",
-      call_id: turn8.functionCalls[0].id,
+      call_id: evidenceTurn.functionCalls[0].id,
       result: [
         {
           type: "text",

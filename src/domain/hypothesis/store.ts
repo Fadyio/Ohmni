@@ -464,6 +464,33 @@ export class InMemoryHypothesisStore implements HypothesisStore {
       );
     }
 
+    const verificationEvidence = this.evidenceStore?.getByExperiment(
+      params.verifiedExperimentId,
+    ) ?? [];
+    const hasResetEvidence = verificationEvidence.some((record) => record.type === "reset_event");
+    const hasCitedSuccessfulRetest = verificationEvidence.some((record) => {
+      if (!params.evidenceIds.includes(record.id) || record.type !== "test_result") {
+        if (!params.evidenceIds.includes(record.id) || record.type !== "measurement") return false;
+        if (!record.data || typeof record.data !== "object") return false;
+        const measurement = record.data as Record<string, unknown>;
+        return measurement.metric === "supply_voltage_min" &&
+          typeof measurement.value === "number" && measurement.value >= 2.8 &&
+          !hasResetEvidence;
+      }
+      if (!record.data || typeof record.data !== "object") return false;
+      const data = record.data as Record<string, unknown>;
+      const requested = data.requestedCycles;
+      const completed = data.completedCycles;
+      return data.unexpectedResets === 0 &&
+        typeof requested === "number" && requested > 0 &&
+        typeof completed === "number" && completed >= requested;
+    });
+    if (!hasCitedSuccessfulRetest) {
+      throw new Error(
+        `Cannot confirm hypothesis "${params.hypothesisId}" without cited successful post-intervention verification evidence from experiment "${params.verifiedExperimentId}".`,
+      );
+    }
+
     const updatedLinks = Array.from(linksMap.values());
     const supportingIds = updatedLinks
       .filter((l) => isSupportingRelationship(l.relationship))

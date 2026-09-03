@@ -334,8 +334,9 @@ export async function runBenchAgent(
           continue;
         }
         const startedAt = Date.now();
+        onEvent({ type: "tool-started", call });
         try {
-          const result = await awaitWithAbort(
+          const rawResult = await awaitWithAbort(
             modelContext.executeTool(
               currentTool,
               serializedArguments,
@@ -343,8 +344,15 @@ export async function runBenchAgent(
             ),
             signal
           );
-          if (typeof result !== "string") {
-            throw new Error(`Tool '${call.name}' returned an invalid result.`);
+          let result: string;
+          if (typeof rawResult === "string") {
+            result = rawResult;
+          } else {
+            const serializedResult = JSON.stringify(rawResult);
+            if (serializedResult === undefined) {
+              throw new Error(`Tool '${call.name}' returned an invalid result.`);
+            }
+            result = serializedResult;
           }
           const durationMs = Math.max(0, Date.now() - startedAt);
           onEvent({ type: "tool-completed", call, result, durationMs });

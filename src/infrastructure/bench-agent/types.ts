@@ -80,6 +80,10 @@ export type BenchAgentEvent =
       readonly tool: RegisteredTool;
     }
   | {
+      readonly type: "tool-started";
+      readonly call: AgentFunctionCall;
+    }
+  | {
       readonly type: "tool-completed";
       readonly call: AgentFunctionCall;
       readonly result: string;

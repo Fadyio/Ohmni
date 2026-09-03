@@ -17,7 +17,7 @@ import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Square, Play, ShieldAlert, RotateCcw, Activity, Check } from "lucide-react";
 import { AgentOrbNode } from "../agent/AgentOrbNode";
-import type { BenchAgentState } from "../../hooks/useBenchAgent";
+import { buildToolReceipt, type BenchAgentState, type ToolReceipt } from "../../hooks/useBenchAgent";
 import type { InvestigationPhase } from "@/domain/investigation/lifecycle";
 import type { Hypothesis } from "@/domain/hypothesis/types";
 import { getAgentIdentity } from "@/presentation/types/agent-identity";
@@ -147,7 +147,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
       case "reject_hypothesis":
         return "Rejecting disproven hypothesis";
       case "request_human_intervention":
-        return "Requesting physical technician intervention";
+        return "Requesting human-gated virtual DUT intervention";
       default:
         return toolName.replace(/_/g, " ");
     }
@@ -155,7 +155,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
 
   // Strictly filter completed events: status === "completed" ONLY
   const completedEvents = useMemo(() => {
-    const events: { id: string; title: string; tool: string; durationMs?: number }[] = [];
+    const events: { id: string; title: string; tool: string; durationMs?: number; receipt: ToolReceipt }[] = [];
 
     agentState.activity.forEach((act, idx) => {
       if (act.status === "completed") {
@@ -164,6 +164,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           title: getHumanToolName(act.call.name),
           tool: act.call.name,
           durationMs: act.durationMs,
+          receipt: buildToolReceipt(act),
         });
       }
     });
@@ -172,7 +173,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
   }, [agentState.activity]);
 
   const activeTool = agentState.activity.length > 0 ? agentState.activity[agentState.activity.length - 1] : null;
-  const isExecutingTool = activeTool?.status === "requested";
+  const isExecutingTool = activeTool?.status === "requested" || activeTool?.status === "running";
   const isWaitingApproval = agentState.status === "approval";
 
   return (
@@ -460,6 +461,16 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               <div className="font-mono" style={{ fontSize: "10.5px", color: "var(--ohmni-lab-muted)" }}>
                 {agentState.approval.tool.name}
               </div>
+              <pre style={{ margin: 0, fontSize: "10px", whiteSpace: "pre-wrap", color: "var(--ohmni-lab-muted)" }}>
+                {buildToolReceipt({
+                  call: agentState.approval.call ?? {
+                    id: "pending-approval",
+                    name: agentState.approval.tool.name,
+                    arguments: {},
+                  },
+                  status: "waiting-approval",
+                }).argumentsText}
+              </pre>
               <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--ohmni-lab-muted)", lineHeight: 1.4 }}>
                 Review safety envelope and authorize test in the main canvas.
               </p>
@@ -500,6 +511,9 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               <div className="font-mono" style={{ fontSize: "10.5px", color: "var(--ohmni-lab-muted)" }}>
                 {activeTool.call.name}
               </div>
+              <pre style={{ margin: 0, fontSize: "10px", whiteSpace: "pre-wrap", color: "var(--ohmni-lab-muted)" }}>
+                {buildToolReceipt(activeTool).argumentsText}
+              </pre>
             </div>
           </div>
         ) : null}
@@ -593,13 +607,40 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                 >
                   <Check size={11} color="var(--ohmni-lab-verified)" strokeWidth={3} />
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
                   <span style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--ohmni-lab-text)" }}>
                     {evt.title}
                   </span>
                   <span className="font-mono" style={{ fontSize: "10px", color: "var(--ohmni-lab-muted)" }}>
                     {evt.tool}
                   </span>
+                  <span className="font-mono" style={{ fontSize: "9.5px", fontWeight: 700, color: "var(--ohmni-lab-verified)" }}>
+                    SUCCEEDED{evt.durationMs !== undefined ? ` · ${evt.durationMs} ms` : ""}
+                  </span>
+                  <pre style={{ margin: 0, fontSize: "9.5px", lineHeight: 1.35, whiteSpace: "pre-wrap", overflowWrap: "anywhere", color: "var(--ohmni-lab-muted)" }}>
+                    {evt.receipt.argumentsText}
+                  </pre>
+                  {evt.receipt.stateChanges.map((change) => (
+                    <span key={change} style={{ fontSize: "10px", color: "var(--ohmni-lab-text)" }}>{change}</span>
+                  ))}
+                  {evt.receipt.experimentId && (
+                    <span className="font-mono" style={{ fontSize: "9.5px", color: "var(--ohmni-lab-brand)" }}>
+                      Experiment: {evt.receipt.experimentId}
+                    </span>
+                  )}
+                  {evt.receipt.evidenceIds.length > 0 && (
+                    <span className="font-mono" style={{ fontSize: "9.5px", color: "var(--ohmni-lab-brand)" }}>
+                      Evidence: {evt.receipt.evidenceIds.join(", ")}
+                    </span>
+                  )}
+                  {evt.receipt.resultText && (
+                    <details>
+                      <summary style={{ fontSize: "9.5px", cursor: "pointer", color: "var(--ohmni-lab-muted)" }}>Raw factual result</summary>
+                      <pre style={{ margin: "4px 0 0", maxHeight: "8rem", overflow: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: "9px", color: "var(--ohmni-lab-muted)" }}>
+                        {evt.receipt.resultText}
+                      </pre>
+                    </details>
+                  )}
                 </div>
               </div>
             ))}

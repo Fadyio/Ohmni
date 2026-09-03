@@ -513,7 +513,7 @@ async function runGate(): Promise<void> {
 
     // Verify tool has NOT executed yet
     const beforeApproval = await cdpClient.evaluate<{ experimentsCount: number }>(`({
-      experimentsCount: Number(window.__experimentStore ? window.__experimentStore.getAll().length : 0),
+      experimentsCount: Number(window.__experimentStore ? window.__experimentStore.getExperiments().length : 0),
     })`);
     if (beforeApproval.experimentsCount > 0) {
       throw new Error("[FAIL-CLOSED] Tool executed BEFORE human approval was granted");
@@ -542,7 +542,7 @@ async function runGate(): Promise<void> {
     for (let i = 0; i < 30; i++) {
       await sleep(500);
       const expCount = await cdpClient.evaluate<number>(
-        `Number(window.__experimentStore ? window.__experimentStore.getAll().length : 0)`
+        `Number(window.__experimentStore ? window.__experimentStore.getExperiments().length : 0)`
       );
       if (expCount > 0) {
         experimentCompleted = true;
@@ -714,7 +714,7 @@ async function runGate(): Promise<void> {
           hasApproveBtn: approveBtn !== null,
           hasVerifiedBadge: body.includes("STABLE • VERIFIED") || body.includes("VERIFIED") || body.includes("Repair verified"),
           hasRevealCTA: Array.from(document.querySelectorAll("button")).some(b => b.innerText.includes("Reveal") || b.innerText.includes("Ground Truth")),
-          expCount: Number(window.__experimentStore ? window.__experimentStore.getAll().length : 0),
+          expCount: Number(window.__experimentStore ? window.__experimentStore.getExperiments().length : 0),
         };
       })()`);
 

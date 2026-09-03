@@ -17,6 +17,7 @@ import type { RegisteredTool } from "@/infrastructure/webmcp/types";
 export type BenchAgentActivityStatus =
   | "requested"
   | "waiting-approval"
+  | "running"
   | "completed"
   | "unavailable"
   | "denied"
@@ -28,6 +29,73 @@ export interface BenchAgentActivity {
   readonly result?: string;
   readonly message?: string;
   readonly durationMs?: number;
+}
+
+export interface ToolReceipt {
+  readonly toolName: string;
+  readonly status: BenchAgentActivityStatus;
+  readonly argumentsText: string;
+  readonly resultText?: string;
+  readonly evidenceIds: readonly string[];
+  readonly experimentId?: string;
+  readonly stateChanges: readonly string[];
+}
+
+const SECRET_KEY = /(?:api[_-]?key|authorization|password|secret|token)/i;
+
+function redactSecrets(value: unknown, key = ""): unknown {
+  if (SECRET_KEY.test(key)) return "[REDACTED]";
+  if (Array.isArray(value)) return value.map((item) => redactSecrets(item));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([entryKey, entryValue]) => [
+        entryKey,
+        redactSecrets(entryValue, entryKey),
+      ]),
+    );
+  }
+  return value;
+}
+
+export function buildToolReceipt(activity: BenchAgentActivity): ToolReceipt {
+  let parsedResult: Record<string, unknown> | undefined;
+  if (activity.result) {
+    try {
+      const parsed = JSON.parse(activity.result) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        parsedResult = parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Keep non-JSON tool output visible as the raw factual result.
+    }
+  }
+
+  const evidenceIds = Array.isArray(parsedResult?.evidence_ids)
+    ? parsedResult.evidence_ids.filter((id): id is string => typeof id === "string")
+    : activity.result?.match(/\bE-\d{3,}\b/g) ?? [];
+  const experimentId =
+    typeof parsedResult?.experiment_id === "string"
+      ? parsedResult.experiment_id
+      : activity.result?.match(/\bexp[_-][a-zA-Z0-9_-]+\b/)?.[0];
+  const stateChanges: string[] = [];
+  if (typeof parsedResult?.resetOccurred === "boolean") {
+    stateChanges.push(`Brownout reset: ${parsedResult.resetOccurred ? "detected" : "not detected"}`);
+  }
+  const supply = parsedResult?.supply_voltage;
+  if (supply && typeof supply === "object") {
+    const minimum = (supply as Record<string, unknown>).minimum_v;
+    if (typeof minimum === "number") stateChanges.push(`Minimum rail voltage: ${minimum.toFixed(2)} V`);
+  }
+
+  return {
+    toolName: activity.call.name,
+    status: activity.status,
+    argumentsText: JSON.stringify(redactSecrets(activity.call.arguments), null, 2),
+    resultText: activity.result ?? activity.message,
+    evidenceIds: [...new Set(evidenceIds)],
+    experimentId,
+    stateChanges,
+  };
 }
 
 export type BenchAgentProviderStatus =
@@ -139,6 +207,9 @@ function updateActivity(
   switch (event.type) {
     case "approval-requested":
       updated = { ...current, call: event.call, status: "waiting-approval" };
+      break;
+    case "tool-started":
+      updated = { ...current, call: event.call, status: "running" };
       break;
     case "tool-completed":
       updated = {
@@ -486,7 +557,7 @@ export function useBenchAgent(
     const goal =
       previous.goal.trim() ||
       "The controller restarts when the fan turns on. Investigate the cause using the available instruments.";
-    const modelContext = document.modelContext;
+    const modelContext = window.__agentModelContext ?? document.modelContext;
     if (!goal || !previous.providerAvailable || isActive(previous)) return;
 
     const isDemo = agentModeRef.current === "demo";
@@ -637,7 +708,7 @@ export function useBenchAgent(
     (observation: string) => {
       const trimmed = observation.trim();
       const previous = stateRef.current;
-      const modelContext = document.modelContext;
+      const modelContext = window.__agentModelContext ?? document.modelContext;
       if (!trimmed || !previous.providerAvailable || isActive(previous)) return;
 
       const isDemo = agentModeRef.current === "demo";

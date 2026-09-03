@@ -36,7 +36,7 @@ export interface ModelContextExecuteToolOptions {
   readonly signal?: AbortSignal;
 }
 
-export interface ModelContext extends EventTarget {
+export interface ModelContext {
   registerTool(
     tool: ModelContextTool,
     options?: ModelContextRegisterToolOptions
@@ -48,7 +48,20 @@ export interface ModelContext extends EventTarget {
     tool: RegisteredTool,
     input?: string | Record<string, unknown>,
     options?: ModelContextExecuteToolOptions
-  ): Promise<string>;
+  ): Promise<unknown>;
+
+  /** Optional lifecycle surface. Native WebMCP implementations may omit either method. */
+  addEventListener?(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+
+  removeEventListener?(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | EventListenerOptions,
+  ): void;
 }
 
 declare global {

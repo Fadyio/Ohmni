@@ -257,9 +257,14 @@ export const App: React.FC<AppProps> = ({
     const session = createScenarioSession({ scenarioId: "brownout" });
     setActiveScenario(session);
 
+    const initConfig = session.getInitialDeviceConfig();
+    if (resolvedAdapter && typeof (resolvedAdapter as any).reset === "function") {
+      (resolvedAdapter as any).reset(initConfig);
+    }
+
     setGoal("The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.");
     setShowMysteryIntro(true);
-  }, [setGoal]);
+  }, [setGoal, setAgentMode, resolvedAdapter]);
 
   const handleConnectHardware = useCallback(async () => {
     try {

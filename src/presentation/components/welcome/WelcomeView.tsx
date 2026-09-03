@@ -72,7 +72,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
             opacity: isNative ? 1 : 0.72,
           }}
         >
-          Native WebMCP
+          {isNative ? "Native WebMCP" : "WebMCP compatibility"} · {toolCount} tools discovered
         </span>
 
       </header>
@@ -131,11 +131,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   margin: 0,
                 }}
               >
-                AI can debug your code.
-                <br />
-                <span style={{ color: "var(--ohmni-intro-brand, #4967FF)" }}>
-                  Now it can investigate the board on your desk.
-                </span>
+                Give an AI instruments, not screenshots.
               </h1>
 
               <p
@@ -147,7 +143,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   maxWidth: "540px",
                 }}
               >
-                A hidden hardware fault. An agent with browser-native instruments. You provide the hands when a physical change is required.
+                Ohmni exposes hardware diagnostics as browser-native WebMCP tools. An agent runs evidence-backed experiments, the browser gates side effects, and a human remains in control of interventions.
               </p>
             </div>
 
@@ -170,7 +166,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 }}
               >
                 <Lock size={16} />
-                <span>Start blind diagnosis</span>
+                <span>Start live AI diagnosis</span>
                 <ArrowRight size={17} />
               </button>
 
@@ -187,6 +183,14 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
               >
                 <span>View deterministic walkthrough</span>
               </button>
+            </div>
+
+            <div style={{ color: "var(--ohmni-intro-secondary, #525866)", fontSize: "12.5px", lineHeight: 1.55, maxWidth: "590px" }}>
+              <div><strong>Live AI diagnosis</strong> — Groq selects tools from observed evidence.</div>
+              <div><strong>Deterministic walkthrough</strong> — Reliable guided replay of the same WebMCP architecture.</div>
+              <p style={{ margin: "10px 0 0" }}>
+                This submission demonstrates the control plane on a deterministic virtual ESP32. The device-adapter boundary is designed for browser-connected physical hardware.
+              </p>
             </div>
 
             {/* Product principles */}

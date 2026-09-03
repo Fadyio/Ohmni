@@ -103,30 +103,12 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
     return passing.length > 0 ? passing[passing.length - 1] : undefined;
   }, [allExperiments, beforeExperiment]);
 
-  // Human Physical Intervention: Selecting the jumper changes the real VirtualDeviceAdapter state
-  const handleSelectJumper = useCallback(
-    (pos: "3V3" | "5V") => {
-      setJumperPosition(pos);
-      setObservationSent(false);
-      if (resolvedAdapter?.setInterventionPoint) {
-        resolvedAdapter.setInterventionPoint("relay_power_jumper", pos === "5V" ? "5v" : "3v3");
-      }
-    },
-    [resolvedAdapter]
-  );
-
-  const handleJumperKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>): void => {
-      if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
-        event.preventDefault();
-        handleSelectJumper("3V3");
-      } else if (event.key === "ArrowRight" || event.key === "ArrowUp") {
-        event.preventDefault();
-        handleSelectJumper("5V");
-      }
-    },
-    [handleSelectJumper]
-  );
+  // The virtual DUT changes only after the human explicitly confirms this simulation action.
+  const handleConfirmJumperMove = useCallback(() => {
+    setJumperPosition("5V");
+    setObservationSent(false);
+    resolvedAdapter?.setInterventionPoint?.("relay_power_jumper", "5v");
+  }, [resolvedAdapter]);
 
   // Notify Bench Agent of human observation
   const handleNotifyAgent = useCallback(() => {
@@ -160,9 +142,6 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
   const isAgentApproval = agentState?.status === "approval";
 
   // Dynamic instruction & rationale derived from actual hypothesis state
-  const interventionTitle =
-    hypothesis?.description ||
-    "Move relay power from shared 3.3 V rail to external 5 V.";
   const rootCauseText =
     hypothesis?.rationale ||
     hypothesis?.description ||
@@ -337,15 +316,18 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-brand)", fontSize: "12.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
               <Wrench size={15} />
-              THE AGENT NEEDS YOUR HANDS
+              Virtual DUT intervention required
             </div>
 
             <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-ink)", margin: "8px 0 12px", lineHeight: 1.2 }}>
-              Move JP1: Shared 3.3 V → Independent 5 V
+              Simulate technician moving JP1: Shared 3.3 V → Independent 5 V
             </h2>
 
             <p className="body-text" style={{ fontSize: "15px", lineHeight: 1.6, margin: 0 }}>
               <strong>Why:</strong> {rootCauseText}
+            </p>
+            <p className="body-text" style={{ fontSize: "13px", lineHeight: 1.55, margin: "12px 0 0", color: "var(--ohmni-secondary)" }}>
+              In a physical adapter, Ohmni would pause here until a technician or device signal confirmed the hardware change. This submission uses a stateful virtual ESP32.
             </p>
           </div>
 
@@ -363,61 +345,25 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
             }}
           >
             <div className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "#94A3B8" }}>
-              PHYSICAL JUMPER JP1 SELECTOR
+              VIRTUAL ESP32 · JP1
             </div>
 
-            {/* Visual Jumper Toggle */}
-            <div
-              role="radiogroup"
-              aria-label="Physical Jumper Position"
-              tabIndex={0}
-              onKeyDown={handleJumperKeyDown}
-              style={{ display: "flex", gap: "12px", alignItems: "center" }}
-            >
+            {jumperPosition === "3V3" && (
               <button
-                role="radio"
-                aria-checked={jumperPosition === "3V3"}
-                onClick={() => handleSelectJumper("3V3")}
-                style={{
-                  background: jumperPosition === "3V3" ? "var(--ohmni-fault)" : "#1E293B",
-                  color: "#FFFFFF",
-                  border: "none",
-                  padding: "10px 18px",
-                  borderRadius: "var(--radius-md)",
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
+                type="button"
+                data-testid="simulate-jp1-btn"
+                onClick={handleConfirmJumperMove}
+                className="btn-primary"
+                style={{ padding: "10px 18px", fontWeight: 700 }}
               >
-                Shared 3.3 V
+                Simulate moving JP1
               </button>
-
-              <span style={{ color: "#64748B", fontSize: "16px" }}>→</span>
-
-              <button
-                role="radio"
-                aria-checked={jumperPosition === "5V"}
-                onClick={() => handleSelectJumper("5V")}
-                style={{
-                  background: jumperPosition === "5V" ? "var(--ohmni-brand)" : "#1E293B",
-                  color: "#FFFFFF",
-                  border: "none",
-                  padding: "10px 18px",
-                  borderRadius: "var(--radius-md)",
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  boxShadow: jumperPosition === "5V" ? "0 0 16px rgba(85, 112, 255, 0.4)" : "none",
-                }}
-              >
-                Independent 5 V
-              </button>
-            </div>
+            )}
 
             <div style={{ fontSize: "12px", color: jumperPosition === "5V" ? "#E2E8F0" : "#94A3B8" }}>
               {jumperPosition === "5V"
-                ? "PHYSICAL CONFIGURATION CHANGED • Verification required."
-                : "Jumper connected to shared 3.3V microcontroller rail."}
+                ? "Virtual JP1 moved. Notify the agent and run verification."
+                : "Virtual JP1 remains on the shared 3.3 V rail until you confirm."}
             </div>
 
             {/* Agent-driven Continuation / Approval Section */}
@@ -537,7 +483,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     }}
                   >
                     <Send size={14} />
-                    <span>Tell {agentIdentity.displayName} I've changed it</span>
+                    <span>{observationSent ? `${agentIdentity.displayName} notified` : `Notify ${agentIdentity.displayName} and run verification`}</span>
                   </button>
                 )}
               </div>

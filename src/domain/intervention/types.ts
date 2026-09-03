@@ -1,6 +1,6 @@
 /**
- * Human Physical Intervention Domain Types.
- * Master Milestone 8 — Generalized Hardware Intervention & Human Collaboration.
+ * Human-Gated Virtual DUT Intervention Domain Types.
+ * Master Milestone 8 — Generalized Intervention & Human Collaboration.
  */
 
 export interface InterventionPointOption {

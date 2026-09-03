@@ -109,7 +109,7 @@ describe("Human Physical Intervention System & Observation Invariants (Phase 4)"
 
     // 5. Continuation prompt encourages empirical verification, never claiming fix automatically
     const continuation = interventionStore.createContinuationPrompt(observation);
-    expect(continuation).toContain("A reported physical intervention is not proof that the fault is fixed.");
+    expect(continuation).toContain("A reported virtual intervention is not proof that the fault is fixed.");
     expect(continuation).toContain("verify the repair experimentally");
   });
 

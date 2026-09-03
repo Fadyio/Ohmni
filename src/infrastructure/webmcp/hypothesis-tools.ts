@@ -447,9 +447,9 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
 
   const requestHumanInterventionTool: ModelContextTool = {
     name: "request_human_intervention",
-    title: "Request Physical Human Intervention",
+    title: "Request Human-Gated DUT Intervention",
     description:
-      "Request human assistance to physically inspect, move jumpers, toggle switches, or reconnect cables on the board. Does not mutate hardware automatically; human physical action is the consent boundary.",
+      "Request human assistance at the device-adapter boundary. In this submission, the human explicitly simulates a jumper, switch, or cable change on the stateful virtual ESP32; no device state changes automatically.",
     inputSchema: {
       type: "object",
       properties: {
@@ -461,13 +461,13 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
           type: "string",
           minLength: 5,
           maxLength: 500,
-          description: "Clear, step-by-step physical instruction for the human.",
+          description: "Clear instruction for the human-confirmed virtual DUT change (or physical adapter action in a future connected deployment).",
         },
         rationale: {
           type: "string",
           minLength: 5,
           maxLength: 800,
-          description: "Scientific rationale explaining why this physical change is necessary to test or repair the fault.",
+          description: "Scientific rationale explaining why this human-gated DUT change is necessary to test or repair the fault.",
         },
         evidence_ids: {
           type: "array",

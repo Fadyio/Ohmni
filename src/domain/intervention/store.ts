@@ -1,6 +1,6 @@
 /**
  * Human Intervention Store & Management.
- * Coordinates agent intervention requests, human physical manipulations,
+ * Coordinates agent intervention requests, human-gated virtual DUT changes,
  * immutable human evidence ingestion, and agent continuation prompting.
  */
 
@@ -91,9 +91,9 @@ export class InterventionStore {
   }
 
   /**
-   * Applies a human physical intervention:
+   * Applies a human-gated virtual DUT intervention:
    * 1. Updates local point state
-   * 2. Updates physical/virtual DeviceAdapter
+   * 2. Updates the active DeviceAdapter
    * 3. Appends an immutable EvidenceRecord with source: "human"
    * 4. Clears the active request
    */
@@ -119,7 +119,7 @@ export class InterventionStore {
       options.adapter.setInterventionPoint(target, newState);
     }
 
-    const summary = `Human physical intervention on ${label}: Changed state from "${previousState}" to "${newState}".`;
+    const summary = `Human simulated a virtual DUT intervention on ${label}: Changed state from "${previousState}" to "${newState}".`;
     const observation: HumanObservationRecord = {
       interventionPointId: target,
       previousState,
@@ -157,9 +157,9 @@ export class InterventionStore {
   }
 
   public createContinuationPrompt(observation: HumanObservationRecord): string {
-    return `Human completed physical intervention: ${observation.summary}
+    return `Human completed the virtual DUT intervention: ${observation.summary}
 
-A reported physical intervention is not proof that the fault is fixed. Use available diagnostic instruments to verify the repair experimentally before marking any hypothesis confirmed.`;
+A reported virtual intervention is not proof that the fault is fixed. Use available diagnostic instruments to verify the repair experimentally before marking any hypothesis confirmed.`;
   }
 
   public subscribe(listener: () => void): () => void {

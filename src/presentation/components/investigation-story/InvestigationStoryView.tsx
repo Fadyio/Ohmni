@@ -27,6 +27,7 @@ import type { InvestigationPhase } from "@/domain/investigation/lifecycle";
 import { deriveInvestigationPhase } from "@/domain/investigation/lifecycle";
 import { classifyTool } from "@/domain/safety/tool-safety-policy";
 import { getAgentIdentity } from "@/presentation/types/agent-identity";
+import { useWebMCPTools } from "@/presentation/hooks/useWebMCPTools";
 
 export interface InvestigationStoryViewProps {
   readonly isConnected: boolean;
@@ -131,6 +132,13 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   });
   const isNativeMode = typeof window !== "undefined" && window.__webmcpMode === "native";
   const providerStatus = agentState.providerStatus;
+  const {
+    tools: webmcpTools,
+    toolCount,
+    investigationToolCount,
+    deviceToolCount,
+    isDiscovering,
+  } = useWebMCPTools();
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -308,7 +316,13 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               }}
             >
               <ShieldCheck size={12} />
-              <span>Native WebMCP</span>
+              <span>Native WebMCP · {toolCount} tools discovered</span>
+            </span>
+          )}
+
+          {deviceToolCount > 0 && (
+            <span className="font-mono" style={{ fontSize: "10px", color: "var(--ohmni-lab-muted, #64748B)" }}>
+              {investigationToolCount} investigation + {deviceToolCount} virtual-device instruments
             </span>
           )}
 
@@ -576,9 +590,9 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
       <WebMCPCapabilityDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        tools={[]}
-        isNative={true}
-        isDiscovering={false}
+        tools={webmcpTools}
+        isNative={isNativeMode}
+        isDiscovering={isDiscovering}
       />
     </div>
   );

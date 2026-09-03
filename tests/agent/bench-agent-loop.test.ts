@@ -9,6 +9,7 @@ import type {
 } from "@/infrastructure/bench-agent/types";
 import { InMemoryModelContext } from "@/infrastructure/webmcp/in-memory-model-context";
 import { DeviceToolRegistrar } from "@/infrastructure/webmcp/device-tool-registrar";
+import type { ModelContext } from "@/infrastructure/webmcp/types";
 
 interface TurnOptions {
   readonly signal?: AbortSignal;
@@ -97,6 +98,38 @@ afterEach(() => {
 });
 
 describe("runBenchAgent", () => {
+  it("accepts structured results returned by a native-like model context", async () => {
+    const nativeLikeContext: ModelContext = {
+      registerTool: async () => undefined,
+      getTools: async () => [{
+        name: "read_device_info",
+        description: "Read device info",
+        annotations: { readOnlyHint: true },
+      }],
+      executeTool: async () => ({ chip: "ESP32-S3", relayState: "open" }),
+    };
+    const provider = new DeterministicProvider([
+      {
+        interactionId: "native-1",
+        functionCalls: [{ id: "call-native", name: "read_device_info", arguments: {} }],
+      },
+      (request) => {
+        expect(resultInput(request)[0].result[0].text).toBe(
+          JSON.stringify({ chip: "ESP32-S3", relayState: "open" }),
+        );
+        return { interactionId: "native-2", functionCalls: [], text: "done" };
+      },
+    ]);
+
+    const result = await runBenchAgent({
+      goal: "Inspect device",
+      modelContext: nativeLikeContext,
+      provider,
+      requestApproval: async () => true,
+    });
+    expect(result.status).toBe("completed");
+  });
+
   it("serializes only the registered virtual device public tool contract", async () => {
     const modelContext = new InMemoryModelContext();
     const adapter = new VirtualDeviceAdapter();

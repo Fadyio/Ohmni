@@ -22,6 +22,7 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
   private turnCount = 0;
   private lastHypothesisId = "H-001";
   private verifiedExperimentId?: string;
+  private verificationEvidenceIds: string[] = [];
 
   public async canary(_options?: { signal?: AbortSignal }): Promise<{
     readonly ok: boolean;
@@ -39,6 +40,7 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
     this.turnCount = 0;
     this.lastHypothesisId = "H-001";
     this.verifiedExperimentId = undefined;
+    this.verificationEvidenceIds = [];
   }
 
   public async turn(
@@ -73,7 +75,7 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
               arguments: { cycles: 3, duration_ms: 50 },
             },
           ],
-          text: "Human hardware intervention observed: JP1 jumper moved to 5 V external rail. Rerunning the relay stress test to experimentally verify supply rail stability under load.",
+          text: "Human-confirmed virtual DUT intervention observed: JP1 moved to the 5 V auxiliary rail. Rerunning the relay stress test to verify supply stability under load.",
         };
       }
 
@@ -94,6 +96,15 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
     // Case B: Input is AgentFunctionResult[]
     if (Array.isArray(input)) {
       const results = input as readonly AgentFunctionResult[];
+
+      const failedResult = results.find((result) => result.is_error === true);
+      if (failedResult) {
+        return {
+          interactionId,
+          functionCalls: [],
+          text: `The deterministic walkthrough stopped safely because ${failedResult.name} failed. Retry the walkthrough to start from a clean virtual DUT state.`,
+        };
+      }
 
       // 1. Check for confirm_hypothesis
       const confirmResult = results.find((r) => r.name === "confirm_hypothesis");
@@ -117,12 +128,37 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
               arguments: {
                 hypothesis_id: this.lastHypothesisId || "H-001",
                 rationale: "Post-repair relay stress test proved that with relay powered from 5 V auxiliary rail, MCU rail remained stable at >= 3.18 V with zero resets under load.",
-                evidence_ids: ["E-001"],
+                evidence_ids: this.verificationEvidenceIds,
                 verified_experiment_id: this.verifiedExperimentId || "exp_verification",
               },
             },
           ],
           text: "Hypothesis confidence elevated to HIGH. Formally confirming and verifying diagnostic hypothesis.",
+        };
+      }
+
+      const evidenceResult = results.find((r) => r.name === "list_evidence");
+      if (evidenceResult && this.verifiedExperimentId) {
+        const records = this.parseResultArray(evidenceResult);
+        this.verificationEvidenceIds = records
+          .filter((record): record is Record<string, unknown> => Boolean(record && typeof record === "object"))
+          .map((record) => record.id)
+          .filter((id): id is string => typeof id === "string");
+        return {
+          interactionId,
+          functionCalls: [
+            {
+              id: `call_elevate_hyp_${this.turnCount}`,
+              name: "update_hypothesis",
+              arguments: {
+                hypothesis_id: this.lastHypothesisId || "H-001",
+                confidence: "HIGH",
+                evidence_ids: this.verificationEvidenceIds,
+                reason: "Empirical re-test on 5 V external rail confirmed stable supply voltage with zero brownout resets.",
+              },
+            },
+          ],
+          text: "Post-repair evidence was read from the verification experiment. Elevating hypothesis confidence from the cited results.",
         };
       }
 
@@ -132,7 +168,7 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
         return {
           interactionId,
           functionCalls: [],
-          text: "Waiting for human technician to relocate jumper JP1 on the board from 3.3 V to the external 5 V auxiliary rail.",
+          text: "Waiting for the human to explicitly simulate moving virtual JP1 from 3.3 V to the 5 V auxiliary rail.",
         };
       }
 
@@ -152,12 +188,12 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
               name: "request_human_intervention",
               arguments: {
                 target: "relay_power_jumper",
-                instruction: "Move jumper JP1 from the shared 3.3 V rail to the external 5 V auxiliary rail.",
+                instruction: "Simulate moving virtual JP1 from the shared 3.3 V rail to the 5 V auxiliary rail.",
                 rationale: "Isolating the relay coil power to the external 5 V auxiliary rail prevents coil inrush current from collapsing the MCU 3.3 V rail.",
               },
             },
           ],
-          text: "Hypothesis registered. To test this hypothesis, I require physical intervention: please move jumper JP1 on the board from the 3.3 V shared rail to the external 5 V auxiliary rail.",
+          text: "Hypothesis registered. Verification requires a human-gated virtual DUT intervention: please simulate moving JP1 from the shared 3.3 V rail to the 5 V auxiliary rail.",
         };
       }
 
@@ -210,17 +246,14 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
           interactionId,
           functionCalls: [
             {
-              id: `call_elevate_hyp_${this.turnCount}`,
-              name: "update_hypothesis",
+              id: `call_list_verification_evidence_${this.turnCount}`,
+              name: "list_evidence",
               arguments: {
-                hypothesis_id: this.lastHypothesisId || "H-001",
-                confidence: "HIGH",
-                evidence_ids: ["E-001"],
-                reason: "Empirical re-test on 5 V external rail confirmed stable 3.18 V supply rail with zero brownout resets.",
+                experiment_id: experimentId,
               },
             },
           ],
-          text: "Post-repair stress test completed successfully with zero resets and stable 3.18 V supply rail! Elevating hypothesis confidence to HIGH based on empirical re-test.",
+          text: "Post-repair stress test completed successfully with zero resets. Reading the evidence created by that exact experiment before updating the hypothesis.",
         };
       }
       // 5. Check for measure_supply_voltage
@@ -271,6 +304,16 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
       return JSON.parse(text);
     } catch {
       return { raw: text };
+    }
+  }
+
+  private parseResultArray(result: AgentFunctionResult): readonly unknown[] {
+    if (!result.result || result.result.length === 0) return [];
+    try {
+      const parsed = JSON.parse(result.result[0].text) as unknown;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
     }
   }
 }

@@ -99,13 +99,13 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
       expect(html).not.toContain("data-wordmark-variant");
 
       // 4. Hero must begin directly with required headline
-      expect(html).toContain("AI can debug your code.");
-      expect(html).toContain("Now it can investigate the board on your desk.");
-      expect(html).toContain("A hidden hardware fault. An agent with browser-native instruments.");
+      expect(html).toContain("Give an AI instruments, not screenshots.");
+      expect(html).toContain("browser-native WebMCP tools");
+      expect(html).toContain("deterministic virtual ESP32");
 
       // 5. CTAs must remain intact
       expect(html).toContain('id="start-mystery-btn"');
-      expect(html).toContain("Start blind diagnosis");
+      expect(html).toContain("Start live AI diagnosis");
       expect(html).toContain('id="diagnose-demo-btn"');
       expect(html).toContain("View deterministic walkthrough");
 
@@ -524,7 +524,7 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
       expect(html).not.toContain('color:#FFFFFF">Deny');
     });
 
-    it("Jumper selector provides accessible radiogroup with plain English labels", () => {
+    it("Virtual jumper intervention requires one explicit, accessible confirmation", () => {
       const html = renderToString(
         <RepairVerificationScene
           hypothesis={sampleHypothesis}
@@ -532,11 +532,11 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
         />
       );
 
-      expect(html).toContain('role="radiogroup"');
-      expect(html).toContain('aria-label="Physical Jumper Position"');
+      expect(html).toContain('data-testid="simulate-jp1-btn"');
+      expect(html).toContain("Virtual DUT intervention required");
       expect(html).toContain("Shared 3.3 V");
       expect(html).toContain("Independent 5 V");
-      expect(html).toContain("Move JP1: Shared 3.3 V → Independent 5 V");
+      expect(html).toContain("Simulate moving JP1");
       expect(html).toContain("AFTER REPAIR (Independent 5 V supply)");
     });
   });

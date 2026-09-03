@@ -26,6 +26,7 @@ const statusLabels: Record<BenchAgentState["status"], string> = {
 const activityLabels: Record<BenchAgentActivityStatus, string> = {
   requested: "EXECUTING",
   "waiting-approval": "AWAITING APPROVAL",
+  running: "RUNNING",
   completed: "COMPLETED",
   unavailable: "UNAVAILABLE",
   denied: "DENIED",

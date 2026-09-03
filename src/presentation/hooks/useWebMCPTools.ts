@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { RegisteredTool } from "@/infrastructure/webmcp/types";
+import type { ModelContext, RegisteredTool } from "@/infrastructure/webmcp/types";
 
 export interface WebMCPToolInfo {
   readonly name: string;
@@ -18,6 +18,35 @@ export interface WebMCPState {
   readonly isNative: boolean;
   readonly isDiscovering: boolean;
   readonly hasModelContext: boolean;
+  readonly investigationToolCount: number;
+  readonly deviceToolCount: number;
+}
+
+const DEVICE_TOOL_NAMES = new Set([
+  "read_device_info",
+  "read_reset_history",
+  "read_system_health",
+  "measure_supply_voltage",
+  "scan_i2c_bus",
+  "read_sensor_status",
+  "read_i2c_line_state",
+  "run_relay_stress_test",
+]);
+
+export function subscribeToModelContextToolChanges(
+  modelContext: ModelContext,
+  listener: EventListener,
+): () => void {
+  if (typeof modelContext.addEventListener !== "function") {
+    return () => undefined;
+  }
+
+  modelContext.addEventListener("toolchange", listener);
+  return () => {
+    if (typeof modelContext.removeEventListener === "function") {
+      modelContext.removeEventListener("toolchange", listener);
+    }
+  };
 }
 
 export function useWebMCPTools(): WebMCPState {
@@ -36,7 +65,12 @@ export function useWebMCPTools(): WebMCPState {
     }
 
     try {
-      const rawTools = await document.modelContext.getTools();
+      const discoveryContext = window.__agentModelContext ?? document.modelContext;
+      if (typeof discoveryContext.getTools !== "function") {
+        setTools([]);
+        return;
+      }
+      const rawTools = await discoveryContext.getTools();
       const mapped: WebMCPToolInfo[] = (rawTools || []).map((t: RegisteredTool) => ({
         name: t.name,
         title: t.title,
@@ -68,14 +102,19 @@ export function useWebMCPTools(): WebMCPState {
     fetchTools();
 
     if (typeof document !== "undefined" && document.modelContext) {
-      const mc = document.modelContext;
+      const mc = window.__agentModelContext ?? document.modelContext;
       const onToolChange = () => {
         fetchTools();
       };
 
-      mc.addEventListener("toolchange", onToolChange);
+      const unsubscribe = subscribeToModelContextToolChanges(mc, onToolChange);
+      const pollId =
+        typeof mc.addEventListener === "function"
+          ? null
+          : window.setInterval(() => void fetchTools(), 500);
       return () => {
-        mc.removeEventListener("toolchange", onToolChange);
+        unsubscribe();
+        if (pollId !== null) window.clearInterval(pollId);
         if (discoveryTimeoutRef.current !== null) {
           clearTimeout(discoveryTimeoutRef.current);
         }
@@ -89,5 +128,7 @@ export function useWebMCPTools(): WebMCPState {
     isNative,
     isDiscovering,
     hasModelContext,
+    investigationToolCount: tools.filter((tool) => !DEVICE_TOOL_NAMES.has(tool.name)).length,
+    deviceToolCount: tools.filter((tool) => DEVICE_TOOL_NAMES.has(tool.name)).length,
   };
 }

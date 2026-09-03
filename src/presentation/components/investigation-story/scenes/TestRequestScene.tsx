@@ -157,7 +157,7 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <Zap size={15} color="var(--ohmni-lab-action)" />
               <span className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: "#94A3B8", textTransform: "uppercase" }}>
-                PHYSICAL INTERVENTION ZONE: RELAY & 3V3 RAIL
+                VIRTUAL DUT INTERVENTION: RELAY & 3V3 RAIL
               </span>
             </div>
             <div

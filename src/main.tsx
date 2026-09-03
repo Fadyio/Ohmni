@@ -9,6 +9,7 @@ import { createRoot } from "react-dom/client";
 import type { ModelContext } from "@/infrastructure/webmcp/types";
 import { VirtualDeviceAdapter } from "@/domain/device/virtual-adapter";
 import { InMemoryModelContext } from "@/infrastructure/webmcp/in-memory-model-context";
+import { MirroredModelContext } from "@/infrastructure/webmcp/mirrored-model-context";
 import { DeviceToolRegistrar } from "@/infrastructure/webmcp/device-tool-registrar";
 import { CapabilityRegistry } from "@/infrastructure/webmcp/capability-registry";
 import { TelemetryEventBus } from "@/domain/telemetry/bus";
@@ -19,6 +20,7 @@ import { registerEvidenceTools } from "@/infrastructure/webmcp/evidence-tools";
 import { InMemoryHypothesisStore, type HypothesisStore } from "@/domain/hypothesis/store";
 import { registerHypothesisTools } from "@/infrastructure/webmcp/hypothesis-tools";
 import { App } from "@/presentation/App";
+import { AppErrorBoundary } from "@/presentation/components/errors/AppErrorBoundary";
 declare global {
   interface Window {
     __virtualDevice?: VirtualDeviceAdapter;
@@ -29,6 +31,7 @@ declare global {
     __hypothesisStore?: HypothesisStore;
     __experimentRunner?: ExperimentRunner;
     __modelContext?: InMemoryModelContext;
+    __agentModelContext?: ModelContext;
     __scopeFrameCount?: number;
     __webmcpMode?: "native" | "compatibility";
     __buildInfo?: {
@@ -46,8 +49,11 @@ const isNativeWebMCP =
   typeof document !== "undefined" &&
   Boolean((document as unknown as { modelContext?: unknown }).modelContext);
 
-const modelContext = isNativeWebMCP
+const nativeModelContext = isNativeWebMCP
   ? (document as unknown as { modelContext: ModelContext }).modelContext
+  : undefined;
+const modelContext = nativeModelContext
+  ? new MirroredModelContext(nativeModelContext)
   : new InMemoryModelContext();
 
 if (typeof document !== "undefined" && !isNativeWebMCP) {
@@ -60,6 +66,7 @@ if (typeof document !== "undefined" && !isNativeWebMCP) {
 
 if (typeof window !== "undefined") {
   window.__webmcpMode = isNativeWebMCP ? "native" : "compatibility";
+  window.__agentModelContext = modelContext;
   const sha = (import.meta.env.VITE_BUILD_SHA as string) || "development";
   window.__OHMNI_BUILD_SHA__ = sha;
   window.__buildInfo = {
@@ -108,14 +115,16 @@ if (typeof document !== "undefined") {
     const root = createRoot(container);
     root.render(
       <React.StrictMode>
-        <App
-          deviceAdapter={virtualDevice}
-          toolRegistrar={toolRegistrar}
-          telemetryBus={telemetryBus}
-          experimentRunner={experimentRunner}
-          evidenceStore={evidenceStore}
-          hypothesisStore={hypothesisStore}
-        />
+        <AppErrorBoundary>
+          <App
+            deviceAdapter={virtualDevice}
+            toolRegistrar={toolRegistrar}
+            telemetryBus={telemetryBus}
+            experimentRunner={experimentRunner}
+            evidenceStore={evidenceStore}
+            hypothesisStore={hypothesisStore}
+          />
+        </AppErrorBoundary>
       </React.StrictMode>
     );
   }
