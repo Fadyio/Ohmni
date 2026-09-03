@@ -4,7 +4,7 @@
  * Categorizes the dynamic tool surface with truthful product taxonomy:
  * - OBSERVE: Read-only physical sensors & telemetry.
  * - REASON: Agent evidence extraction & hypothesis synthesis.
- * - PHYSICAL TEST: Controlled hardware stress actuation (requires human approval).
+ * - CONTROLLED TEST: Stateful DUT stress actuation (requires human approval).
  */
 
 import React, { useState } from "react";
@@ -70,7 +70,7 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
         };
       case "actuation":
         return {
-          label: "PHYSICAL TEST",
+          label: "CONTROLLED TEST",
           color: "var(--ohmni-warning)",
           bg: "rgba(244, 184, 96, 0.12)",
           border: "rgba(244, 184, 96, 0.25)",
@@ -186,7 +186,7 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
                   { key: "all", label: `All (${tools.length})` },
                   { key: "observe", label: "Observe" },
                   { key: "reason", label: "Reason" },
-                  { key: "actuation", label: "Physical Test" },
+                  { key: "actuation", label: "Controlled Test" },
                 ].map((tab) => (
                   <button
                     key={tab.key}

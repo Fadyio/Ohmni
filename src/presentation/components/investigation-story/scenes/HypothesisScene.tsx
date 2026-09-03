@@ -110,7 +110,7 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
                 border: "1px solid rgba(220, 80, 80, 0.3)",
               }}
             >
-              NEEDS PHYSICAL VERIFICATION
+              NEEDS CONTROLLED RETEST
             </span>
             {supportingEvidenceIds.length > 0 ? (
               <div data-testid="hypothesis-grounded-badge" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-verified)", fontSize: "12px", fontWeight: 600 }}>

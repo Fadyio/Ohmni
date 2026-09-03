@@ -33,9 +33,9 @@ const activityLabels: Record<BenchAgentActivityStatus, string> = {
   failed: "FAILED",
 };
 
-function getToolTaxonomy(name: string): { label: "OBSERVE" | "REASON" | "PHYSICAL TEST"; color: string; bg: string } {
+function getToolTaxonomy(name: string): { label: "OBSERVE" | "REASON" | "CONTROLLED TEST"; color: string; bg: string } {
   if (name === "run_relay_stress_test") {
-    return { label: "PHYSICAL TEST", color: "var(--ohmni-warning)", bg: "rgba(244, 184, 96, 0.12)" };
+    return { label: "CONTROLLED TEST", color: "var(--ohmni-warning)", bg: "rgba(244, 184, 96, 0.12)" };
   }
   if (name.includes("hypothesis") || name.includes("evidence")) {
     return { label: "REASON", color: "var(--ohmni-brand-hover)", bg: "rgba(79, 107, 255, 0.12)" };

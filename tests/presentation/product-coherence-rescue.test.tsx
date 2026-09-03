@@ -7,7 +7,7 @@
  * 3. Deterministic walkthrough modal entry and ReadyScene "Start investigation" handoff.
  * 4. Progress phase truth: OBSERVE -> TEST -> DIAGNOSE -> REPAIR -> VERIFY.
  * 5. Agent status truth: DIAGNOSIS FORMED, WAITING FOR YOU, VERIFICATION RUNNING, COMPLETED.
- * 6. Hypothesis UI: WORKING DIAGNOSIS, 3 measured facts, NEEDS PHYSICAL VERIFICATION, Verify with repair →.
+ * 6. Hypothesis UI: WORKING DIAGNOSIS, 3 measured facts, NEEDS CONTROLLED RETEST, Verify with repair →.
  * 7. Repair scene: Shared application shell, REPAIR highlighted, high-contrast visible "Deny retest" button.
  * 8. Plain English labels across observing, running, repair scenes.
  * 9. Oscilloscope accessible aria-label.
@@ -457,7 +457,7 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
       expect(html).toContain("2.72 V minimum");
       expect(html).toContain("Brownout reset");
       expect(html).toContain("Relay activation preceded reset");
-      expect(html).toContain("NEEDS PHYSICAL VERIFICATION");
+      expect(html).toContain("NEEDS CONTROLLED RETEST");
       expect(html).toContain('id="proceed-to-repair-btn"');
       expect(html).toContain("Verify with repair →");
     });
