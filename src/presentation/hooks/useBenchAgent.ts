@@ -341,6 +341,9 @@ export function useBenchAgent(
 
   const commit = useCallback((next: BenchAgentState) => {
     stateRef.current = next;
+    if (typeof window !== "undefined") {
+      (window as Window & { __benchAgentState?: BenchAgentState }).__benchAgentState = next;
+    }
     if (mountedRef.current) {
       setReactState(next);
     }

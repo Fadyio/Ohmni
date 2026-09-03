@@ -74,7 +74,14 @@ class CDPClient {
     this.ws = ws;
     this.ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data.toString()) as { id?: number; result?: unknown; error?: { message: string } };
+        const msg = JSON.parse(event.data.toString()) as { id?: number; method?: string; params?: { type?: string; args?: Array<{ value?: unknown; description?: string }> }; result?: unknown; error?: { message: string } };
+        if (msg.method === "Runtime.consoleAPICalled" && msg.params) {
+          const type = msg.params.type ?? "log";
+          if (type === "error" || type === "warning") {
+            const text = msg.params.args?.map((a) => String(a.value ?? a.description ?? "")).join(" ") ?? "";
+            console.warn(`    [Chrome ${type}] ${text.slice(0, 120)}`);
+          }
+        }
         if (typeof msg.id === "number" && this.pending.has(msg.id)) {
           const { resolve, reject } = this.pending.get(msg.id)!;
           this.pending.delete(msg.id);
@@ -504,7 +511,7 @@ async function runGate(): Promise<void> {
       }
 
       if (i % 5 === 0) {
-        console.info(`  ↳ [${i}s] Groq: ${state?.activityCount ?? 0} activities | buttons: [${state?.buttons?.slice(0, 4).join(", ") || ""}] | body: "${state?.bodySnippet?.slice(0, 60) || ""}"`);
+        console.info(`  ↳ [${i}s] Groq: ${state?.activityCount ?? 0} activities: ${state?.activities?.join(" || ")} | buttons: [${state?.buttons?.slice(0, 4).join(", ") || ""}]`);
       }
     }
     if (!approvalReached) {
@@ -561,19 +568,24 @@ async function runGate(): Promise<void> {
     console.info("\n[Gate Step 9/12] Waiting for Groq to synthesize root cause hypothesis...");
     let hypothesisFormed = false;
     let railStatusText = "";
-    for (let i = 0; i < 45; i++) {
-      await sleep(600);
+    for (let i = 0; i < 90; i++) {
+      await sleep(1000);
       const hypState = await cdpClient.evaluate<{
         hasHypothesis: boolean;
         hypothesesCount: number;
         railStatus: string;
+        activityCount: number;
+        lastActivity: string;
       }>(`(() => {
         const list = window.__hypothesisStore ? window.__hypothesisStore.getAll() : [];
         const rail = document.querySelector("[data-testid='bench-agent-panel']");
+        const rows = document.querySelectorAll("[data-testid='bench-agent-activity-row']");
         return {
           hasHypothesis: list.length > 0 || document.querySelector("[data-testid='hypothesis-card']") !== null,
           hypothesesCount: list.length,
-          railStatus: rail ? rail.innerText : "",
+          railStatus: rail ? rail.innerText.slice(0, 100) : "",
+          activityCount: rows.length,
+          lastActivity: rows[rows.length - 1] ? (rows[rows.length - 1].innerText || "").slice(0, 50) : "",
         };
       })()`);
 
@@ -582,9 +594,21 @@ async function runGate(): Promise<void> {
         railStatusText = hypState.railStatus;
         break;
       }
+      if (i % 5 === 0) {
+        console.info(`  ↳ [${i}s] Groq post-stress: ${hypState.activityCount} activities | last: "${hypState.lastActivity}"`);
+      }
     }
     if (!hypothesisFormed) {
-      throw new Error("[FAIL-CLOSED] Groq agent failed to synthesize root cause hypothesis");
+      const diag = await cdpClient.evaluate<{ status?: string; message?: string; activities?: string[] }>(`(() => {
+        const state = window.__benchAgentState;
+        const rows = Array.from(document.querySelectorAll("[data-testid='bench-agent-activity-row']")).map(r => (r.innerText || '').slice(0, 100));
+        return {
+          status: state?.status,
+          message: state && 'message' in state ? state.message : undefined,
+          activities: rows,
+        };
+      })()`);
+      throw new Error(`[FAIL-CLOSED] Groq agent failed to synthesize root cause hypothesis within 90s (agent status: ${diag?.status}, message: "${diag?.message}", activities: ${JSON.stringify(diag?.activities)})`);
     }
     console.info("  ✅ Evidence-grounded hypothesis registered");
 
