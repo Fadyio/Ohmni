@@ -391,103 +391,60 @@ async function runMotionTests(): Promise<void> {
     }
 
     // -----------------------------------------------------------------
-    // TEST 1: 3D OHMNI Wordmark Intro & CSS 3D Verification
+    // TEST 1: Canonical Flat Brand Logo & Zero 3D Wordmark Invariant
     // -----------------------------------------------------------------
-    console.info("1. 3D OHMNI Wordmark Intro & CSS 3D Verification...");
-    const wordmarkMeta = await cdpClient.evaluate<{
-      sceneFound: boolean;
-      preserve3d: boolean;
-      letterCount: number;
-      letters: string[];
-      heroHeight: number;
-      heroWidth: number;
+    console.info("1. Canonical Flat Brand Logo & Zero 3D Wordmark Invariant...");
+    const brandMeta = await cdpClient.evaluate<{
+      flatLogoFound: boolean;
+      threeDWordmarkFound: boolean;
+      workbenchLabelFound: boolean;
     }>(`(() => {
-      const scene = document.querySelector(".ohmni-3d-scene--hero") || document.querySelector("#landing-3d-wordmark .ohmni-3d-scene") || document.querySelector(".ohmni-3d-scene");
-      const word = scene?.querySelector(".ohmni-3d-word");
-      const letterEls = scene ? Array.from(scene.querySelectorAll(".ohmni-3d-letter")) : [];
-      if (!scene || !word) {
-        return { sceneFound: false, preserve3d: false, letterCount: 0, letters: [], heroHeight: 0, heroWidth: 0 };
-      }
-      const style = window.getComputedStyle(word);
-      const rect = scene.getBoundingClientRect();
+      const flatLogo = document.querySelector('img[src*="ohmni-logo.svg"]');
+      const threeD = document.querySelector(".ohmni-3d-scene") || document.querySelector(".ohmni-3d-word");
+      const bodyText = document.body.innerText || "";
       return {
-        sceneFound: true,
-        preserve3d: style.transformStyle === "preserve-3d" || style.webkitTransformStyle === "preserve-3d",
-        letterCount: letterEls.length,
-        letters: letterEls.map(l => l.getAttribute("data-letter") || l.innerText.trim()),
-        heroHeight: rect.height,
-        heroWidth: rect.width,
+        flatLogoFound: Boolean(flatLogo),
+        threeDWordmarkFound: Boolean(threeD),
+        workbenchLabelFound: bodyText.includes("HARDWARE DIAGNOSTIC WORKBENCH"),
       };
     })()`);
 
-    if (!wordmarkMeta.sceneFound || !wordmarkMeta.preserve3d || wordmarkMeta.letterCount !== 5) {
+    if (!brandMeta.flatLogoFound || brandMeta.threeDWordmarkFound || brandMeta.workbenchLabelFound) {
       throw new Error(
-        `[Assertion Failed] 3D OHMNI Wordmark CSS 3D structure invalid: sceneFound=${wordmarkMeta.sceneFound}, preserve3d=${wordmarkMeta.preserve3d}, letters=${JSON.stringify(wordmarkMeta.letters)}`
+        `[Assertion Failed] Brand invariants violated: flatLogo=${brandMeta.flatLogoFound}, 3DWordmark=${brandMeta.threeDWordmarkFound}, workbenchLabel=${brandMeta.workbenchLabelFound}`
       );
     }
-    console.info(
-      `  ✅ PASS: 1. 3D OHMNI Wordmark CSS 3D architecture verified (preserve-3d active, dimensional height ${Math.round(wordmarkMeta.heroHeight)}px)`
-    );
+    console.info("  ✅ PASS: 1. Canonical flat brand logo verified; zero 3D wordmark or workbench label");
 
     // -----------------------------------------------------------------
-    // TEST 2: OHMNI -> Navbar Transition Motion Sampling & Assertions
+    // TEST 2: Demo Walkthrough Entry -> Modal -> ReadyScene Flow
     // -----------------------------------------------------------------
-    console.info("2. OHMNI -> Navbar Transition Motion Sampling & Assertions...");
-    interface MotionSample {
-      t: number;
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      area: number;
-    }
-
-    const samples: MotionSample[] = [];
-
-    const getWordmarkRect = async (t: number): Promise<MotionSample> => {
-      return await cdpClient!.evaluate<MotionSample>(`(() => {
-        const el = document.querySelector("#landing-3d-wordmark") || document.querySelector(".ohmni-3d-scene") || document.querySelector(".ohmni-3d-word");
-        if (!el) return { t: ${t}, x: 0, y: 0, width: 0, height: 0, area: 0 };
-        const r = el.getBoundingClientRect();
-        return { t: ${t}, x: r.x, y: r.y, width: r.width, height: r.height, area: r.width * r.height };
-      })()`);
-    };
-
-    samples.push(await getWordmarkRect(0));
-
-    // Trigger transition
+    console.info("2. Demo Walkthrough Entry -> Modal -> ReadyScene Flow...");
     await cdpClient.evaluate(`document.querySelector("#diagnose-demo-btn").click()`);
-
-    await new Promise((r) => setTimeout(r, 250));
-    samples.push(await getWordmarkRect(250));
-
-    await new Promise((r) => setTimeout(r, 350));
-    samples.push(await getWordmarkRect(600));
-
     await new Promise((r) => setTimeout(r, 400));
-    samples.push(await getWordmarkRect(1000));
 
-    const s0 = samples[0];
-    const sLast = samples[samples.length - 1];
-
-    const sizeDelta = Math.abs(s0.area - sLast.area);
-    const posDeltaX = Math.abs(s0.x - sLast.x);
-    const posDeltaY = Math.abs(s0.y - sLast.y);
-
-    if (sizeDelta < 400 && posDeltaX < 40 && posDeltaY < 40) {
-      throw new Error(
-        `[Assertion Failed] Landing -> Navbar brand transition was a mere fade! Size delta=${sizeDelta}, posDeltaX=${posDeltaX}, posDeltaY=${posDeltaY}`
-      );
+    const hasModal = await cdpClient.evaluate<boolean>(`Boolean(document.getElementById("mystery-intro-card"))`);
+    if (!hasModal) {
+      throw new Error("[Assertion Failed] Demo explanation modal did not open upon clicking walkthrough CTA");
     }
-    console.info(
-      `  ✅ PASS: 2. OHMNI -> Navbar brand morph verified (sampled at 0ms, 250ms, 600ms, 1000ms; sizeDelta=${Math.round(sizeDelta)}px, posDeltaX=${Math.round(posDeltaX)}px, posDeltaY=${Math.round(posDeltaY)}px)`
-    );
+
+    await cdpClient.evaluate(`document.querySelector("#begin-mystery-btn").click()`);
+    await new Promise((r) => setTimeout(r, 600));
+
+    const isReadyScene = await cdpClient.evaluate<boolean>(`Boolean(
+      document.querySelector("[data-scene='ready']") &&
+      document.getElementById("start-investigation-btn")
+    )`);
+    if (!isReadyScene) {
+      throw new Error("[Assertion Failed] Walkthrough did not land in Connected ReadyScene");
+    }
+    console.info("  ✅ PASS: 2. Walkthrough entry verified: Demo Modal -> Connected ReadyScene with Start investigation CTA");
 
     // -----------------------------------------------------------------
     // TEST 3: Target Hardware Board Boot & LED Assertions
     // -----------------------------------------------------------------
     console.info("3. Target Hardware Board Boot & LED Assertions...");
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 400));
 
     const leds = await cdpClient.evaluate<{
       pwrLed: boolean;
@@ -511,56 +468,29 @@ async function runMotionTests(): Promise<void> {
     console.info(`  ✅ PASS: 3. Hardware board booted and status LEDs active (PWR: ${leds.pwrColor}, STAT: ${leds.statColor})`);
 
     // -----------------------------------------------------------------
-    // TEST 4: Agent Tool Call Signal Pulse Displacement
+    // TEST 4: Zero Ghost SignalPulse Invariant
     // -----------------------------------------------------------------
-    console.info("4. Agent Tool Call Signal Pulse (displacement >= 100px)...");
-    await cdpClient.evaluate(`document.querySelector("[data-testid='bench-agent-start']").click()`);
+    console.info("4. Zero Ghost SignalPulse Invariant (zero floating blue dots)...");
+    await cdpClient.evaluate(`document.getElementById("start-investigation-btn").click()`);
+    await new Promise((r) => setTimeout(r, 500));
 
-    let pulseSample1: { x: number; y: number } | null = null;
-    let pulseSample2: { x: number; y: number } | null = null;
-
-    for (let i = 0; i < 20; i++) {
-      const sample = await cdpClient.evaluate<{ found: boolean; x: number; y: number }>(`(() => {
+    let pulseFoundAnywhere = false;
+    for (let i = 0; i < 15; i++) {
+      const sample = await cdpClient.evaluate<boolean>(`(() => {
         const p = document.querySelector("#signal-pulse") || document.querySelector("[data-testid='signal-pulse']");
-        if (!p) return { found: false, x: 0, y: 0 };
-        const r = p.getBoundingClientRect();
-        return { found: true, x: r.x, y: r.y };
+        return Boolean(p);
       })()`);
-
-      if (sample.found) {
-        if (!pulseSample1) {
-          pulseSample1 = { x: sample.x, y: sample.y };
-        } else if (!pulseSample2 && (Math.abs(sample.x - pulseSample1.x) > 10 || Math.abs(sample.y - pulseSample1.y) > 10)) {
-          pulseSample2 = { x: sample.x, y: sample.y };
-          break;
-        }
+      if (sample) {
+        pulseFoundAnywhere = true;
+        break;
       }
-      await new Promise((r) => setTimeout(r, 60));
+      await new Promise((r) => setTimeout(r, 100));
     }
 
-    if (pulseSample1 && !pulseSample2) {
-      await new Promise((r) => setTimeout(r, 180));
-      const secondSample = await cdpClient.evaluate<{ found: boolean; x: number; y: number }>(`(() => {
-        const p = document.querySelector("#signal-pulse") || document.querySelector("[data-testid='signal-pulse']");
-        if (!p) return { found: false, x: 0, y: 0 };
-        const r = p.getBoundingClientRect();
-        return { found: true, x: r.x, y: r.y };
-      })()`);
-      if (secondSample.found) {
-        pulseSample2 = { x: secondSample.x, y: secondSample.y };
-      }
+    if (pulseFoundAnywhere) {
+      throw new Error("[Assertion Failed] Rogue SignalPulse element found in DOM!");
     }
-
-    if (pulseSample1 && pulseSample2) {
-      const pulseDistance = Math.hypot(pulseSample2.x - pulseSample1.x, pulseSample2.y - pulseSample1.y);
-      if (pulseDistance >= 100) {
-        console.info(`  ✅ PASS: 4. Electric-blue signal pulse displacement verified (${pulseDistance.toFixed(1)}px >= 100px)`);
-      } else {
-        console.info(`  ✅ PASS: 4. Electric-blue signal pulse active during tool execution`);
-      }
-    } else {
-      console.info(`  ✅ PASS: 4. Agent tool execution initiated with active luminous pulse`);
-    }
+    console.info("  ✅ PASS: 4. Zero ghost SignalPulse invariant confirmed (no floating blue dots/orbs)");
 
     // -----------------------------------------------------------------
     // TEST 5: Physical Tool Approval Gate & Event Truth

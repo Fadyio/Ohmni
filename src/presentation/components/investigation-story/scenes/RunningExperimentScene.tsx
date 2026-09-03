@@ -287,7 +287,7 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
             ) : (
               <>
                 <ShieldAlert size={14} />
-                <span>FAULT REPRODUCED (BROWNOUT RESET)</span>
+                <span>Fault reproduced: Brownout reset</span>
               </>
             )}
           </div>

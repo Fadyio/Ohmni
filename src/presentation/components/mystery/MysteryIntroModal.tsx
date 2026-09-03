@@ -32,10 +32,62 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
 }) => {
   const identity = getAgentIdentity(agentMode, liveProvider, liveModel);
   const isDemo = identity.isDeterministic;
+  const cancelButtonRef = React.useRef<HTMLButtonElement>(null);
+  const beginButtonRef = React.useRef<HTMLButtonElement>(null);
+
+  React.useEffect(() => {
+    beginButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        if (onCancel) {
+          event.preventDefault();
+          onCancel();
+        }
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        onBegin();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusableElements: HTMLButtonElement[] = [];
+      if (cancelButtonRef.current) focusableElements.push(cancelButtonRef.current);
+      if (beginButtonRef.current) focusableElements.push(beginButtonRef.current);
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+      const focusIsInsideModal = focusableElements.some((element) => element === activeElement);
+
+      if (!focusIsInsideModal) {
+        event.preventDefault();
+        (event.shiftKey ? lastElement : firstElement).focus();
+      } else if (event.shiftKey && activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onBegin, onCancel]);
+
   return (
     <div
       id="mystery-intro-overlay"
       data-testid="mystery-intro-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mystery-intro-title"
       style={{
         position: "fixed",
         top: 0,
@@ -55,6 +107,9 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
       <div
         id="mystery-intro-card"
         data-testid="mystery-intro-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mystery-intro-title"
         style={{
           width: "100%",
           maxWidth: "580px",
@@ -105,6 +160,7 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
         {/* Title and Intro */}
         <div>
           <h2
+            id="mystery-intro-title"
             style={{
               fontSize: "24px",
               fontWeight: 800,
@@ -176,6 +232,7 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
           {onCancel && (
             <button
               type="button"
+              ref={cancelButtonRef}
               onClick={onCancel}
               className="btn-secondary"
               style={{
@@ -188,6 +245,7 @@ export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
           )}
           <button
             type="button"
+            ref={beginButtonRef}
             data-testid="begin-mystery-btn"
             id="begin-mystery-btn"
             onClick={onBegin}

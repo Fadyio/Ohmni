@@ -88,9 +88,9 @@ describe("Milestone 5 — Hypothesis Evidence Invariant", () => {
 
     // 2. Must render the active proceed-to-repair-btn
     expect(html).toContain('id="proceed-to-repair-btn"');
-    expect(html).toContain("Proceed to physical verification &amp; repair");
-    expect(html).toContain("TOKEN E-001");
-    expect(html).toContain("TOKEN E-002");
-    expect(html).toContain("TOKEN E-003");
+    expect(html).toContain("Verify with repair →");
+    expect(html).toContain("E-001");
+    expect(html).toContain("E-002");
+    expect(html).toContain("E-003");
   });
 });

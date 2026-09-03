@@ -217,8 +217,10 @@ export const App: React.FC<AppProps> = ({
 
     if (!activeScenario) return;
 
-    const goal = `${activeScenario.publicSymptom} Investigate the root cause using the available WebMCP diagnostic instruments, request physical help when needed, and experimentally verify the repair.`;
-    setGoal(goal);
+    if (agentMode !== "demo") {
+      const goal = `${activeScenario.publicSymptom} Investigate the root cause using the available WebMCP diagnostic instruments, request physical help when needed, and experimentally verify the repair.`;
+      setGoal(goal);
+    }
 
     // Initiate hardware connection
     const connectPromise = (async () => {
@@ -226,7 +228,6 @@ export const App: React.FC<AppProps> = ({
       if (resolvedAdapter && resolvedRegistrar) {
         await resolvedRegistrar.registerDevice(resolvedAdapter);
       }
-      startAgent();
     })();
 
     setViewMode("investigation");
@@ -248,7 +249,7 @@ export const App: React.FC<AppProps> = ({
       },
       () => undefined
     );
-  }, [activeScenario, setGoal, connect, resolvedAdapter, resolvedRegistrar, playTransition, startAgent]);
+  }, [activeScenario, agentMode, setGoal, connect, resolvedAdapter, resolvedRegistrar, playTransition]);
 
   // Action: Deterministic Brownout Demo (Secondary CTA)
   const handleStartDemo = useCallback(() => {
@@ -256,33 +257,9 @@ export const App: React.FC<AppProps> = ({
     const session = createScenarioSession({ scenarioId: "brownout" });
     setActiveScenario(session);
 
-    const goal = "The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.";
-    setGoal(goal);
-    const connectPromise = (async () => {
-      await connect();
-      if (resolvedAdapter && resolvedRegistrar) {
-        await resolvedRegistrar.registerDevice(resolvedAdapter);
-      }
-    })();
-    setViewMode("investigation");
-
-    void connectPromise.catch((err) => {
-      console.error("Failed to connect hardware during demo transition:", err);
-    });
-    playTransition(
-      {
-        rootContainerRef,
-        wordmarkRef,
-        heroTextRef,
-        hardwareVisualRef,
-        ctaButtonRef,
-        labChromeRef,
-        labMainSceneRef,
-        agentRailRef,
-      },
-      () => undefined
-    );
-  }, [connect, resolvedAdapter, resolvedRegistrar, setGoal, playTransition, startAgent]);
+    setGoal("The controller unexpectedly restarts when the fan turns on. Investigate the cause using the available instruments.");
+    setShowMysteryIntro(true);
+  }, [setGoal]);
 
   const handleConnectHardware = useCallback(async () => {
     try {

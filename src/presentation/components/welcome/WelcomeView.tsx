@@ -1,22 +1,10 @@
 /**
  * State 1 — World 1 (Editorial Intro Experience).
  * Master Milestone 8 — Blind Hardware Investigation Mode
- *
- * Requirements:
- * - Dimensional 3D OHMNI Wordmark as the central brand anchor (~25-30% visual weight).
- * - Background: #F5F6F8 (Cohesive light canvas)
- * - Headline:
- *     Your AI can debug code.
- *     Now let it debug hardware.
- * - Subtext:
- *     Ohmni gives agents live diagnostic instruments to measure, test and verify physical devices.
- * - Primary CTA: [ Start Mystery Diagnosis ]
- * - Secondary CTAs: [ Explore Brownout Demo ] & [ Connect Hardware ]
  */
 
 import React from "react";
-import { ArrowRight, Zap, ShieldCheck, Activity, Cpu, Lock, Sparkles } from "lucide-react";
-import { Ohmni3DWordmark } from "../brand/Ohmni3DWordmark";
+import { ArrowRight, Lock } from "lucide-react";
 import { AuthoredHardwareIllustration } from "./AuthoredHardwareIllustration";
 import { useWebMCPTools } from "../../hooks/useWebMCPTools";
 
@@ -71,20 +59,21 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
           zIndex: 10,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span
-            className="font-mono"
-            style={{
-              fontSize: "12px",
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              color: "var(--ohmni-intro-secondary, #525866)",
-              textTransform: "uppercase",
-            }}
-          >
-            HARDWARE DIAGNOSTIC WORKBENCH
-          </span>
-        </div>
+        <img
+          src="/brand/ohmni-logo.svg"
+          alt="OHMNI"
+          style={{ height: "28px", width: "auto" }}
+        />
+        <span
+          style={{
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "var(--ohmni-intro-secondary, #525866)",
+            opacity: isNative ? 1 : 0.72,
+          }}
+        >
+          Native WebMCP
+        </span>
 
       </header>
 
@@ -102,19 +91,12 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
           justifyContent: "center",
         }}
       >
-        {/* Dimensional 3D OHMNI Hero Wordmark */}
         <div
           ref={wordmarkRef}
           id="hero-wordmark-wrapper"
           data-testid="hero-wordmark-wrapper"
-          style={{
-            marginBottom: "1.75rem",
-            transformOrigin: "top left",
-            willChange: "transform, opacity",
-          }}
-        >
-          <Ohmni3DWordmark variant="hero" />
-        </div>
+          style={{ display: "none" }}
+        />
 
         {/* Hero Narrative & Physical Hardware Grid */}
         <div
@@ -165,7 +147,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   maxWidth: "540px",
                 }}
               >
-                A hardware fault is hidden. The agent must measure it, test it, ask for your hands when needed, and prove the repair.
+                A hidden hardware fault. An agent with browser-native instruments. You provide the hands when a physical change is required.
               </p>
             </div>
 
@@ -207,32 +189,16 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
               </button>
             </div>
 
-            {/* Technical Metadata Row */}
+            {/* Product principles */}
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "18px",
                 marginTop: "6px",
                 color: "var(--ohmni-intro-secondary, #525866)",
                 fontSize: "12.5px",
                 fontWeight: 500,
               }}
             >
-              <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                <ShieldCheck size={14} color="var(--ohmni-lab-verified, #27966B)" />
-                Native WebMCP
-              </span>
-              <span>•</span>
-              <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                <Activity size={14} color="var(--ohmni-lab-warning, #D97706)" />
-                Amber Physical Safety
-              </span>
-              <span>•</span>
-              <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                <Cpu size={14} color="var(--ohmni-intro-brand, #4967FF)" />
-                Sealed Ground Truth
-              </span>
+              Human-gated actuation · Evidence-backed diagnosis · Verified repair
             </div>
           </div>
 

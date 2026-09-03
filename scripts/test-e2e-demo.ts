@@ -264,35 +264,39 @@ async function runE2EGoldenPath(): Promise<void> {
   const tempProfile = mkdtempSync(join(tmpdir(), "ohmni-e2e-demo-"));
   const debugPort = 9244;
 
-  const chromeProc: ChildProcess = spawn(
-    chromePath,
-    [
-      `--remote-debugging-port=${debugPort}`,
-      `--user-data-dir=${tempProfile}`,
-      "--no-first-run",
-      "--no-default-browser-check",
-      "--headless=new",
-      "--window-size=1440,900",
-      `${serverUrl}/?scenario=brownout&agent=demo`,
-    ],
-    { stdio: "pipe" }
-  );
+  const localState = {
+    browser: {
+      enabled_labs_experiments: ["enable-webmcp-testing@1"],
+    },
+  };
+  writeFileSync(join(tempProfile, "Local State"), JSON.stringify(localState));
 
+  const chromeArgs = [
+    `--user-data-dir=${tempProfile}`,
+    `--remote-debugging-port=${debugPort}`,
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--window-size=1440,900",
+    "about:blank",
+  ];
+  const chromeProc: ChildProcess = spawn(chromePath, chromeArgs, { stdio: "pipe" });
   let cdpClient: CDPClient | null = null;
   const metadataList: ScreenshotMetadataItem[] = [];
 
   try {
     // 1. Connect to Chrome CDP
     let pageTargetUrl = "";
-    for (let i = 0; i < 40; i++) {
-      await new Promise((r) => setTimeout(r, 150));
+    for (let i = 0; i < 50; i++) {
+      await new Promise((r) => setTimeout(r, 250));
       try {
         const res = await fetch(`http://127.0.0.1:${debugPort}/json/list`);
-        const targets = (await res.json()) as Array<{ type: string; webSocketDebuggerUrl: string }>;
-        const page = targets.find((t) => t.type === "page");
-        if (page) {
-          pageTargetUrl = page.webSocketDebuggerUrl;
-          break;
+        if (res.ok) {
+          const targets = (await res.json()) as Array<{ type: string; webSocketDebuggerUrl: string }>;
+          const page = targets.find((t) => t.type === "page");
+          if (page) {
+            pageTargetUrl = page.webSocketDebuggerUrl;
+            break;
+          }
         }
       } catch {}
     }
@@ -306,9 +310,8 @@ async function runE2EGoldenPath(): Promise<void> {
     await cdpClient.send("Page.enable");
     await cdpClient.send("DOM.enable");
     await cdpClient.send("Page.navigate", { url: `${serverUrl}/?scenario=brownout&agent=demo` });
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1500));
 
-    // Start video screencast (Phase 15: continuous unedited run)
     try {
       await cdpClient.send("Page.startScreencast", {
         format: "jpeg",
@@ -422,16 +425,16 @@ async function runE2EGoldenPath(): Promise<void> {
 
     // Step 7: Check if Start investigation button is present, or if agent auto-started per Item 11
     console.info("\n[Step 7] Verifying agent start (auto-started or clicking button)...");
-    const hasStartBtn = await cdpClient.evaluate<boolean>(
-      `Boolean(document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']"))`
+    await waitFor(
+      cdpClient,
+      `Boolean(document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']"))`,
+      6000
     );
-    if (hasStartBtn) {
-      await cdpClient.evaluate(`(() => {
-        const btn = document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']");
-        if (btn) (btn as HTMLButtonElement).click();
-      })()`);
-    }
-    // Step 8 & 9: Demo agent calls read_reset_history -> UI updates
+    await cdpClient.evaluate(`(() => {
+      const btn = document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']");
+      if (btn) btn.click();
+    })()`);
+    await new Promise((r) => setTimeout(r, 800));
     // -----------------------------------------------------------------
     console.info("\n[Step 8-9] Waiting for Demo Agent to read reset history and update UI...");
     await waitFor(

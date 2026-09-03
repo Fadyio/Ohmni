@@ -19,10 +19,12 @@ import { Square, Play, ShieldAlert, RotateCcw, Activity, Check } from "lucide-re
 import { AgentOrbNode } from "../agent/AgentOrbNode";
 import type { BenchAgentState } from "../../hooks/useBenchAgent";
 import type { InvestigationPhase } from "@/domain/investigation/lifecycle";
+import type { Hypothesis } from "@/domain/hypothesis/types";
 import { getAgentIdentity } from "@/presentation/types/agent-identity";
 export interface InvestigationNarrativeRailProps {
   readonly agentState: BenchAgentState;
   readonly investigationPhase?: InvestigationPhase;
+  readonly hypothesis?: Hypothesis | null;
   readonly onSetGoal: (goal: string) => void;
   readonly onStartAgent: () => void;
   readonly onStopAgent: () => void;
@@ -34,6 +36,7 @@ export interface InvestigationNarrativeRailProps {
 export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProps> = ({
   agentState,
   investigationPhase,
+  hypothesis = null,
   onSetGoal,
   onStartAgent,
   onStopAgent,
@@ -181,9 +184,17 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                 }}
               />
               <span>{(() => {
+                if (investigationPhase === "verified" || agentState.status === "completed") {
+                  return "COMPLETED";
+                }
                 if (agentState.status === "failed") return "FAILED";
                 if (agentState.status === "unavailable") return "UNAVAILABLE";
                 if (agentState.status === "stopped") return "STOPPED";
+                if (investigationPhase === "waiting_for_human") return "WAITING FOR YOU";
+                if (investigationPhase === "verification_running") return "VERIFICATION RUNNING";
+                if (investigationPhase === "hypothesis" || hypothesis !== null) {
+                  return "DIAGNOSIS FORMED";
+                }
                 if (agentState.status === "approval") return "WAITING FOR APPROVAL";
                 if (investigationPhase) {
                   switch (investigationPhase) {
@@ -202,16 +213,8 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                     case "evidence_review":
                     case "reasoning":
                       return "ANALYZING EVIDENCE";
-                    case "hypothesis":
-                      return "INITIAL DIAGNOSIS READY";
-                    case "waiting_for_human":
-                      return "WAITING FOR HUMAN";
                     case "verification_pending":
                       return "VERIFICATION PENDING";
-                    case "verification_running":
-                      return "VERIFYING";
-                    case "verified":
-                      return "VERIFIED";
                     case "failed":
                       return "FAILED";
                     case "stopped":

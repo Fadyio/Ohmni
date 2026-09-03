@@ -115,6 +115,19 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
     [resolvedAdapter]
   );
 
+  const handleJumperKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>): void => {
+      if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+        event.preventDefault();
+        handleSelectJumper("3V3");
+      } else if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+        event.preventDefault();
+        handleSelectJumper("5V");
+      }
+    },
+    [handleSelectJumper]
+  );
+
   // Notify Bench Agent of human observation
   const handleNotifyAgent = useCallback(() => {
     const observationText =
@@ -167,40 +180,103 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
         overflowY: "auto",
       }}
     >
-      {/* Header */}
+      {/* Shared application navigation shell */}
       <header
+        id="lab-header"
+        data-testid="lab-header"
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "1rem 2.5rem",
-          background: "var(--ohmni-surface)",
-          borderBottom: "1px solid var(--ohmni-border)",
+          padding: "0.75rem 2.25rem",
+          background: "var(--ohmni-lab-nav, rgba(255, 255, 255, 0.88))",
+          backdropFilter: "blur(12px)",
+          borderBottom: "1px solid var(--ohmni-lab-border, #E2E4E9)",
+          flex: "none",
+          zIndex: 10,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <img
-            src="/brand/ohmni-logo.svg"
-            alt="OHMNI"
-            style={{ height: "28px", width: "auto" }}
-          />
-          <div style={{ height: "16px", width: "1px", background: "var(--ohmni-border)" }} />
-          <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--ohmni-ink)" }}>
-            Physical Repair & Split-Scope Verification
-          </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <img src="/brand/ohmni-logo.svg" alt="OHMNI" style={{ height: "26px", width: "auto" }} />
+          <div style={{ height: "16px", width: "1px", background: "var(--ohmni-lab-border, #E2E4E9)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span
+              aria-hidden="true"
+              style={{
+                width: "7px",
+                height: "7px",
+                borderRadius: "50%",
+                background: "var(--ohmni-lab-verified, #27966B)",
+                boxShadow: "0 0 8px rgba(39, 150, 107, 0.5)",
+              }}
+            />
+            <span className="font-mono" style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ohmni-lab-text, #0F172A)" }}>
+              ESP32-S3 Demo Board
+            </span>
+          </div>
         </div>
 
-        <button
-          onClick={onReturnToInvestigation}
-          className="btn-secondary"
-          style={{
-            padding: "8px 14px",
-            fontSize: "13px",
-            fontWeight: 600,
-          }}
+        <div
+          id="investigation-progress-strip"
+          data-testid="investigation-progress-strip"
+          style={{ display: "flex", alignItems: "center", gap: "8px" }}
         >
-          Return to Investigation
-        </button>
+          {(["OBSERVE", "TEST", "DIAGNOSE", "REPAIR", "VERIFY"] as const).map((phase, index) => {
+            const isActive = phase === "REPAIR";
+            return (
+              <React.Fragment key={phase}>
+                {index > 0 && <span style={{ color: "var(--ohmni-lab-border, #CBD5E1)", fontSize: "11px" }}>→</span>}
+                <span
+                  data-phase={phase}
+                  data-active={isActive}
+                  style={{
+                    background: isActive ? "var(--ohmni-lab-brand, #4967FF)" : "transparent",
+                    color: isActive ? "#FFFFFF" : "var(--ohmni-lab-muted, #94A3B8)",
+                    padding: "3px 10px",
+                    borderRadius: "9999px",
+                    fontSize: "11px",
+                    fontWeight: isActive ? 800 : 600,
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  {phase}
+                </span>
+              </React.Fragment>
+            );
+          })}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span
+            data-testid={agentState?.agentMode === "demo" ? "demo-provider-badge" : "groq-provider-badge"}
+            data-provider-badge="true"
+            id="provider-badge"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "4px 11px",
+              borderRadius: "var(--radius-full, 9999px)",
+              background: agentState?.agentMode === "demo" ? "rgba(73, 103, 255, 0.08)" : "rgba(39, 150, 107, 0.08)",
+              border: agentState?.agentMode === "demo" ? "1px solid rgba(73, 103, 255, 0.25)" : "1px solid rgba(39, 150, 107, 0.25)",
+              color: agentState?.agentMode === "demo" ? "var(--ohmni-lab-brand, #4967FF)" : "var(--ohmni-lab-verified, #27966B)",
+              fontSize: "11.5px",
+              fontWeight: 700,
+              letterSpacing: "0.02em",
+            }}
+          >
+            <Bot size={13} />
+            <span>{agentState?.agentMode === "demo" ? "Demo Walkthrough" : `${agentIdentity.displayName} Live`}</span>
+          </span>
+          <button
+            type="button"
+            onClick={onReturnToInvestigation}
+            className="btn-secondary"
+            style={{ padding: "8px 14px", fontSize: "13px", fontWeight: 600 }}
+          >
+            Return to Investigation
+          </button>
+        </div>
       </header>
 
       {/* Main Repair Canvas */}
@@ -237,7 +313,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
             </div>
 
             <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-ink)", margin: "8px 0 12px", lineHeight: 1.2 }}>
-              Move JP1: Shared 3.3V → External 5V
+              Move JP1: Shared 3.3V → Independent 5V
             </h2>
 
             <p className="body-text" style={{ fontSize: "15px", lineHeight: 1.6, margin: 0 }}>
@@ -248,7 +324,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
           {/* Interactive Hardware Jumper Card */}
           <div
             style={{
-              background: "var(--ohmni-surface-dark)",
+              background: "var(--ohmni-lab-dark, #0D1118)",
               borderRadius: "var(--radius-lg)",
               padding: "1.5rem",
               display: "flex",
@@ -266,6 +342,8 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
             <div
               role="radiogroup"
               aria-label="Physical Jumper Position"
+              tabIndex={0}
+              onKeyDown={handleJumperKeyDown}
               style={{ display: "flex", gap: "12px", alignItems: "center" }}
             >
               <button
@@ -304,7 +382,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                   boxShadow: jumperPosition === "5V" ? "0 0 16px rgba(85, 112, 255, 0.4)" : "none",
                 }}
               >
-                External 5 V
+                Independent 5 V
               </button>
             </div>
 
@@ -370,15 +448,20 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                         Authorize & Energize
                       </button>
                       <button
+                        type="button"
                         onClick={onDenyTest}
                         className="btn-secondary"
+                        data-testid="repair-deny-btn"
                         style={{
+                          background: "#FFFFFF",
+                          color: "#0F172A",
+                          border: "1px solid #CBD5E1",
+                          padding: "6px 14px",
+                          fontWeight: 600,
                           fontSize: "12px",
-                          padding: "6px 12px",
-                          color: "#FFFFFF",
                         }}
                       >
-                        Deny
+                        Deny retest
                       </button>
                     </div>
                   </div>
@@ -472,7 +555,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     color: "#F43F5E",
                   }}
                 >
-                  BROWNOUT
+                  Brownout reset
                 </span>
               </div>
 
@@ -509,7 +592,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span className="font-mono" style={{ fontSize: "13px", fontWeight: 800, color: hasVerified ? "#22D3EE" : "#94A3B8" }}>
-                  AFTER REPAIR (5.0V Aux Rail)
+                  AFTER REPAIR (Independent 5 V supply)
                 </span>
                 <span
                   style={{

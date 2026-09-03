@@ -243,6 +243,11 @@ export function deriveInvestigationPhase(snapshot: InvestigationStateSnapshot): 
     return "verified";
   }
 
+  // A synthesized diagnosis takes precedence over stale experiment activity.
+  if (snapshot.hasHypothesis && !snapshot.isHumanInterventionCompleted) {
+    return "hypothesis";
+  }
+
   // Active approval gate
   if (snapshot.isAwaitingApproval) {
     return "waiting_for_approval";

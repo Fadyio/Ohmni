@@ -484,7 +484,9 @@ export function useBenchAgent(
 
   const start = useCallback(() => {
     const previous = stateRef.current;
-    const goal = previous.goal.trim();
+    const goal =
+      previous.goal.trim() ||
+      "The controller restarts when the fan turns on. Investigate the cause using the available instruments.";
     const modelContext = document.modelContext;
     if (!goal || !previous.providerAvailable || isActive(previous)) return;
 

@@ -375,9 +375,16 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
     };
   }, [ringBufferRef, markersRef, isRunning, nominalVoltage, safeThresholdVoltage]);
 
+  const hasBrownoutOccurred = (markersRef.current ?? []).some((marker) => marker.type === "brownout");
+  const measuredStateLabel = hasBrownoutOccurred
+    ? "Supply voltage dropped to 2.72 V, below the 2.80 V reset threshold, triggering a brownout reset."
+    : "Oscilloscope monitoring supply rail voltage at nominal 3.3 V.";
+
   return (
     <div
       ref={containerRef}
+      role="img"
+      aria-label={measuredStateLabel}
       style={{
         display: "flex",
         flexDirection: "column",

@@ -3,11 +3,10 @@
  * Master Milestone 8 — Precision Workbench Layout.
  *
  * Requirements:
- * - Top Bar: Compact 3D OHMNI Wordmark | ESP32 Controller | Sealed Scenario Badge | Gemini / WebMCP Provider Badge
+ * - Top Bar: Flat OHMNI logo | ESP32 Controller | Sealed Scenario Badge | Gemini / WebMCP Provider Badge
  * - 70% Left Main Workbench Canvas / 30% Right Agent Column
  * - Cohesive Light Theme Canvas (#F4F5F7)
  * - Clean whitespace and typography; remove card wall
- * - Signal pulse connects agent orb and hardware target
  * - Developer Inspector access
  */
 
@@ -15,8 +14,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { Bot, AlertTriangle, Sparkles, Lock, ShieldCheck, Terminal, Cpu, Radio, Sliders, MoreHorizontal } from "lucide-react";
 import { DynamicInvestigationScene } from "./DynamicInvestigationScene";
 import { InvestigationNarrativeRail } from "./InvestigationNarrativeRail";
-import { SignalPulse } from "./SignalPulse";
-import { Ohmni3DWordmark } from "../brand/Ohmni3DWordmark";
 import { WebMCPCapabilityDrawer } from "../layout/WebMCPCapabilityDrawer";
 import type { TelemetryRingBuffer } from "@/domain/telemetry/ring-buffer";
 import type { ScopeEventMarker } from "../../hooks/useOscilloscopeBuffer";
@@ -119,7 +116,9 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
     activeToolClass:
       activeToolName ? classifyTool(activeToolName) : undefined,
     isAwaitingApproval: agentState.status === "approval",
-    isExperimentActive: experimentStatus === "running",
+    isExperimentActive:
+      experimentStatus === "running" &&
+      !(hypothesis !== null && !isHumanInterventionCompleted),
     isVerificationExperiment: isHumanInterventionCompleted,
     hasRecentEvidence: evidenceRecords.length > 0,
     hasHypothesis: hypothesis !== null,
@@ -133,8 +132,6 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   const isNativeMode = typeof window !== "undefined" && window.__webmcpMode === "native";
   const providerStatus = agentState.providerStatus;
 
-  const isAgentActive = agentState.status === "investigating" || agentState.status === "approval";
-
   useEffect(() => {
     if (!menuOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -142,8 +139,38 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
         setMenuOpen(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        return;
+      }
+
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+
+      const menuButtons = menuRef.current?.querySelectorAll<HTMLButtonElement>(
+        '[role="menuitem"]:not(:disabled)'
+      );
+      if (!menuButtons || menuButtons.length === 0) return;
+
+      e.preventDefault();
+      const buttons = Array.from(menuButtons);
+      const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      const direction = e.key === "ArrowDown" ? 1 : -1;
+      const nextIndex =
+        currentIndex === -1
+          ? direction === 1
+            ? 0
+            : buttons.length - 1
+          : (currentIndex + direction + buttons.length) % buttons.length;
+      buttons[nextIndex]?.focus();
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [menuOpen]);
 
   const currentProgressStep: "OBSERVE" | "TEST" | "DIAGNOSE" | "REPAIR" | "VERIFY" = (() => {
@@ -156,14 +183,14 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
         return "OBSERVE";
       case "waiting_for_approval":
       case "experiment_running":
-        return "TEST";
       case "evidence_review":
+        return "TEST";
       case "reasoning":
       case "hypothesis":
         return "DIAGNOSE";
       case "waiting_for_human":
-      case "verification_pending":
         return "REPAIR";
+      case "verification_pending":
       case "verification_running":
       case "verified":
         return "VERIFY";
@@ -186,14 +213,6 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
         position: "relative",
       }}
     >
-      {/* Signal Pulse traveling between Agent and Target Hardware */}
-      <SignalPulse
-        isActive={isAgentActive}
-        direction="agent-to-device"
-        label={activeToolName}
-      />
-
-      {/* Lab Header Chrome with Compact 3D Wordmark */}
       <header
         ref={labChromeRef}
         id="lab-header"
@@ -210,10 +229,10 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
           zIndex: 10,
         }}
       >
-        {/* Left: 3D Compact Brand Wordmark + Hardware Identity */}
+        {/* Left: Flat Brand Logo + Hardware Identity */}
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
           <div id="navbar-brand-wordmark" data-testid="navbar-brand-wordmark">
-            <Ohmni3DWordmark variant="compact" />
+            <img src="/brand/ohmni-logo.svg" alt="OHMNI" style={{ height: "26px", width: "auto" }} />
           </div>
 
           <div style={{ height: "16px", width: "1px", background: "var(--ohmni-lab-border, #E2E4E9)" }} />
@@ -354,6 +373,8 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               type="button"
               data-testid="more-menu-btn"
               aria-label="More developer tools and connection details"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
               onClick={() => setMenuOpen((prev) => !prev)}
               className="btn-secondary"
               style={{
@@ -371,6 +392,8 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
 
             {menuOpen && (
               <div
+                role="menu"
+                aria-label="More options"
                 style={{
                   position: "absolute",
                   top: "calc(100% + 6px)",
@@ -391,6 +414,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
                   <button
                     type="button"
                     data-testid="open-dev-inspector-btn"
+                    role="menuitem"
                     onClick={() => {
                       setMenuOpen(false);
                       onOpenDevInspector();
@@ -421,6 +445,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
                 <button
                   type="button"
                   data-testid="webmcp-tools-btn"
+                  role="menuitem"
                   onClick={() => {
                     setMenuOpen(false);
                     setDrawerOpen(true);
@@ -451,6 +476,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
                 <button
                   type="button"
                   data-testid="toggle-connect-btn"
+                  role="menuitem"
                   onClick={() => {
                     setMenuOpen(false);
                     onToggleConnect();
@@ -535,6 +561,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
           <InvestigationNarrativeRail
             agentState={agentState}
             investigationPhase={investigationPhase}
+            hypothesis={hypothesis}
             onSetGoal={onSetGoal}
             onStartAgent={onStartAgent}
             onStopAgent={onStopAgent}

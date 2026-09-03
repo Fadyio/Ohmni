@@ -159,7 +159,7 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: hasBrownout ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)" }}>
-              BROWNOUT (BOD)
+              Brownout reset
             </span>
             <RotateCcw size={16} color={hasBrownout ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)"} />
           </div>
@@ -172,7 +172,7 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
             {isParseError
               ? "Unable to interpret reset-history response."
               : hasInspectedResetHistory && displayBrownout !== "—"
-              ? (Number(displayBrownout) > 0 ? "Supply fell below 2.80V threshold" : "No brownout events recorded")
+              ? (Number(displayBrownout) > 0 ? "Supply fell below 2.80 V threshold" : "No brownout events recorded")
               : "Waiting for agent measurement…"}
           </div>
         </div>
@@ -278,7 +278,7 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
             LIVE SCOPE BASELINE • {isVoltageMeasured ? `${railVoltage.toFixed(2)} V` : "— V (Unmeasured)"}
           </span>
           <span className="font-mono" style={{ fontSize: "11px", color: "var(--ohmni-lab-action)" }}>
-            2.80V BOD LIMIT ARMED
+            2.80 V reset threshold armed
           </span>
         </div>
         <canvas

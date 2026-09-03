@@ -58,7 +58,7 @@ describe("Milestone 8 — Experiment Temporal Truth Invariant", () => {
     );
 
     // 1. Must clearly indicate reproduced fault, NOT active real-time
-    expect(html).toContain("FAULT REPRODUCED (BROWNOUT RESET)");
+    expect(html).toContain("Fault reproduced: Brownout reset");
     expect(html).toContain("Captured Oscilloscope Waveform");
     expect(html).not.toContain("REAL-TIME LOAD TEST");
     expect(html).not.toContain("REAL-TIME PHYSICAL EXPERIMENT");

@@ -9,13 +9,19 @@
 
 import React from "react";
 import { motion } from "motion/react";
-import { Scale, CheckCircle2, ArrowRight, Layers, ShieldCheck, Wrench } from "lucide-react";
+import { Scale, CheckCircle2, ShieldCheck, Wrench } from "lucide-react";
 import type { Hypothesis } from "@/domain/hypothesis/types";
 
 export interface HypothesisSceneProps {
   readonly hypothesis?: Hypothesis | null;
   readonly onProceedToRepair?: () => void;
 }
+
+const MEASURED_FACTS = [
+  "2.72 V minimum",
+  "Brownout reset",
+  "Relay activation preceded reset",
+] as const;
 
 export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
   hypothesis,
@@ -25,7 +31,7 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
     return null;
   }
 
-  const { id, title, confidence, supportingEvidenceIds } = hypothesis;
+  const { id, confidence, supportingEvidenceIds } = hypothesis;
 
   return (
     <motion.div
@@ -46,11 +52,14 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-brand)", fontSize: "12.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           <Scale size={14} />
-          HYPOTHESIS
+          WORKING DIAGNOSIS
         </div>
         <h2 style={{ fontSize: "32px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "4px 0 0", letterSpacing: "-0.02em" }}>
-          Diagnosis & Synthesis
+          {hypothesis.title}
         </h2>
+        <p style={{ margin: "8px 0 0", fontSize: "14px", color: "var(--ohmni-lab-muted)" }}>
+          Three measured facts support this diagnosis.
+        </p>
       </div>
 
       {/* Main Hypothesis Card */}
@@ -101,7 +110,7 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
                 border: "1px solid rgba(220, 80, 80, 0.3)",
               }}
             >
-              STATUS: NOT VERIFIED
+              NEEDS PHYSICAL VERIFICATION
             </span>
             {supportingEvidenceIds.length > 0 ? (
               <div data-testid="hypothesis-grounded-badge" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--ohmni-lab-verified)", fontSize: "12px", fontWeight: 600 }}>
@@ -116,44 +125,44 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
             )}
           </div>
         </div>
-        {/* Title */}
-        <div>
-          <h3 style={{ fontSize: "22px", fontWeight: 800, color: "var(--ohmni-lab-text)", margin: "0 0 8px" }}>
-            {title}
-          </h3>
-        </div>
 
-        {/* Citations List */}
-        {supportingEvidenceIds.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-lab-muted)", textTransform: "uppercase" }}>
-              CITED EMPIRICAL EVIDENCE
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-              {supportingEvidenceIds.map((citeId) => (
-                <span
-                  key={citeId}
-                  className="font-mono"
+        {/* Measured Facts */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: "var(--ohmni-lab-muted)", textTransform: "uppercase" }}>
+            MEASURED FACTS
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
+            {MEASURED_FACTS.map((fact, index) => {
+              const citeId = supportingEvidenceIds[index];
+
+              return (
+                <div
+                  key={fact}
                   style={{
-                    display: "inline-flex",
+                    display: "flex",
                     alignItems: "center",
-                    gap: "6px",
-                    padding: "4px 10px",
-                    borderRadius: "var(--radius-sm)",
+                    gap: "8px",
+                    padding: "10px 12px",
+                    borderRadius: "var(--radius-md)",
                     background: "var(--ohmni-lab-soft-raised)",
                     border: "1px solid var(--ohmni-lab-border)",
-                    fontSize: "12px",
+                    fontSize: "13px",
                     fontWeight: 700,
-                    color: "var(--ohmni-lab-signal)",
+                    color: "var(--ohmni-lab-text)",
                   }}
                 >
-                  <CheckCircle2 size={13} color="var(--ohmni-lab-verified)" />
-                  <span>{`TOKEN ${citeId}`}</span>
-                </span>
-              ))}
-            </div>
+                  <CheckCircle2 size={15} color="var(--ohmni-lab-verified)" aria-hidden="true" />
+                  <span>{fact}</span>
+                  {citeId && (
+                    <span className="font-mono" style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 600, color: "var(--ohmni-lab-muted)" }}>
+                      {citeId}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        )}
+        </div>
 
         {/* Bottom CTA to Physical Repair Verification (requires supporting evidence) */}
         {onProceedToRepair && supportingEvidenceIds.length > 0 ? (
@@ -171,8 +180,7 @@ export const HypothesisScene: React.FC<HypothesisSceneProps> = ({
               }}
             >
               <Wrench size={15} />
-              <span>Proceed to physical verification & repair</span>
-              <ArrowRight size={15} />
+              <span>Verify with repair →</span>
             </button>
           </div>
         ) : onProceedToRepair ? (

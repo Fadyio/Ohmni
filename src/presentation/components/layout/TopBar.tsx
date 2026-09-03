@@ -2,7 +2,7 @@
  * Top Status Bar Component.
  * Master Milestone 8 — Precision Workbench Header.
  *
- * Displays compact 3D OHMNI Wordmark, contextual target hardware metadata,
+ * Displays the OHMNI brand, contextual target hardware metadata,
  * sealed scenario badge, real-time connection status, and WebMCP capability drawer.
  */
 
@@ -12,7 +12,6 @@ import type { DeviceDescriptor } from "@/domain/device/descriptor";
 import type { ScenarioSession } from "@/domain/scenario/types";
 import { useWebMCPTools } from "../../hooks/useWebMCPTools";
 import { WebMCPCapabilityDrawer } from "./WebMCPCapabilityDrawer";
-import { Ohmni3DWordmark } from "../brand/Ohmni3DWordmark";
 
 export interface TopBarProps {
   readonly isConnected: boolean;
@@ -54,10 +53,14 @@ export const TopBar: React.FC<TopBarProps> = ({
           zIndex: 10,
         }}
       >
-        {/* Left: Compact 3D Brand Wordmark + Target Title */}
+        {/* Left: Brand + Target Title */}
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <div id="navbar-brand-wordmark" data-testid="navbar-brand-wordmark">
-            <Ohmni3DWordmark variant="compact" />
+            <img
+              src="/brand/ohmni-logo.svg"
+              alt="OHMNI"
+              style={{ height: "26px", width: "auto" }}
+            />
           </div>
 
           <div style={{ height: "18px", width: "1px", background: "var(--ohmni-lab-border, #E2E4E9)" }} />

@@ -95,8 +95,20 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
               margin: 0,
             }}
           >
-            {isVerified ? "Empirical Hardware Verification Result" : "Manual Ground Truth Inspection"}
+            {isVerified ? "Repair verified" : "Manual Ground Truth Inspection"}
           </h1>
+          <p
+            style={{
+              fontSize: "14px",
+              lineHeight: 1.5,
+              color: "var(--ohmni-lab-muted, #64748B)",
+              margin: 0,
+            }}
+          >
+            {isVerified
+              ? "The agent's diagnosis matched the hidden hardware fault."
+              : "The hidden hardware fault was revealed without a completed verification."}
+          </p>
         </div>
 
         {/* Big Match Badge */}
