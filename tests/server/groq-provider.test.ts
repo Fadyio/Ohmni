@@ -8,6 +8,7 @@ import {
   buildGroqMessages,
   parseGroqToolCalls,
   DEFAULT_GROQ_MODEL,
+  GROQ_MAX_COMPLETION_TOKENS,
   BENCH_AGENT_SYSTEM_INSTRUCTION,
   type FetchFunction,
 } from "../../server/bench-agent/groq-provider";
@@ -58,6 +59,27 @@ describe("GroqBenchAgentProvider", () => {
           },
         },
       ]);
+    });
+
+    it("removes schema prose but preserves validation constraints for the Groq token budget", () => {
+      const translated = translateToolsToGroq([{
+        ...VOLTAGE_TOOL,
+        parameters: {
+          type: "object",
+          properties: {
+            samples: { type: "integer", minimum: 1, maximum: 10, description: "Sample count" },
+          },
+          required: ["samples"],
+          additionalProperties: false,
+        },
+      }]);
+
+      expect(translated[0].function.parameters).toEqual({
+        type: "object",
+        properties: { samples: { type: "integer", minimum: 1, maximum: 10 } },
+        required: ["samples"],
+        additionalProperties: false,
+      });
     });
   });
 
@@ -204,6 +226,7 @@ describe("GroqBenchAgentProvider", () => {
         const body = JSON.parse(init?.body as string);
         expect(body.model).toBe(DEFAULT_GROQ_MODEL);
         expect(body.tools).toBeDefined();
+        expect(body.max_completion_tokens).toBe(GROQ_MAX_COMPLETION_TOKENS);
 
         return new Response(
           JSON.stringify({

@@ -27,6 +27,8 @@ export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 export const GROQ_REQUEST_TIMEOUT_MS = 30_000;
 export const GROQ_API_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 export const MAX_COMPACTED_TOOL_RESULT_BYTES = 2_048;
+export const GROQ_MAX_COMPLETION_TOKENS = 768;
+const GROQ_MAX_TOOL_DESCRIPTION_CHARACTERS = 240;
 export type FetchFunction = (
   input: RequestInfo | URL,
   init?: RequestInit
@@ -141,12 +143,22 @@ export function translateToolsToGroq(
     parameters: Record<string, unknown>;
   };
 }> {
+  const compactSchema = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(compactSchema);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([key]) => key !== "description")
+        .map(([key, nested]) => [key, compactSchema(nested)]),
+    );
+  };
+
   return tools.map((tool) => ({
     type: "function" as const,
     function: {
       name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
+      description: tool.description.slice(0, GROQ_MAX_TOOL_DESCRIPTION_CHARACTERS),
+      parameters: compactSchema(tool.parameters) as Record<string, unknown>,
     },
   }));
 }
@@ -317,6 +329,7 @@ export class GroqBenchAgentProvider implements BenchAgentProvider {
       model: this.model,
       messages,
       temperature: this.temperature,
+      max_completion_tokens: GROQ_MAX_COMPLETION_TOKENS,
     };
 
     if (tools) {
