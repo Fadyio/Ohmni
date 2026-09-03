@@ -6,13 +6,13 @@
  *
  * Checks:
  * 1. Production Shell & Build SHA.
- * 2. Native WebMCP or Standard WebMCP capability.
+ * 2. Native WebMCP or WebMCP compatibility capability.
  * 3. Production Demo Agent Mode (?scenario=brownout&agent=demo).
- * 4. Production Gemini Mode (?agent=gemini) — reports PASS, FAIL, or BLOCKED.
+ * 4. Production Groq Mode — reports PASS, FAIL, or BLOCKED.
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, existsSync } from "node:fs";
+import { mkdtempSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 const PROD_URL = "https://ohmni-three.vercel.app";
@@ -151,6 +151,13 @@ async function runProductionAcceptance(): Promise<void> {
   }
 
   const tempProfile = mkdtempSync(join(tmpdir(), "ohmni-e2e-prod-"));
+  const localState = {
+    browser: {
+      enabled_labs_experiments: ["enable-webmcp-testing@1"],
+    },
+  };
+  writeFileSync(join(tempProfile, "Local State"), JSON.stringify(localState));
+
   const debugPort = 9255;
 
   const chromeProc: ChildProcess = spawn(
@@ -162,6 +169,9 @@ async function runProductionAcceptance(): Promise<void> {
       "--no-default-browser-check",
       "--headless=new",
       "--window-size=1440,900",
+      "--flag-switches-begin",
+      "--enable-webmcp-testing",
+      "--flag-switches-end",
       "about:blank",
     ],
     { stdio: "pipe" }
@@ -171,7 +181,7 @@ async function runProductionAcceptance(): Promise<void> {
   let prodShellResult = "PENDING";
   let nativeWebMCPResult = "PENDING";
   let prodDemoAgentResult = "PENDING";
-  let prodGeminiResult = "PENDING";
+  let prodGroqResult = "PENDING";
 
   try {
     let pageTargetUrl = "";
@@ -304,25 +314,24 @@ async function runProductionAcceptance(): Promise<void> {
     }
 
     // -----------------------------------------------------------------
-    // Part 4: Test Production Gemini Mode
+    // Part 4: Test Production Groq Mode
     // -----------------------------------------------------------------
-    console.info("\n[Production] Testing Gemini Provider availability on deployed application...");
+    console.info("\n[Production] Testing Groq Provider availability on deployed application...");
     try {
       const canaryRes = await fetch(`${PROD_URL}/api/bench-agent`, { method: "GET" });
       if (canaryRes.ok) {
-        const data = (await canaryRes.json()) as { available?: boolean };
+        const data = (await canaryRes.json()) as { available?: boolean; provider?: string };
         if (data.available) {
-          prodGeminiResult = "PASS";
+          prodGroqResult = `PASS (${data.provider ?? "groq"})`;
         } else {
-          prodGeminiResult = "BLOCKED (Gemini API key unconfigured / billing quota exhausted)";
+          prodGroqResult = "BLOCKED (Groq API key unconfigured / billing quota exhausted)";
         }
       } else {
-        prodGeminiResult = "BLOCKED (Production API endpoint unavailable or quota exceeded)";
+        prodGroqResult = "BLOCKED (Production API endpoint unavailable or quota exceeded)";
       }
     } catch (err) {
-      prodGeminiResult = `BLOCKED (${err instanceof Error ? err.message : "Network error"})`;
+      prodGroqResult = `BLOCKED (${err instanceof Error ? err.message : "Network error"})`;
     }
-
     // -----------------------------------------------------------------
     // Final Production Acceptance Summary
     // -----------------------------------------------------------------
@@ -334,7 +343,7 @@ async function runProductionAcceptance(): Promise<void> {
     console.info(`Production shell:         ${prodShellResult}`);
     console.info(`Native WebMCP:            ${nativeWebMCPResult}`);
     console.info(`Production demo agent:    ${prodDemoAgentResult}`);
-    console.info(`Production Gemini:        ${prodGeminiResult}`);
+    console.info(`Production Groq:          ${prodGroqResult}`);
     console.info("==================================================================\n");
   } finally {
     if (cdpClient) cdpClient.close();

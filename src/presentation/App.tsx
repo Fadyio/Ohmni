@@ -198,6 +198,8 @@ export const App: React.FC<AppProps> = ({
 
   // Action: Start Mystery Diagnosis
   const handleStartMystery = useCallback(() => {
+    setAgentMode(queryAgentMode ?? "groq");
+    setDeviceMode("virtual");
     const session = createScenarioSession({ scenarioId: queryScenarioId });
     setActiveScenario(session);
 
@@ -217,7 +219,7 @@ export const App: React.FC<AppProps> = ({
       }
     }
     setShowMysteryIntro(true);
-  }, [queryScenarioId, activeAdapter]);
+  }, [queryScenarioId, activeAdapter, setAgentMode, queryAgentMode]);
 
   // Action: Begin Investigation from Mystery Intro Modal
   const handleBeginInvestigation = useCallback(async () => {

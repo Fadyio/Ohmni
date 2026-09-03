@@ -127,7 +127,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             }}
           >
             <ShieldCheck size={12} />
-            <span>{isNative ? "Native WebMCP Mesh" : "Standard WebMCP"}</span>
+            <span>{isNative ? "Native WebMCP" : "Browser compatibility mode"}</span>
           </span>
 
           <span

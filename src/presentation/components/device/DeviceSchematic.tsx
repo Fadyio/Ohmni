@@ -152,7 +152,7 @@ export const DeviceSchematic: React.FC<DeviceSchematicProps> = ({
             ESP32-S3
           </text>
           <text x="70" y="100" textAnchor="middle" fill="var(--ohmni-text-muted)" fontSize="8" fontFamily="var(--font-mono)">
-            WROOM-1 16MB
+            16MB FLASH
           </text>
 
           {/* PCB Antenna */}

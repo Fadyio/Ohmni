@@ -330,11 +330,11 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               background: "transparent",
               border: "none",
               color:
-                agentMode === "demo" || agentState.agentMode === "demo" || !agentState.providerAvailable
+                agentMode === "demo" || agentState.agentMode === "demo"
                   ? "var(--ohmni-lab-brand, #4967FF)"
-                  : providerStatus === "live" && agentState.providerAvailable
+                  : agentState.providerAvailable
                   ? "var(--ohmni-lab-verified, #27966B)"
-                  : "var(--ohmni-lab-brand, #4967FF)",
+                  : "var(--ohmni-lab-muted, #64748B)",
               fontSize: "11.5px",
               fontWeight: 700,
               letterSpacing: "0.02em",
@@ -345,7 +345,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
                 <Bot size={13} />
                 <span>DEMO AGENT · Deterministic walkthrough</span>
               </div>
-            ) : providerStatus === "live" && agentState.providerAvailable ? (
+            ) : agentState.providerAvailable ? (
               <>
                 <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--ohmni-lab-verified, #27966B)", boxShadow: "0 0 6px rgba(39, 150, 107, 0.8)" }} />
                 <span>{agentIdentity.displayName} · Live</span>
@@ -353,7 +353,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             ) : (
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <Bot size={13} />
-                <span>Demo agent</span>
+                <span>{agentIdentity.displayName} · Connecting...</span>
               </div>
             )}
           </span>

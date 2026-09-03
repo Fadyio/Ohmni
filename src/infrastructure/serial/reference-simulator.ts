@@ -156,7 +156,7 @@ export class ReferenceSerialDeviceSimulator {
         name: "ESP32-S3 Reference Controller",
         firmwareVersion: "1.0.0",
         manufacturer: "Espressif",
-        model: "ESP32-S3-WROOM-1",
+        model: "ESP32-S3",
         hardwareRevision: "Rev 1.0",
         transport: "Web Serial",
       },

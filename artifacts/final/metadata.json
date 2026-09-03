@@ -2,7 +2,7 @@
   {
     "fileName": "01-landing.png",
     "scene": "Landing",
-    "buildSha": "b6a59b33cd6c26e3fa79c2bfe8fb30238a4d238a",
+    "buildSha": "e47e8f4d50bedf4757087d304f735a19c5190c14",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -14,12 +14,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T15:16:56.820Z"
+    "timestamp": "2026-09-03T15:52:18.200Z"
   },
   {
     "fileName": "02-challenge.png",
     "scene": "Challenge",
-    "buildSha": "b6a59b33cd6c26e3fa79c2bfe8fb30238a4d238a",
+    "buildSha": "e47e8f4d50bedf4757087d304f735a19c5190c14",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -31,12 +31,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T15:16:56.906Z"
+    "timestamp": "2026-09-03T15:52:18.263Z"
   },
   {
     "fileName": "03-ready.png",
     "scene": "Ready",
-    "buildSha": "b6a59b33cd6c26e3fa79c2bfe8fb30238a4d238a",
+    "buildSha": "e47e8f4d50bedf4757087d304f735a19c5190c14",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -48,12 +48,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T15:16:57.600Z"
+    "timestamp": "2026-09-03T15:52:18.963Z"
   },
   {
     "fileName": "04-observing.png",
     "scene": "Observing",
-    "buildSha": "b6a59b33cd6c26e3fa79c2bfe8fb30238a4d238a",
+    "buildSha": "e47e8f4d50bedf4757087d304f735a19c5190c14",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -65,12 +65,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T15:16:58.467Z"
+    "timestamp": "2026-09-03T15:52:19.827Z"
   },
   {
     "fileName": "05-approval.png",
     "scene": "Approval",
-    "buildSha": "b6a59b33cd6c26e3fa79c2bfe8fb30238a4d238a",
+    "buildSha": "e47e8f4d50bedf4757087d304f735a19c5190c14",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -82,12 +82,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T15:16:58.517Z"
+    "timestamp": "2026-09-03T15:52:19.877Z"
   },
   {
     "fileName": "06-experiment.png",
     "scene": "Experiment",
-    "buildSha": "b6a59b33cd6c26e3fa79c2bfe8fb30238a4d238a",
+    "buildSha": "e47e8f4d50bedf4757087d304f735a19c5190c14",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -99,12 +99,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T15:16:58.866Z"
+    "timestamp": "2026-09-03T15:52:20.226Z"
   },
   {
     "fileName": "07-diagnosis.png",
     "scene": "Diagnosis",
-    "buildSha": "b6a59b33cd6c26e3fa79c2bfe8fb30238a4d238a",
+    "buildSha": "e47e8f4d50bedf4757087d304f735a19c5190c14",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -116,12 +116,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T15:16:58.916Z"
+    "timestamp": "2026-09-03T15:52:20.276Z"
   },
   {
     "fileName": "08-repair.png",
     "scene": "Repair",
-    "buildSha": "b6a59b33cd6c26e3fa79c2bfe8fb30238a4d238a",
+    "buildSha": "e47e8f4d50bedf4757087d304f735a19c5190c14",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -133,12 +133,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T15:16:59.009Z"
+    "timestamp": "2026-09-03T15:52:20.356Z"
   },
   {
     "fileName": "09-verification.png",
     "scene": "Verification",
-    "buildSha": "b6a59b33cd6c26e3fa79c2bfe8fb30238a4d238a",
+    "buildSha": "e47e8f4d50bedf4757087d304f735a19c5190c14",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -150,12 +150,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "VERIFIED"
     },
-    "timestamp": "2026-09-03T15:16:59.332Z"
+    "timestamp": "2026-09-03T15:52:20.676Z"
   },
   {
     "fileName": "10-result.png",
     "scene": "Result",
-    "buildSha": "b6a59b33cd6c26e3fa79c2bfe8fb30238a4d238a",
+    "buildSha": "e47e8f4d50bedf4757087d304f735a19c5190c14",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -167,6 +167,6 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "VERIFIED"
     },
-    "timestamp": "2026-09-03T15:16:59.382Z"
+    "timestamp": "2026-09-03T15:52:20.725Z"
   }
 ]
