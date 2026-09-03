@@ -172,7 +172,7 @@ export class CapabilityRegistry {
       name: "run_relay_stress_test",
       title: "Run Relay Stress Test",
       description:
-        "Briefly actuate the cooling-fan relay while sampling the MCU supply rail. May reproduce a physical reset. Requires human authorization.",
+        "Briefly actuate the virtual cooling-fan relay while sampling the MCU supply rail. May reproduce a virtual brownout reset. Requires human authorization.",
       inputSchema: {
         type: "object",
         properties: {

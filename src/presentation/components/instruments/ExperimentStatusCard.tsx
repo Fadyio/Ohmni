@@ -95,7 +95,7 @@ export const ExperimentStatusCard: React.FC<ExperimentStatusCardProps> = ({
               marginTop: "2px",
             }}
           >
-            {isIdle && "No active physical experiment. Ready for WebMCP actuation."}
+            {isIdle && "No active experiment. Virtual DUT ready for WebMCP actuation."}
             {isRunning && `Actuation in progress (Cycle 1 / requested ${requestedCycles})`}
             {faultReproduced && (
               <span>

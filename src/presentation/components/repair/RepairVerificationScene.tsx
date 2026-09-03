@@ -120,7 +120,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
     if (resolvedEvidenceStore && typeof resolvedEvidenceStore.addHumanObservation === "function") {
       resolvedEvidenceStore.addHumanObservation({
         summary: observationText,
-        notes: `Jumper physically moved to ${jumperPosition}`,
+        notes: `Virtual JP1 simulated at ${jumperPosition}`,
         interventionPointId: "relay_power_jumper",
       });
     }
@@ -457,7 +457,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     }}
                   >
                     <Activity size={14} className="animate-spin" />
-                    <span>{agentIdentity.displayName} is evaluating physical repair & executing verification...</span>
+                    <span>{agentIdentity.displayName} is evaluating the virtual DUT change and running verification...</span>
                   </div>
                 ) : (
                   /* Human Observation CTA: Tell agent I changed it */

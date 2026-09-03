@@ -218,7 +218,7 @@ export const App: React.FC<AppProps> = ({
     if (!activeScenario) return;
 
     if (agentMode !== "demo") {
-      const goal = `${activeScenario.publicSymptom} Investigate the root cause using the available WebMCP diagnostic instruments, request physical help when needed, and experimentally verify the repair.`;
+      const goal = `${activeScenario.publicSymptom} Investigate the root cause using the available WebMCP diagnostic instruments, request human help at the device boundary when needed, and experimentally verify the repair.`;
       setGoal(goal);
     }
 

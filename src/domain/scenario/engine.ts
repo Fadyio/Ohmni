@@ -173,7 +173,7 @@ export function matchDiagnosis(
     matchedTags,
     score,
     reason: isMatch
-      ? "Agent diagnosis accurately confirmed the physical root cause."
+      ? "Agent diagnosis accurately confirmed the device-level root cause."
       : "Agent diagnosis did not match the hidden root cause.",
   };
 }

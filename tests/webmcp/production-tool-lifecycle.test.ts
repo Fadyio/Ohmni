@@ -46,6 +46,9 @@ describe("production WebMCP tool lifecycle", () => {
     const active = (await context.getTools()).map((tool) => tool.name);
     expect(active).toHaveLength(19);
     for (const name of DEVICE_TOOLS) expect(active).toContain(name);
+    const stressTool = (await context.getTools()).find((tool) => tool.name === "run_relay_stress_test");
+    expect(stressTool?.description).toContain("virtual brownout reset");
+    expect(stressTool?.description).not.toContain("physical reset");
 
     registrar.unregisterDevice(adapter);
     const disconnected = (await context.getTools()).map((tool) => tool.name);

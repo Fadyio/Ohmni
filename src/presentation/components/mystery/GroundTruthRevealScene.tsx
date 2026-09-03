@@ -290,7 +290,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
               lineHeight: 1.4,
             }}
           >
-            <strong>Result:</strong> {isMatch ? "Agent diagnosis accurately confirmed the physical root cause." : matchResult.reason}
+            <strong>Result:</strong> {isMatch ? "Agent diagnosis accurately confirmed the device-level root cause." : matchResult.reason}
           </div>
         </div>
       </div>
