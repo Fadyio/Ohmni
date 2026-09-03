@@ -6,11 +6,11 @@
 import type { AgentMode } from "@/infrastructure/bench-agent/types";
 
 export interface AgentIdentity {
-  readonly id: "groq" | "gemini" | "demo";
+  readonly id: "groq" | "demo";
   readonly displayName: string;
   readonly shortName: string;
   readonly model?: string;
-  readonly mode: "groq" | "gemini" | "demo";
+  readonly mode: "groq" | "demo";
   readonly isDeterministic: boolean;
   readonly isBlind: boolean;
 }

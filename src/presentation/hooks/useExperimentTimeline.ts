@@ -159,7 +159,7 @@ export function useExperimentTimeline(eventBus?: ITelemetryEventBus): Experiment
           minVoltageRef.current = event.voltage;
         }
 
-        // Detect safe limit crossing (2.80V)
+        // Detect safe limit crossing (2.80 V)
         if (event.voltage < 2.80 && !thresholdLoggedRef.current) {
           thresholdLoggedRef.current = true;
           const thresholdEvent: TimelineEventItem = {

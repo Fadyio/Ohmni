@@ -5,7 +5,7 @@
  * Requirements:
  * - data-scene="approval" for state assertion
  * - Split canvas: Left 55% physical schematic/board focus, Right 45% safety envelope & decision
- * - Main headline: "Gemini wants to stress-test the relay."
+ * - Main headline: "Agent wants to stress-test the relay."
  * - Explicit action bullets:
  *     • energize relay briefly
  *     • watch the MCU rail

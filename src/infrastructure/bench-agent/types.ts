@@ -55,7 +55,7 @@ export interface AgentTurnResult {
   readonly text?: string;
 }
 
-export type AgentMode = "groq" | "gemini" | "demo";
+export type AgentMode = "groq" | "demo";
 
 export interface BenchAgentProvider {
   turn(
@@ -153,5 +153,5 @@ export interface RunBenchAgentOptions {
 export interface BenchAgentAvailability {
   readonly available: boolean;
   readonly model: string;
-  readonly provider?: "groq" | "gemini" | "demo" | string;
+  readonly provider?: "groq" | "demo" | string;
 }

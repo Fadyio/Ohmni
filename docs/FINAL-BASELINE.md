@@ -32,7 +32,7 @@
 - **Phase 6:** Precision UI, accessibility, keyboard shortcuts, reduced-motion
 - **Phase 7 & 8:** Agent loop hardening (idempotency, retries, hardware safety invariants, fail-safe open relay)
 - **Phase 9:** Native WebMCP runtime badge & Developer Inspector proof
-- **Phase 10:** Gemini deployed canary & acceptance semantics
+- **Phase 10:** Groq deployed canary & acceptance semantics
 - **Phase 11:** Shared access auth protection and session gate (`server/bench-agent/auth.ts`)
 - **Phase 12:** Resilience & chaos test suite (`bun run test:chaos`)
 - **Phase 13:** Mystery fault test matrix (`bun run test:mystery`)

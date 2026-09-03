@@ -7,7 +7,7 @@
  * 2. Single Approval UI: When in approval state, right rail shows "WAITING FOR YOU" notice only.
  *    No duplicate Approve/Deny buttons in the sidebar. Main canvas owns the decision.
  * 3. Minimal Clean Rail:
- *    - Header: Gemini ● Live
+ *    - Header: Agent ● Status
  *    - GOAL
  *    - CURRENT ACTION (if active or waiting approval)
  *    - HISTORY (clean vertical timeline)
@@ -189,7 +189,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
         color: "var(--ohmni-lab-text)",
       }}
     >
-      {/* Header: Gemini ● Live */}
+      {/* Header: Agent ● Status */}
       <div
         style={{
           padding: "1.25rem 1.5rem",

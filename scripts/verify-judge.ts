@@ -106,11 +106,21 @@ class CDPClient {
   }
 
   public async evaluate<T = unknown>(expression: string): Promise<T> {
-    const result = await this.send<{ result: { value?: T; description?: string } }>("Runtime.evaluate", {
+    const result = await this.send<{
+      result: { value?: T; description?: string; type?: string };
+      exceptionDetails?: { text: string; exception?: { description?: string } };
+    }>("Runtime.evaluate", {
       expression,
       awaitPromise: true,
       returnByValue: true,
     });
+    if (result.exceptionDetails) {
+      const desc =
+        result.exceptionDetails.exception?.description ||
+        result.exceptionDetails.text ||
+        "CDP evaluation exception";
+      throw new Error(`CDP evaluate failed: ${desc}`);
+    }
     return result.result.value as T;
   }
 
@@ -277,18 +287,18 @@ async function runGate(): Promise<void> {
     await cdpClient.send("Runtime.enable");
     await cdpClient.send("Page.enable");
     await cdpClient.send("Log.enable");
-
+    await cdpClient.send("Page.navigate", { url: launchUrl });
     // Track console errors
     await cdpClient.send("Runtime.addBinding", { name: "__ohmni_error_tracker" });
 
     // Wait for app mount
     console.info("  ↳ Waiting for application DOM mount...");
     let mounted = false;
-    for (let i = 0; i < 40; i++) {
-      await sleep(250);
+    for (let i = 0; i < 60; i++) {
+      await sleep(300);
       try {
         const ready = await cdpClient.evaluate<boolean>(
-          `Boolean(document.querySelector("[data-testid='bench-agent-panel']") || document.querySelector("#diagnose-demo-btn"))`
+          `Boolean(document.getElementById("welcome-view-root") || document.getElementById("start-mystery-btn") || document.querySelector("[data-testid='bench-agent-panel']") || document.querySelector("#diagnose-demo-btn"))`
         );
         if (ready) {
           mounted = true;
@@ -297,25 +307,40 @@ async function runGate(): Promise<void> {
       } catch {}
     }
     if (!mounted) {
-      throw new Error("[FAIL-CLOSED] Application failed to mount in Chrome within 10s");
+      const dump = await cdpClient.evaluate<string>(`document.body ? document.body.innerText.slice(0, 200) : "empty"`);
+      throw new Error(`[FAIL-CLOSED] Application failed to mount in Chrome within 18s (body: "${dump}")`);
     }
     await sleep(600);
 
-    // If on landing/welcome screen, click to enter workbench
+    // If on landing/welcome screen, click to enter workbench via blind diagnosis (Groq Live)
     await cdpClient.evaluate(`(() => {
-      const diagnoseBtn = document.querySelector("#diagnose-demo-btn") || document.querySelector("[data-testid='diagnose-demo-btn']");
-      if (diagnoseBtn) diagnoseBtn.click();
+      const mysteryBtn = document.querySelector("#start-mystery-btn") ||
+                         document.querySelector("[data-testid='start-mystery-btn']");
+      if (mysteryBtn) {
+        mysteryBtn.click();
+      } else {
+        const fallbackBtn = document.querySelector("#diagnose-demo-btn") ||
+                            document.querySelector("[data-testid='diagnose-demo-btn']");
+        if (fallbackBtn) fallbackBtn.click();
+      }
     })()`);
     await sleep(800);
 
-    // If mystery intro modal appears, dismiss it to enter Ready state
-    await cdpClient.evaluate(`(() => {
-      const modalBtn = Array.from(document.querySelectorAll("button")).find(b =>
-        b.innerText.includes("Begin Investigation") || b.innerText.includes("Begin Walkthrough") || b.innerText.includes("Start")
-      );
-      if (modalBtn) modalBtn.click();
-    })()`);
-    await sleep(800);
+    // Wait for and click Begin Investigation button on modal to enter workbench
+    for (let i = 0; i < 20; i++) {
+      const modalDismissed = await cdpClient.evaluate<boolean>(`(() => {
+        const beginBtn = document.getElementById("begin-mystery-btn") ||
+                         document.querySelector("[data-testid='begin-mystery-btn']");
+        if (beginBtn) {
+          beginBtn.click();
+          return true;
+        }
+        return false;
+      })()`);
+      if (modalDismissed) break;
+      await sleep(300);
+    }
+    await sleep(1000);
 
     // --------------------------------------------------------------------------
     // Step 4: Native document.modelContext Assertion
@@ -432,39 +457,57 @@ async function runGate(): Promise<void> {
     // --------------------------------------------------------------------------
     console.info("\n[Gate Step 8/12] Waiting for Amber Human Approval Gate (run_relay_stress_test)...");
     let approvalReached = false;
-    for (let i = 0; i < 50; i++) {
-      await sleep(600);
+    let lastReportedStatus = "";
+    for (let i = 0; i < 90; i++) {
+      await sleep(1000);
       const state = await cdpClient.evaluate<{
         hasApprovalBtn: boolean;
         isSceneApproval: boolean;
         hasFailed: boolean;
         failedMessage: string;
+        currentAction: string;
+        activityCount: number;
       }>(`(() => {
         const approveBtn = document.getElementById("approve-test-btn") ||
                            document.querySelector("[data-testid='approve-test-btn']") ||
                            document.querySelector("[data-testid='bench-agent-approve']");
         const failedCard = document.querySelector("[data-testid='agent-unavailable-card']") ||
                            document.querySelector("[data-testid='bench-agent-failed-diagnostic']");
+        const currentAction = document.querySelector("[data-testid='bench-agent-current-action']")?.innerText ||
+                              document.querySelector("[data-testid='bench-agent-panel']")?.innerText || "";
+        const activityCount = document.querySelectorAll("[data-testid='bench-agent-activity-row']").length;
+        const activities = Array.from(document.querySelectorAll("[data-testid='bench-agent-activity-row']")).map(r => (r.textContent || '').slice(0, 40));
+        const buttons = Array.from(document.querySelectorAll("button")).map(b => b.id || b.getAttribute("data-testid") || (b.textContent || '').trim().slice(0, 20));
+        const bodySnippet = document.body ? document.body.innerText.slice(0, 150) : "";
         return {
           hasApprovalBtn: approveBtn !== null,
           isSceneApproval: document.querySelector("[data-scene='approval']") !== null ||
                            document.querySelector("[data-scene='test-request']") !== null,
           hasFailed: failedCard !== null,
           failedMessage: failedCard ? failedCard.innerText : "",
+          currentAction: currentAction.slice(0, 100),
+          activityCount,
+          activities,
+          buttons,
+          bodySnippet,
         };
       })()`);
 
-      if (state.hasFailed) {
+      if (state?.hasFailed) {
         throw new Error(`[FAIL-CLOSED] Agent failed with diagnostic: ${state.failedMessage}`);
       }
 
-      if (state.hasApprovalBtn || state.isSceneApproval) {
+      if (state?.hasApprovalBtn || state?.isSceneApproval) {
         approvalReached = true;
         break;
       }
+
+      if (i % 5 === 0) {
+        console.info(`  ↳ [${i}s] Groq: ${state?.activityCount ?? 0} activities | buttons: [${state?.buttons?.slice(0, 4).join(", ") || ""}] | body: "${state?.bodySnippet?.slice(0, 60) || ""}"`);
+      }
     }
     if (!approvalReached) {
-      throw new Error("[FAIL-CLOSED] Amber human-approval gate was not reached within 30s");
+      throw new Error("[FAIL-CLOSED] Amber human-approval gate was not reached within 90s");
     }
     console.info("  ✅ Amber Safety Gate active: controlled experiment blocked pending human consent");
 

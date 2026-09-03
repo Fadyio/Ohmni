@@ -46,7 +46,6 @@ export interface DynamicInvestigationSceneProps {
   readonly agentMode?: AgentMode;
   readonly onSwitchToDemo?: () => void;
   readonly onRetryAgent?: () => void;
-  readonly onRetryGemini?: () => void;
   readonly activeSceneOverride?: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null;
 }
 
@@ -67,7 +66,6 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   agentMode = "groq",
   onSwitchToDemo,
   onRetryAgent,
-  onRetryGemini,
   activeSceneOverride,
 }) => {
   const agentIdentity = getAgentIdentity(agentMode, agentState.liveProvider, agentState.liveModel);
@@ -152,7 +150,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
       }}
     >
       {/* Agent Failure Diagnostic Banner */}
-      {/* Gemini Unavailable / Error Card */}
+      {/* Agent Unavailable / Error Card */}
       {agentMode !== "demo" && (agentState.status === "failed" || agentState.status === "unavailable" || agentState.providerStatus === "error") ? (
         (() => {
           const stateMessage = "message" in agentState && typeof agentState.message === "string" ? agentState.message : undefined;
@@ -189,12 +187,12 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
                   : stateMessage || `${agentIdentity.displayName} API quota is currently unavailable.`}
               </p>
               <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-                {(onRetryAgent ?? onRetryGemini) && (
+                {onRetryAgent && (
                   <button
                     type="button"
                     data-testid="retry-agent-btn"
                     id="retry-agent-btn"
-                    onClick={onRetryAgent ?? onRetryGemini}
+                    onClick={onRetryAgent}
                     className="btn-secondary"
                     style={{
                       padding: "8px 16px",

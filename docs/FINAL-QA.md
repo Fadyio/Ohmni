@@ -14,15 +14,15 @@ Paired with the central CTA: **[ Start Mystery Diagnosis ]**, a judge immediatel
 
 ---
 
-### 2. Can they identify what Gemini is doing?
+### 2. Can they identify what Agent is doing?
 **Verdict:** YES.  
-**Evidence:** The 30% right-hand narrative rail (`#lab-agent-rail`) provides real-time chronological telemetry of Gemini's thought stream, proposed tool invocations, and active status. When Gemini executes an instrument, the main canvas transitions synchronously to display that instrument (Observing Scene, Oscilloscope, or Repair Workbench).
+**Evidence:** The 30% right-hand narrative rail (`#lab-agent-rail`) provides real-time chronological telemetry of the agent's tool invocations, proposed tool invocations, and active status. When the agent executes an instrument, the main canvas transitions synchronously to display that instrument (Observing Scene, Oscilloscope, or Repair Workbench).
 
 ---
 
 ### 3. Can they identify what WebMCP contributes?
 **Verdict:** YES.  
-**Evidence:** The header prominently displays the runtime badge (`NATIVE WEBMCP` in Chrome with flag, or `STANDARD WEBMCP`). The Developer Inspector (`Cmd/Ctrl+Shift+D`) provides an interactive view of `document.modelContext`, showing the 19 registered instruments, execution classes (Green vs Amber), and copyable snippets (`await document.modelContext.getTools()`). WebMCP is visibly the structural protocol enabling Gemini to interact with the device.
+**Evidence:** The header prominently displays the runtime badge (`NATIVE WEBMCP` in Chrome with flag, or `STANDARD WEBMCP`). The Developer Inspector (`Cmd/Ctrl+Shift+D`) provides an interactive view of `document.modelContext`, showing the 19 registered instruments, execution classes (Green vs Amber), and copyable snippets (`await document.modelContext.getTools()`). WebMCP is visibly the structural protocol enabling the agent to interact with the device.
 
 ---
 
@@ -44,7 +44,7 @@ Paired with the central CTA: **[ Start Mystery Diagnosis ]**, a judge immediatel
 
 ### 6. Can they understand why the human is necessary?
 **Verdict:** YES.  
-**Evidence:** Gemini explicitly communicates its physical limitation: *"I need your hands. Relocate jumper JP1 from shared 3.3V to external 5V auxiliary rail."* The human must physically click the jumper position in the interactive hardware view and submit a `HumanObservation`. The AI provides scientific reasoning; the human provides physical actuation and consent.
+**Evidence:** The agent explicitly communicates its physical limitation: *"I need your hands. Relocate jumper JP1 from shared 3.3V to external 5V auxiliary rail."* The human must physically click the jumper position in the interactive hardware view and submit a `HumanObservation`. The AI provides scientific reasoning; the human provides physical actuation and consent.
 
 ---
 

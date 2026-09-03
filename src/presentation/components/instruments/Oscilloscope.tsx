@@ -2,7 +2,7 @@
  * Real-Time 60fps Canvas Oscilloscope.
  * High-precision custom instrumentation renderer:
  * - Electric cyan/red voltage telemetry trace with soft under-trace glow gradient.
- * - 2.80V Safe Brownout Threshold line with warning glow.
+ * - 2.80 V Safe Brownout Threshold line with warning glow.
  * - Sweep acquisition cursor and minimum voltage marker callout.
  * - Interactive hover crosshair and precise coordinate inspector.
  */
@@ -121,7 +121,7 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
       const plotWidth = Math.max(10, width - padLeft - padRight);
       const plotHeight = Math.max(10, height - padTop - padBottom);
 
-      // Voltage Scale: 2.50V to 3.60V
+      // Voltage Scale: 2.50 V to 3.60 V
       const vMin = 2.50;
       const vMax = 3.60;
       const vSpan = vMax - vMin;
@@ -220,7 +220,7 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
         ctx.fillStyle = grad;
         ctx.fill();
 
-        // Draw segments with color transition when below safe limit (2.80V)
+        // Draw segments with color transition when below safe limit (2.80 V)
         ctx.lineWidth = 2.4;
         ctx.lineJoin = "round";
         ctx.lineCap = "round";

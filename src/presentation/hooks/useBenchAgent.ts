@@ -293,13 +293,13 @@ export function useBenchAgent(
       const availability = await fetchBenchAgentAvailability();
       if (!mountedRef.current) return;
       const previous = stateRef.current;
-      const detectedProvider = (availability.provider || "groq") as "groq" | "gemini" | "demo";
+      const detectedProvider = (availability.provider || "groq") as "groq" | "demo";
       const detectedModel = availability.model;
       if (availability.available) {
         commit({
           status: "idle",
           checkingAvailability: false,
-          agentMode: previous.agentMode ?? (detectedProvider === "gemini" ? "gemini" : "groq"),
+          agentMode: previous.agentMode ?? detectedProvider,
           liveProvider: detectedProvider,
           liveModel: detectedModel,
           goal: previous.goal,

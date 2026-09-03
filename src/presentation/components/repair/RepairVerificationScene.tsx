@@ -443,7 +443,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     <span>Empirically Verified by Bench Agent (VERIFIED)</span>
                   </div>
                 ) : isAgentApproval ? (
-                  /* Amber Safety Authorization Gate requested by Gemini */
+                  /* Amber Safety Authorization Gate requested by agent */
                   <div
                     style={{
                       background: "rgba(244, 184, 96, 0.12)",
@@ -514,7 +514,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     <span>{agentIdentity.displayName} is evaluating physical repair & executing verification...</span>
                   </div>
                 ) : (
-                  /* Human Observation CTA: Tell Gemini I changed it */
+                  /* Human Observation CTA: Tell agent I changed it */
                   <button
                     onClick={handleNotifyAgent}
                     className="btn-primary"

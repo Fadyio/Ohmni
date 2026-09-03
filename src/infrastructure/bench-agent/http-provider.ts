@@ -75,7 +75,7 @@ function parseAvailability(value: unknown): BenchAgentAvailability {
 
   const provider =
     typeof record.provider === "string" && record.provider.length > 0
-      ? (record.provider as "groq" | "gemini" | "demo")
+      ? (record.provider as "groq" | "demo")
       : undefined;
 
   return {

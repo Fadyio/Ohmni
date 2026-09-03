@@ -13,7 +13,7 @@ export const SCENARIO_BROWNOUT: ScenarioDefinition = {
     {
       id: "relay_power_jumper",
       label: "Relay Power Source (JP1)",
-      description: "Selects whether the relay coil is energized from the shared 3.3V MCU rail or an isolated 5V external rail.",
+      description: "Selects whether the relay coil is energized from the shared 3.3 V MCU rail or an isolated 5 V external rail.",
       allowedStates: ["3v3", "5v"],
       initialState: "3v3",
       targetState: "5v",
@@ -30,24 +30,24 @@ export const SCENARIO_BROWNOUT: ScenarioDefinition = {
       {
         timestamp: Date.now() - 45_000,
         reason: "BROWNOUT",
-        message: "Brownout detector triggered: VDD sagged below 2.80V threshold",
+        message: "Brownout detector triggered: VDD sagged below 2.80 V threshold",
       },
       {
         timestamp: Date.now() - 25_000,
         reason: "BROWNOUT",
-        message: "Brownout detector triggered: VDD sagged below 2.80V threshold",
+        message: "Brownout detector triggered: VDD sagged below 2.80 V threshold",
       },
       {
         timestamp: Date.now() - 10_000,
         reason: "BROWNOUT",
-        message: "Brownout detector triggered: VDD sagged below 2.80V threshold",
+        message: "Brownout detector triggered: VDD sagged below 2.80 V threshold",
       },
     ],
   },
   groundTruth: {
     id: "brownout",
     title: "Relay Supply Misconfiguration",
-    hiddenFaultDescription: "Relay coil is wired to the shared 3.3V MCU rail. Coil inrush current sags voltage to 2.72V, triggering a hardware brownout reset.",
+    hiddenFaultDescription: "Relay coil is wired to the shared 3.3 V MCU rail. Coil inrush current sags voltage to 2.72 V, triggering a hardware brownout reset.",
     expectedDiagnosis: "Relay-induced MCU supply rail brownout reset",
     rootCauseCategory: "supply_brownout",
     expectedRootCauseTags: ["relay_power_shared_rail", "supply_brownout", "voltage_sag"],
@@ -58,7 +58,7 @@ export const SCENARIO_BROWNOUT: ScenarioDefinition = {
   },
   verificationCriteria: {
     requiredTool: "run_relay_stress_test",
-    description: "Re-run relay stress test to verify MCU rail remains stable >= 2.80V without reset.",
+    description: "Re-run relay stress test to verify MCU rail remains stable >= 2.80 V without reset.",
     validateResult: (data: Record<string, unknown>) => {
       const resetOccurred = data.resetOccurred === true;
       const minVoltage = typeof data.minVoltage === "number" ? data.minVoltage : 0;

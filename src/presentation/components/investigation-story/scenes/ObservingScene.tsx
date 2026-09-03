@@ -5,7 +5,7 @@
  * - Before read_reset_history actually returns successfully: "No reset history inspected yet."
  * - Only after read_reset_history executes: display parsed measured register counts.
  * - If category is absent or uninspected: show "—" (unknown) rather than hardcoded 0.
- * - If rail voltage has not been measured: show "— V (Unmeasured)" rather than hardcoded 3.31V.
+ * - If rail voltage has not been measured: show "— V (Unmeasured)" rather than hardcoded 3.31 V.
  * - Uses Lab Mode dark palette (Canvas #090B10, Raised #11141B, Text #F5F6F8).
  */
 
@@ -72,7 +72,7 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
       ctx.fillStyle = "#0C1017";
       ctx.fillRect(0, 0, width, height);
 
-      // 2.80V threshold line
+      // 2.80 V threshold line
       ctx.beginPath();
       ctx.setLineDash([4, 4]);
       ctx.strokeStyle = "rgba(255, 181, 74, 0.6)";

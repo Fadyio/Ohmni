@@ -3,7 +3,7 @@
  * Master Milestone 8 — Precision Workbench Layout.
  *
  * Requirements:
- * - Top Bar: Flat OHMNI logo | ESP32 Controller | Sealed Scenario Badge | Gemini / WebMCP Provider Badge
+ * - Top Bar: Flat OHMNI logo | ESP32 Controller | Sealed Scenario Badge | Agent / WebMCP Provider Badge
  * - 70% Left Main Workbench Canvas / 30% Right Agent Column
  * - Cohesive Light Theme Canvas (#F4F5F7)
  * - Clean whitespace and typography; remove card wall
@@ -52,7 +52,6 @@ export interface InvestigationStoryViewProps {
   readonly onOpenDevInspector?: () => void;
   readonly onSwitchToDemo?: () => void;
   readonly onRetryAgent?: () => void;
-  readonly onRetryGemini?: () => void;
   readonly labChromeRef?: React.RefObject<HTMLElement | null>;
   readonly labMainSceneRef?: React.RefObject<HTMLElement | null>;
   readonly agentRailRef?: React.RefObject<HTMLElement | null>;
@@ -82,7 +81,6 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   onOpenDevInspector,
   onSwitchToDemo,
   onRetryAgent,
-  onRetryGemini,
   labChromeRef,
   labMainSceneRef,
   agentRailRef,
@@ -545,7 +543,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             onStartAgent={onStartAgent}
             agentMode={agentMode}
             onSwitchToDemo={onSwitchToDemo}
-            onRetryAgent={onRetryAgent ?? onRetryGemini}
+            onRetryAgent={onRetryAgent}
             activeSceneOverride={activeSceneOverride}
           />
         </main>

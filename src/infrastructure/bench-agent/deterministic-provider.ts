@@ -73,7 +73,7 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
               arguments: { cycles: 3, duration_ms: 50 },
             },
           ],
-          text: "Human hardware intervention observed: JP1 jumper moved to 5V external rail. Rerunning the relay stress test to experimentally verify supply rail stability under load.",
+          text: "Human hardware intervention observed: JP1 jumper moved to 5 V external rail. Rerunning the relay stress test to experimentally verify supply rail stability under load.",
         };
       }
 
@@ -101,7 +101,7 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
         return {
           interactionId,
           functionCalls: [],
-          text: "Investigation complete and experimentally verified: The controller restarts were caused by the cooling fan relay coil inrush current collapsing the shared 3.3V MCU rail. Relocating jumper JP1 from the shared 3.3V rail to the external 5V auxiliary rail completely resolved the voltage sag and prevented brownout resets.",
+          text: "Investigation complete and experimentally verified: The controller restarts were caused by the cooling fan relay coil inrush current collapsing the shared 3.3 V MCU rail. Relocating jumper JP1 from the shared 3.3 V rail to the external 5 V auxiliary rail completely resolved the voltage sag and prevented brownout resets.",
         };
       }
 
@@ -116,7 +116,7 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
               name: "confirm_hypothesis",
               arguments: {
                 hypothesis_id: this.lastHypothesisId || "H-001",
-                rationale: "Post-repair relay stress test proved that with relay powered from 5V auxiliary rail, MCU rail remained stable at >= 3.18V with zero resets under load.",
+                rationale: "Post-repair relay stress test proved that with relay powered from 5 V auxiliary rail, MCU rail remained stable at >= 3.18 V with zero resets under load.",
                 evidence_ids: ["E-001"],
                 verified_experiment_id: this.verifiedExperimentId || "exp_verification",
               },
@@ -132,7 +132,7 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
         return {
           interactionId,
           functionCalls: [],
-          text: "Waiting for human technician to relocate jumper JP1 on the board from 3.3V to the external 5V auxiliary rail.",
+          text: "Waiting for human technician to relocate jumper JP1 on the board from 3.3 V to the external 5 V auxiliary rail.",
         };
       }
 
@@ -152,12 +152,12 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
               name: "request_human_intervention",
               arguments: {
                 target: "relay_power_jumper",
-                instruction: "Move jumper JP1 from the shared 3.3V rail to the external 5V auxiliary rail.",
-                rationale: "Isolating the relay coil power to the external 5V auxiliary rail prevents coil inrush current from collapsing the MCU 3.3V rail.",
+                instruction: "Move jumper JP1 from the shared 3.3 V rail to the external 5 V auxiliary rail.",
+                rationale: "Isolating the relay coil power to the external 5 V auxiliary rail prevents coil inrush current from collapsing the MCU 3.3 V rail.",
               },
             },
           ],
-          text: "Hypothesis registered. To test this hypothesis, I require physical intervention: please move jumper JP1 on the board from the 3.3V shared rail to the external 5V auxiliary rail.",
+          text: "Hypothesis registered. To test this hypothesis, I require physical intervention: please move jumper JP1 on the board from the 3.3 V shared rail to the external 5 V auxiliary rail.",
         };
       }
 
@@ -183,15 +183,15 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
                 id: `call_propose_hyp_${this.turnCount}`,
                 name: "propose_hypothesis",
                 arguments: {
-                  title: "Relay-induced MCU supply brownout due to shared 3.3V rail",
-                  description: "Energizing the cooling fan relay draws excessive coil inrush current from the shared 3.3V rail, collapsing MCU voltage below the 2.80V brownout threshold.",
+                  title: "Relay-induced MCU supply brownout due to shared 3.3 V rail",
+                  description: "Energizing the cooling fan relay draws excessive coil inrush current from the shared 3.3 V rail, collapsing MCU voltage below the 2.80 V brownout threshold.",
                   confidence: "MEDIUM",
-                  rationale: "Controlled relay stress test empirically reproduced 2.72V rail collapse and brownout reset matching past reset logs.",
+                  rationale: "Controlled relay stress test empirically reproduced 2.72 V rail collapse and brownout reset matching past reset logs.",
                   evidence_ids: ["E-001", "E-002", "E-003"],
                 },
               },
             ],
-            text: "Controlled stress test reproduced the fault: energizing the relay collapsed the MCU rail to 2.72V (< 2.80V threshold) and triggered a brownout reset. Proposing root cause hypothesis.",
+            text: "Controlled stress test reproduced the fault: energizing the relay collapsed the MCU rail to 2.72 V (< 2.80 V threshold) and triggered a brownout reset. Proposing root cause hypothesis.",
           };
         }
 
@@ -216,11 +216,11 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
                 hypothesis_id: this.lastHypothesisId || "H-001",
                 confidence: "HIGH",
                 evidence_ids: ["E-001"],
-                reason: "Empirical re-test on 5V external rail confirmed stable 3.18V supply rail with zero brownout resets.",
+                reason: "Empirical re-test on 5 V external rail confirmed stable 3.18 V supply rail with zero brownout resets.",
               },
             },
           ],
-          text: "Post-repair stress test completed successfully with zero resets and stable 3.18V supply rail! Elevating hypothesis confidence to HIGH based on empirical re-test.",
+          text: "Post-repair stress test completed successfully with zero resets and stable 3.18 V supply rail! Elevating hypothesis confidence to HIGH based on empirical re-test.",
         };
       }
       // 5. Check for measure_supply_voltage
@@ -235,7 +235,7 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
               arguments: { cycles: 3, duration_ms: 50 },
             },
           ],
-          text: "Baseline supply voltage is nominal (~3.3V). The symptom states restarts happen when the cooling fan turns on. Requesting controlled relay stress test to test if relay load collapses the supply rail.",
+          text: "Baseline supply voltage is nominal (~3.3 V). The symptom states restarts happen when the cooling fan turns on. Requesting controlled relay stress test to test if relay load collapses the supply rail.",
         };
       }
 
@@ -251,7 +251,7 @@ export class DeterministicBenchAgentProvider implements BenchAgentProvider {
               arguments: {},
             },
           ],
-          text: "Reset history confirms recent restarts were caused by supply brownout events. Measuring baseline voltage on the 3.3V rail.",
+          text: "Reset history confirms recent restarts were caused by supply brownout events. Measuring baseline voltage on the 3.3 V rail.",
         };
       }
     }

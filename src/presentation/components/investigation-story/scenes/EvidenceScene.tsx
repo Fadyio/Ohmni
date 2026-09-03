@@ -3,7 +3,7 @@
  *
  * Requirements:
  * - Renders ONLY factual evidence records from EvidenceStore.
- * - No hardcoded 2.72V fallback or fake tokens.
+ * - No hardcoded 2.72 V fallback or fake tokens.
  * - Displays immutable token IDs (e.g. E-001, E-002) and extracted facts.
  */
 
