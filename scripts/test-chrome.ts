@@ -117,6 +117,7 @@ async function startStaticServer(distDir: string, port = 5174): Promise<{ server
           turnCount += 1;
           sessionTurns.set(sessionId, turnCount);
 
+
           let responseBody: Record<string, unknown>;
 
           // Step 1: User prompt -> call read_reset_history
@@ -560,7 +561,7 @@ async function runChromeTests(): Promise<void> {
             isNative: window.__modelContext === undefined,
             hasBenchAgentPanel: document.querySelector("[data-testid='bench-agent-panel']") !== null,
             hasGoalInput: document.querySelector("[data-testid='bench-agent-goal-input']") !== null,
-            hasStartButton: document.querySelector("[data-testid='bench-agent-start']") !== null,
+            hasStartButton: document.querySelector("[data-testid='start-investigation-btn'], [data-testid='bench-agent-start']") !== null,
             hasInvestigation: document.body.innerText.includes("INVESTIGATION") || document.body.innerText.includes("Gemini"),
             hasHardware: document.querySelector("#hardware-target-node") !== null || document.querySelector("#hero-hardware-wrapper") !== null || document.querySelector("svg") !== null,
           })`);
@@ -639,7 +640,7 @@ async function runChromeTests(): Promise<void> {
           let buttonEnabled = false;
           for (let i = 0; i < 30; i++) {
             buttonEnabled = await cdpClient!.evaluate<boolean>(
-              `Boolean(document.querySelector("[data-testid='bench-agent-start']:not([disabled])"))`
+              `Boolean(document.querySelector("[data-testid='start-investigation-btn']:not([disabled]), [data-testid='bench-agent-start']:not([disabled])"))`
             );
             if (buttonEnabled) break;
             const { promise: p, resolve: r } = Promise.withResolvers<void>();
@@ -652,7 +653,7 @@ async function runChromeTests(): Promise<void> {
           }
 
           // Click start
-          await cdpClient!.evaluate(`document.querySelector("[data-testid='bench-agent-start']").click()`);
+          await cdpClient!.evaluate(`(document.querySelector("[data-testid='start-investigation-btn']") || document.querySelector("[data-testid='bench-agent-start']"))?.click()`);
 
           // Wait for Turn 1 to execute autonomously and pause at Turn 2 amber call
           let greenExecuted = false;
@@ -732,22 +733,27 @@ async function runChromeTests(): Promise<void> {
         name: "5. Human Approval Resumes Exact WebMCP Execution & Evidence Extraction",
         fn: async () => {
           await cdpClient!.evaluate(`(() => {
-            const approveBtn = document.querySelector("[data-testid='bench-agent-approve']");
-            approveBtn?.click();
+            const btn = document.getElementById("approve-test-btn") ||
+                        document.querySelector("[data-testid='approve-test-btn']") ||
+                        document.querySelector("[data-testid='bench-agent-approve']");
+            if (btn) btn.click();
           })()`);
           const expRunningPath = join(screenshotDir, "05-experiment-running.png");
           await cdpClient!.captureScreenshot(expRunningPath);
           console.info(`[Screenshot] Saved 05-experiment-running.png`);
 
-          const { promise: waitEvidencePromise, resolve: waitEvidenceResolve } = Promise.withResolvers<void>();
-          setTimeout(waitEvidenceResolve, 1500);
-          await waitEvidencePromise;
-
-          const res = await cdpClient!.evaluate<{ evidenceCount: number; hasResetEvent: boolean; hasMeasurement: boolean }>(`({
-            evidenceCount: window.__evidenceStore ? window.__evidenceStore.getAll().length : 0,
-            hasResetEvent: window.__evidenceStore ? window.__evidenceStore.getAll().some(e => e.type === "reset_event") : false,
-            hasMeasurement: window.__evidenceStore ? window.__evidenceStore.getAll().some(e => e.type === "measurement") : false,
-          })`);
+          let res = { evidenceCount: 0, hasResetEvent: false, hasMeasurement: false };
+          for (let i = 0; i < 30; i++) {
+            res = await cdpClient!.evaluate<{ evidenceCount: number; hasResetEvent: boolean; hasMeasurement: boolean }>(`({
+              evidenceCount: window.__evidenceStore ? window.__evidenceStore.getAll().length : 0,
+              hasResetEvent: window.__evidenceStore ? window.__evidenceStore.getAll().some(e => e.type === "reset_event") : false,
+              hasMeasurement: window.__evidenceStore ? window.__evidenceStore.getAll().some(e => e.type === "measurement") : false,
+            })`);
+            if (res.evidenceCount >= 2 && res.hasResetEvent && res.hasMeasurement) break;
+            const { promise: pollP, resolve: pollR } = Promise.withResolvers<void>();
+            setTimeout(pollR, 200);
+            await pollP;
+          }
 
           if (res.evidenceCount < 2 || !res.hasResetEvent || !res.hasMeasurement) {
             throw new Error(`Relay stress test approval execution failed to generate factual evidence: ${JSON.stringify(res)}`);
@@ -779,25 +785,25 @@ async function runChromeTests(): Promise<void> {
       {
         name: "6. Agent-Driven Hypothesis Synthesis & Confidence Elevation (HIGH)",
         fn: async () => {
-          for (let i = 0; i < 15; i++) {
+          for (let i = 0; i < 30; i++) {
             const check = await cdpClient!.evaluate<{
               status: string;
               hasApproval: boolean;
               hasAssessment: boolean;
             }>(`({
-              status: document.querySelector("[data-testid='bench-agent-status']")?.innerText || "",
-              hasApproval: document.querySelector("[data-testid='bench-agent-approve']") !== null,
+              status: document.querySelector("[data-testid='bench-agent-status']")?.innerText || document.querySelector("[data-testid='bench-agent-panel']")?.innerText || "",
+              hasApproval: (document.getElementById("approve-test-btn") || document.querySelector("[data-testid='approve-test-btn']") || document.querySelector("[data-testid='bench-agent-approve']")) !== null,
               hasAssessment: document.querySelector("[data-testid='bench-agent-assessment']") !== null,
             })`);
 
             if (check.hasApproval) {
-              await cdpClient!.evaluate(`document.querySelector("[data-testid='bench-agent-approve']").click()`);
+              await cdpClient!.evaluate(`(document.getElementById("approve-test-btn") || document.querySelector("[data-testid='approve-test-btn']") || document.querySelector("[data-testid='bench-agent-approve']"))?.click()`);
               const { promise: p, resolve: r } = Promise.withResolvers<void>();
               setTimeout(r, 400);
               await p;
             }
 
-            if (check.status.includes("COMPLETED") || check.hasAssessment) {
+            if (check.status.includes("COMPLETED") || check.status.includes("DIAGNOSIS FORMED") || check.hasAssessment) {
               break;
             }
             const { promise: p2, resolve: r2 } = Promise.withResolvers<void>();

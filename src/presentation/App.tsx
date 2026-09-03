@@ -128,7 +128,7 @@ export const App: React.FC<AppProps> = ({
     if (typeof window === "undefined") return undefined;
     const params = new URLSearchParams(window.location.search);
     const mode = params.get("agent");
-    if (mode === "demo" || mode === "gemini" || mode === "groq") {
+    if (mode === "demo" || mode === "groq") {
       return mode;
     }
     if (mode === "live") {
@@ -435,7 +435,7 @@ export const App: React.FC<AppProps> = ({
           onOpenDevInspector={() => setDevInspectorOpen(true)}
           agentMode={agentMode}
           onSwitchToDemo={() => setAgentMode("demo")}
-          onRetryGemini={retryAvailability}
+          onRetryAgent={retryAvailability}
           labChromeRef={labChromeRef}
           labMainSceneRef={labMainSceneRef}
           agentRailRef={agentRailRef}

@@ -240,7 +240,6 @@ export function useBenchAgent(
       ? (() => {
           const p = new URLSearchParams(window.location.search).get("agent");
           if (p === "demo") return "demo";
-          if (p === "gemini") return "gemini";
           return "groq";
         })()
       : "groq");
@@ -312,14 +311,14 @@ export function useBenchAgent(
       }
       commit({
         status: "unavailable",
-        agentMode: previous.agentMode ?? (detectedProvider === "gemini" ? "gemini" : "groq"),
+        agentMode: previous.agentMode ?? (detectedProvider === "demo" ? "demo" : "groq"),
         liveProvider: detectedProvider,
         liveModel: detectedModel,
         goal: previous.goal,
         activity: [],
         providerAvailable: false,
         providerStatus: "error",
-        message: `${detectedProvider === "gemini" ? "Google" : "Groq"} API quota is currently unavailable.`,
+        message: "Groq API quota is currently unavailable or unconfigured on server.",
       });
     } catch (error: unknown) {
       if (!mountedRef.current) return;
@@ -328,7 +327,7 @@ export function useBenchAgent(
         typeof (error as { requestId?: unknown })?.requestId === "string"
           ? (error as { requestId: string }).requestId
           : undefined;
-        const fallbackProvider = agentModeRef.current === "gemini" ? "gemini" : "groq";
+        const fallbackProvider = "groq";
         commit({
           status: "failed",
           agentMode: previous.agentMode ?? fallbackProvider,
@@ -813,7 +812,6 @@ export function useBenchAgent(
 
   const providerLabel = useMemo(() => {
     if (agentMode === "demo") return "DEMO AGENT";
-    if (agentMode === "gemini") return "GEMINI";
     const p = state.liveProvider ?? "groq";
     return p.toUpperCase();
   }, [agentMode, state.liveProvider]);

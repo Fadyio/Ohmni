@@ -25,6 +25,7 @@
     "check": "tsc --noEmit",
     "verify": "bun test && bun run typecheck && bun run build",
     "release:verify": "bun run verify && bun run test:chrome && bun run test:e2e:demo && bun run test:motion && bun run test:chaos && bun run test:visual",
+    "judge:verify": "bun run scripts/verify-judge.ts",
     "smoke": "bun run scripts/smoke.ts"
   },
   "devDependencies": {

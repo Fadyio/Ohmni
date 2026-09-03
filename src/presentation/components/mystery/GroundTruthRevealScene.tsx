@@ -10,7 +10,7 @@
  * - WebMCP Diagnostic Tool Usage Summary
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { CheckCircle2, XCircle, RotateCcw, ArrowRight, ShieldCheck, Wrench, Activity } from "lucide-react";
 import type { ScenarioGroundTruth } from "@/domain/scenario/types";
 import type { DiagnosisMatchResult } from "@/domain/scenario/engine";
@@ -41,6 +41,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
   onRunAnotherMystery,
   onReturnToWorkbench,
 }) => {
+  const [showEvidenceTrail, setShowEvidenceTrail] = useState<boolean>(false);
   const isMatch = isVerified && matchResult.isMatch;
   const displayHumanInterventions = humanInterventionsCount > 0 ? humanInterventionsCount : (isVerified ? 1 : 0);
   return (
@@ -468,6 +469,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
 
         {/* Evidence Tokens Ledger */}
         <div
+          data-testid="evidence-ledger-container"
           style={{
             background: "var(--ohmni-lab-surface, #FFFFFF)",
             border: "1px solid var(--ohmni-lab-border, #E2E4E9)",
@@ -476,44 +478,63 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            gap: "6px",
+            gap: "8px",
           }}
         >
-          <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--ohmni-lab-secondary)" }}>
-            CITATIONS & EMPIRICAL EVIDENCE ({evidenceRecords.length})
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--ohmni-lab-secondary)" }}>
+              CITATIONS & EVIDENCE ({evidenceRecords.length})
+            </span>
+            <button
+              type="button"
+              data-testid="toggle-evidence-trail-btn"
+              onClick={() => setShowEvidenceTrail((prev) => !prev)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--ohmni-lab-brand, #4967FF)",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                padding: "2px 6px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+            >
+              {showEvidenceTrail ? "Hide trail" : "View evidence trail"}
+            </button>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
-            {evidenceRecords.slice(0, 4).map((ev) => (
-              <span
-                key={ev.id}
-                className="font-mono"
-                title={ev.summary}
-                style={{
-                  padding: "3px 8px",
-                  borderRadius: "4px",
-                  background: ev.source === "human" ? "rgba(224, 138, 0, 0.1)" : "rgba(73, 103, 255, 0.08)",
-                  border: ev.source === "human" ? "1px solid rgba(224, 138, 0, 0.25)" : "1px solid rgba(73, 103, 255, 0.2)",
-                  fontSize: "11.5px",
-                  fontWeight: 700,
-                  color: ev.source === "human" ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-brand)",
-                  cursor: "help",
-                }}
-              >
-                {ev.id} {ev.source === "human" ? "• Human" : ""}
-              </span>
-            ))}
-            {evidenceRecords.length > 4 && (
-              <span
-                style={{
-                  padding: "3px 6px",
-                  fontSize: "11px",
-                  color: "var(--ohmni-lab-secondary)",
-                }}
-              >
-                +{evidenceRecords.length - 4} more
-              </span>
-            )}
-          </div>
+
+          {showEvidenceTrail ? (
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
+              {evidenceRecords.map((ev) => (
+                <span
+                  key={ev.id}
+                  className="font-mono"
+                  title={ev.summary}
+                  style={{
+                    padding: "3px 8px",
+                    borderRadius: "4px",
+                    background: ev.source === "human" ? "rgba(224, 138, 0, 0.1)" : "rgba(73, 103, 255, 0.08)",
+                    border: ev.source === "human" ? "1px solid rgba(224, 138, 0, 0.25)" : "1px solid rgba(73, 103, 255, 0.2)",
+                    fontSize: "11.5px",
+                    fontWeight: 700,
+                    color: ev.source === "human" ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-brand)",
+                    cursor: "help",
+                  }}
+                >
+                  {ev.id} {ev.source === "human" ? "• Human" : ""}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted, #64748B)" }}>
+              {evidenceRecords.length > 0
+                ? `${evidenceRecords.length} empirical records linked to verified root cause`
+                : "No empirical records logged"}
+            </div>
+          )}
         </div>
       </div>
 

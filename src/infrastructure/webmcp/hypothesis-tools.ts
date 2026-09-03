@@ -25,6 +25,27 @@ import type {
 } from "@/domain/hypothesis/types";
 import type { ModelContext, ModelContextTool } from "./types";
 
+function parseToolInput(rawInput: unknown): Record<string, unknown> {
+  if (typeof rawInput === "string") {
+    const trimmed = rawInput.trim();
+    if (trimmed.length > 0) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return parsed as Record<string, unknown>;
+        }
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }
+  if (rawInput && typeof rawInput === "object" && !Array.isArray(rawInput)) {
+    return rawInput as Record<string, unknown>;
+  }
+  return {};
+}
+
 export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelContextTool[] {
   const proposeHypothesisTool: ModelContextTool = {
     name: "propose_hypothesis",
@@ -68,7 +89,8 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     annotations: {
       readOnlyHint: false,
     },
-    execute: async (input) => {
+    execute: async (rawInput) => {
+      const input = parseToolInput(rawInput);
       const title = String(input.title || "").trim();
       const description = String(input.description || "").trim();
       const confidence = String(input.confidence || "").trim() as HypothesisConfidence;
@@ -134,7 +156,8 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     annotations: {
       readOnlyHint: false,
     },
-    execute: async (input) => {
+    execute: async (rawInput) => {
+      const input = parseToolInput(rawInput);
       const hypothesisId = String(input.hypothesis_id || "").trim();
       const confidence = String(input.confidence || "").trim() as HypothesisConfidence;
       const reason = String(input.reason || "").trim();
@@ -197,7 +220,8 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     annotations: {
       readOnlyHint: false,
     },
-    execute: async (input) => {
+    execute: async (rawInput) => {
+      const input = parseToolInput(rawInput);
       const hypothesisId = String(input.hypothesis_id || "").trim();
       const evidenceId = String(input.evidence_id || "").trim();
       const relationship = String(input.relationship || "").trim() as EvidenceRelationship;
@@ -261,7 +285,8 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     annotations: {
       readOnlyHint: false,
     },
-    execute: async (input) => {
+    execute: async (rawInput) => {
+      const input = parseToolInput(rawInput);
       const hypothesisId = String(input.hypothesis_id || "").trim();
       const reason = String(input.reason || "").trim();
       const evidenceIds = Array.isArray(input.evidence_ids)
@@ -323,7 +348,8 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     annotations: {
       readOnlyHint: false,
     },
-    execute: async (input) => {
+    execute: async (rawInput) => {
+      const input = parseToolInput(rawInput);
       const hypothesisId = String(input.hypothesis_id || "").trim();
       const rationale = String(input.rationale || "").trim();
       const verifiedExperimentId = String(input.verified_experiment_id || "").trim();
@@ -391,7 +417,8 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     annotations: {
       readOnlyHint: false,
     },
-    execute: async (input) => {
+    execute: async (rawInput) => {
+      const input = parseToolInput(rawInput);
       const hypothesisId = String(input.hypothesis_id || "").trim();
       const rootCause = String(input.root_cause || "").trim();
       const summary = String(input.summary || "").trim();
@@ -454,7 +481,8 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     annotations: {
       readOnlyHint: false,
     },
-    execute: async (input) => {
+    execute: async (rawInput) => {
+      const input = parseToolInput(rawInput);
       const target = String(input.target || "").trim();
       const instruction = String(input.instruction || "").trim();
       const rationale = String(input.rationale || "").trim();
@@ -502,7 +530,8 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     annotations: {
       readOnlyHint: true,
     },
-    execute: async (input) => {
+    execute: async (rawInput) => {
+      const input = parseToolInput(rawInput);
       const status = typeof input.status === "string" ? (input.status.trim() as HypothesisStatus) : undefined;
       const list = status ? hypothesisStore.getByStatus(status) : hypothesisStore.getAll();
       return {
@@ -531,7 +560,8 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     annotations: {
       readOnlyHint: true,
     },
-    execute: async (input) => {
+    execute: async (rawInput) => {
+      const input = parseToolInput(rawInput);
       const id = String(input.hypothesis_id || "").trim();
       if (!id) {
         throw new Error("Missing required parameter: hypothesis_id");

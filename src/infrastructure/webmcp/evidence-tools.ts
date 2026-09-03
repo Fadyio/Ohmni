@@ -11,6 +11,27 @@
 import type { EvidenceStore } from "@/domain/evidence/store";
 import type { ModelContext, ModelContextTool } from "./types";
 
+function parseToolInput(rawInput: unknown): Record<string, unknown> {
+  if (typeof rawInput === "string") {
+    const trimmed = rawInput.trim();
+    if (trimmed.length > 0) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return parsed as Record<string, unknown>;
+        }
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }
+  if (rawInput && typeof rawInput === "object" && !Array.isArray(rawInput)) {
+    return rawInput as Record<string, unknown>;
+  }
+  return {};
+}
+
 export function createEvidenceTools(evidenceStore: EvidenceStore): ModelContextTool[] {
   const listEvidenceTool: ModelContextTool = {
     name: "list_evidence",
@@ -35,7 +56,8 @@ export function createEvidenceTools(evidenceStore: EvidenceStore): ModelContextT
     annotations: {
       readOnlyHint: true,
     },
-    execute: async (input) => {
+    execute: async (rawInput) => {
+      const input = parseToolInput(rawInput);
       let records = evidenceStore.getAll();
       if (typeof input.experiment_id === "string" && input.experiment_id.trim().length > 0) {
         records = evidenceStore.getByExperiment(input.experiment_id.trim());
@@ -66,7 +88,8 @@ export function createEvidenceTools(evidenceStore: EvidenceStore): ModelContextT
     annotations: {
       readOnlyHint: true,
     },
-    execute: async (input) => {
+    execute: async (rawInput) => {
+      const input = parseToolInput(rawInput);
       const id = String(input.evidence_id || "").trim();
       if (!id) {
         throw new Error("Missing required parameter: evidence_id");

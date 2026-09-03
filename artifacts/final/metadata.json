@@ -14,11 +14,11 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T05:56:35.340Z"
+    "timestamp": "2026-09-03T07:46:12.346Z"
   },
   {
-    "fileName": "02-blind-challenge.png",
-    "scene": "Blind Challenge",
+    "fileName": "02-challenge.png",
+    "scene": "Challenge",
     "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
@@ -31,7 +31,7 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T05:56:35.523Z"
+    "timestamp": "2026-09-03T07:46:12.544Z"
   },
   {
     "fileName": "03-ready.png",
@@ -48,11 +48,11 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T05:56:36.283Z"
+    "timestamp": "2026-09-03T07:46:13.298Z"
   },
   {
-    "fileName": "04-observation.png",
-    "scene": "Observation",
+    "fileName": "04-observing.png",
+    "scene": "Observing",
     "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
@@ -65,11 +65,11 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T05:56:37.199Z"
+    "timestamp": "2026-09-03T07:46:14.199Z"
   },
   {
     "fileName": "05-approval.png",
-    "scene": "Physical Approval",
+    "scene": "Approval",
     "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
@@ -82,7 +82,7 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T05:56:37.297Z"
+    "timestamp": "2026-09-03T07:46:14.296Z"
   },
   {
     "fileName": "06-experiment.png",
@@ -99,27 +99,10 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T05:56:37.653Z"
+    "timestamp": "2026-09-03T07:46:14.642Z"
   },
   {
-    "fileName": "07-evidence.png",
-    "scene": "Evidence",
-    "buildSha": "development",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": true,
-      "relayState": "open",
-      "jumper": "3v3",
-      "experimentsCount": 1,
-      "evidenceCount": 5,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "NOT_VERIFIED"
-    },
-    "timestamp": "2026-09-03T05:56:37.754Z"
-  },
-  {
-    "fileName": "08-diagnosis.png",
+    "fileName": "07-diagnosis.png",
     "scene": "Diagnosis",
     "buildSha": "development",
     "agentMode": "demo",
@@ -133,11 +116,11 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T05:56:37.854Z"
+    "timestamp": "2026-09-03T07:46:14.739Z"
   },
   {
-    "fileName": "09-human-action.png",
-    "scene": "Human Action",
+    "fileName": "08-repair.png",
+    "scene": "Repair",
     "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
@@ -150,28 +133,11 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T05:56:37.947Z"
+    "timestamp": "2026-09-03T07:46:14.932Z"
   },
   {
-    "fileName": "10-verification.png",
-    "scene": "Verification Retest Approval",
-    "buildSha": "development",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": true,
-      "relayState": "open",
-      "jumper": "5v",
-      "experimentsCount": 1,
-      "evidenceCount": 6,
-      "hypothesesCount": 1,
-      "hypothesisStatus": "NOT_VERIFIED"
-    },
-    "timestamp": "2026-09-03T05:56:38.296Z"
-  },
-  {
-    "fileName": "11-verified.png",
-    "scene": "Verified",
+    "fileName": "09-verification.png",
+    "scene": "Verification",
     "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
@@ -184,11 +150,11 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "VERIFIED"
     },
-    "timestamp": "2026-09-03T05:56:38.641Z"
+    "timestamp": "2026-09-03T07:46:15.541Z"
   },
   {
-    "fileName": "12-reveal.png",
-    "scene": "Reveal",
+    "fileName": "10-result.png",
+    "scene": "Result",
     "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
@@ -201,23 +167,6 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "VERIFIED"
     },
-    "timestamp": "2026-09-03T05:56:38.742Z"
-  },
-  {
-    "fileName": "13-gemini-error.png",
-    "scene": "Gemini Error State",
-    "buildSha": "development",
-    "agentMode": "demo",
-    "scenario": "brownout",
-    "domainState": {
-      "connected": true,
-      "relayState": "open",
-      "jumper": "3v3",
-      "experimentsCount": 0,
-      "evidenceCount": 0,
-      "hypothesesCount": 0,
-      "hypothesisStatus": "none"
-    },
-    "timestamp": "2026-09-03T05:56:39.185Z"
+    "timestamp": "2026-09-03T07:46:15.641Z"
   }
 ]

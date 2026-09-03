@@ -1,6 +1,7 @@
 {
   "name": "ohmni",
   "version": "0.1.0",
-  "buildSha": "ce522fcccb9959c3f91f8b94de2cb5e9e2114bd9",
-  "environment": "production"
+  "buildSha": "ccca4f30b4d97770319b01b37362b3339ce0b0a0",
+  "timestamp": "2026-09-03T07:54:33.477Z",
+  "environment": "development"
 }

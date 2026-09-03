@@ -33,6 +33,69 @@ export interface InvestigationNarrativeRailProps {
   readonly onSelectScene?: (scene: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null) => void;
 }
 
+export function getNarrativeRailStatus(options: {
+  readonly agentState: BenchAgentState;
+  readonly investigationPhase?: InvestigationPhase;
+  readonly hypothesis?: Hypothesis | null;
+  readonly isIdle: boolean;
+  readonly active: boolean;
+}): string {
+  const { agentState, investigationPhase, hypothesis, isIdle, active } = options;
+
+  // 1. Terminal Verified status takes ultimate precedence
+  if (investigationPhase === "verified") {
+    return "COMPLETED";
+  }
+
+  // 2. Fatal / stopped / unavailable errors
+  if (agentState.status === "failed" || investigationPhase === "failed") return "FAILED";
+  if (agentState.status === "unavailable") return "UNAVAILABLE";
+  if (agentState.status === "stopped" || investigationPhase === "stopped") return "STOPPED";
+
+  // 3. Waiting for human interaction / intervention
+  if (investigationPhase === "waiting_for_human") return "WAITING FOR YOU";
+
+  // 4. Verification running or pending
+  if (investigationPhase === "verification_running") return "VERIFICATION RUNNING";
+  if (investigationPhase === "verification_pending") return "VERIFICATION PENDING";
+
+  // 5. Semantic diagnosis formed takes precedence over agent sequence completion
+  if (investigationPhase === "hypothesis" || hypothesis !== null) {
+    return "DIAGNOSIS FORMED";
+  }
+
+  // 6. Approval gate
+  if (agentState.status === "approval" || investigationPhase === "waiting_for_approval") {
+    return "WAITING FOR APPROVAL";
+  }
+
+  // 7. Active experiment or analysis
+  if (investigationPhase === "experiment_running") return "EXPERIMENT RUNNING";
+  if (investigationPhase === "evidence_review" || investigationPhase === "reasoning") {
+    return "ANALYZING EVIDENCE";
+  }
+  if (investigationPhase === "observing") return "INVESTIGATING";
+  if (investigationPhase === "connecting") return "CONNECTING";
+
+  // 8. Ready / Welcome
+  if (
+    investigationPhase === "welcome" ||
+    investigationPhase === "challenge_ready" ||
+    investigationPhase === "ready"
+  ) {
+    return isIdle ? "Ready" : "READY";
+  }
+
+  // 9. Agent completed execution when no pending semantic phase
+  if (agentState.status === "completed") {
+    return "COMPLETED";
+  }
+
+  if (active) return "Live";
+  if (isIdle) return "Ready";
+  return agentState.status.toUpperCase();
+}
+
 export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProps> = ({
   agentState,
   investigationPhase,
@@ -46,7 +109,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
   const active = agentState.status === "investigating" || agentState.status === "approval";
   const isIdle = agentState.status === "idle" || agentState.status === "stopped";
   const currentGoal = agentState.goal || "The controller restarts when the fan turns on.";
-  const canStart = agentState.providerAvailable && currentGoal.trim().length > 0 && isIdle;
+
 
   const [goalText, setGoalText] = useState(currentGoal);
   const [copied, setCopied] = useState(false);
@@ -180,53 +243,20 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                     ? "var(--ohmni-lab-fault)"
                     : isWaitingApproval || investigationPhase === "waiting_for_human"
                     ? "var(--ohmni-lab-action)"
+                    : (investigationPhase === "hypothesis" || hypothesis !== null)
+                    ? "var(--ohmni-lab-brand)"
                     : "#94A3B8",
                 }}
               />
-              <span>{(() => {
-                if (investigationPhase === "verified" || agentState.status === "completed") {
-                  return "COMPLETED";
-                }
-                if (agentState.status === "failed") return "FAILED";
-                if (agentState.status === "unavailable") return "UNAVAILABLE";
-                if (agentState.status === "stopped") return "STOPPED";
-                if (investigationPhase === "waiting_for_human") return "WAITING FOR YOU";
-                if (investigationPhase === "verification_running") return "VERIFICATION RUNNING";
-                if (investigationPhase === "hypothesis" || hypothesis !== null) {
-                  return "DIAGNOSIS FORMED";
-                }
-                if (agentState.status === "approval") return "WAITING FOR APPROVAL";
-                if (investigationPhase) {
-                  switch (investigationPhase) {
-                    case "welcome":
-                    case "challenge_ready":
-                    case "ready":
-                      return isIdle ? "Ready" : "READY";
-                    case "connecting":
-                      return "CONNECTING";
-                    case "observing":
-                      return "INVESTIGATING";
-                    case "waiting_for_approval":
-                      return "WAITING FOR APPROVAL";
-                    case "experiment_running":
-                      return "EXPERIMENT RUNNING";
-                    case "evidence_review":
-                    case "reasoning":
-                      return "ANALYZING EVIDENCE";
-                    case "verification_pending":
-                      return "VERIFICATION PENDING";
-                    case "failed":
-                      return "FAILED";
-                    case "stopped":
-                      return "STOPPED";
-                    default:
-                      break;
-                  }
-                }
-                if (active) return "Live";
-                if (isIdle) return "Ready";
-                return agentState.status.toUpperCase();
-              })()}</span>
+              <span>
+                {getNarrativeRailStatus({
+                  agentState,
+                  investigationPhase,
+                  hypothesis,
+                  isIdle,
+                  active,
+                })}
+              </span>
             </div>
           </div>
         </div>
@@ -315,29 +345,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           )}
         </div>
 
-        {/* Start Button when Idle */}
-        {isIdle && (
-          <button
-            data-testid="bench-agent-start"
-            id="start-agent-btn"
-            onClick={onStartAgent}
-            disabled={!canStart}
-            className="btn-primary"
-            style={{
-              width: "100%",
-              padding: "12px",
-              fontSize: "14px",
-              fontWeight: 700,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-            }}
-          >
-            <Play size={14} />
-            <span>Begin investigation</span>
-          </button>
-        )}
+
 
         {/* Failure Diagnostic Block */}
         {agentState.status === "failed" && (

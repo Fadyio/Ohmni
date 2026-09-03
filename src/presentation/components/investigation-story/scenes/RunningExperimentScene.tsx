@@ -107,7 +107,7 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
 
           ctx.textAlign = "left";
           ctx.font = 'bold 9.5px "JetBrains Mono", monospace';
-          ctx.fillText("SAFE LIMIT (2.80V)", padLeft + plotWidth + 8, y);
+          ctx.fillText("2.80 V reset threshold", padLeft + plotWidth + 8, y);
           ctx.textAlign = "right";
           ctx.font = '11px "JetBrains Mono", monospace';
         } else {
@@ -297,7 +297,7 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
           >
             {isRunning
               ? "Active Relay Actuation & Oscilloscope Telemetry"
-              : "Captured Oscilloscope Waveform (Frozen at 2.72V Sag)"}
+              : "Captured Oscilloscope Waveform (Frozen at 2.72 V Sag)"}
           </h2>
         </div>
 

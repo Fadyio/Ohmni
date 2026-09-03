@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import react from "@vitejs/plugin-react";
@@ -141,6 +142,47 @@ function benchAgentPlugin(handler: BenchAgentHandler): Plugin {
     },
   };
 }
+function buildInfoPlugin(buildSha: string): Plugin {
+  return {
+    name: "ohmni-build-info",
+    buildStart() {
+      const buildInfo = {
+        name: "ohmni",
+        version: "0.1.0",
+        buildSha,
+        timestamp: new Date().toISOString(),
+        environment: process.env.VERCEL ? "production" : "development",
+      };
+      try {
+        writeFileSync(
+          fileURLToPath(new URL("./public/build-info.json", import.meta.url)),
+          JSON.stringify(buildInfo, null, 2) + "\n"
+        );
+      } catch {
+        // Ignore if running on read-only FS
+      }
+    },
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "build-info.json",
+        source:
+          JSON.stringify(
+            {
+              name: "ohmni",
+              version: "0.1.0",
+              buildSha,
+              timestamp: new Date().toISOString(),
+              environment: process.env.VERCEL ? "production" : "development",
+            },
+            null,
+            2
+          ) + "\n",
+      });
+    },
+  };
+}
+
 
 export default defineConfig(({ mode }) => {
   const env = { ...process.env, ...loadEnv(mode, process.cwd(), "") };
@@ -154,8 +196,8 @@ export default defineConfig(({ mode }) => {
   }
   const handler = createBenchAgentHandler({
     env: {
-      GEMINI_API_KEY: env.GEMINI_API_KEY,
-      GEMINI_MODEL: env.GEMINI_MODEL,
+      GROQ_API_KEY: env.GROQ_API_KEY,
+      GROQ_MODEL: env.GROQ_MODEL,
     },
   });
 
@@ -163,7 +205,7 @@ export default defineConfig(({ mode }) => {
     define: {
       "import.meta.env.VITE_BUILD_SHA": JSON.stringify(buildSha),
     },
-    plugins: [react(), benchAgentPlugin(handler)],
+    plugins: [react(), buildInfoPlugin(buildSha), benchAgentPlugin(handler)],
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),

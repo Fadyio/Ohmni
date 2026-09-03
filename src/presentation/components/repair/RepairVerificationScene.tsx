@@ -5,8 +5,7 @@
  * - Human physical change produces a first-class human observation for the Bench Agent.
  * - Split-scope comparison deriving BEFORE and AFTER measurements strictly from ExperimentRecords.
  * - Zero presentation fallback truth (no ?? 2.72 or ?? 3.18).
- * - React NEVER automatically executes the verification experiment or confirms the hypothesis.
- * - Gemini independently decides to retest, requests human authorization, reads new evidence, and confirms.
+ * - Agent independently decides to retest, requests human authorization, reads new evidence, and confirms.
  */
 
 import React, { useState, useCallback, useMemo } from "react";
@@ -50,6 +49,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
   onReturnToInvestigation,
 }) => {
   const agentIdentity = getAgentIdentity(agentState?.agentMode, agentState?.liveProvider, agentState?.liveModel);
+  const isNativeMode = typeof window !== "undefined" && window.__webmcpMode === "native";
   const resolvedAdapter = useMemo<InteractiveDeviceAdapter | undefined>(() => {
     return (deviceAdapter as InteractiveDeviceAdapter) ?? (typeof window !== "undefined" ? (window.__virtualDevice as InteractiveDeviceAdapter) : undefined);
   }, [deviceAdapter]);
@@ -196,8 +196,11 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
           zIndex: 10,
         }}
       >
+        {/* Left: Flat Brand Logo + Hardware Identity */}
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <img src="/brand/ohmni-logo.svg" alt="OHMNI" style={{ height: "26px", width: "auto" }} />
+          <div id="navbar-brand-wordmark" data-testid="navbar-brand-wordmark">
+            <img src="/brand/ohmni-logo.svg" alt="OHMNI" style={{ height: "26px", width: "auto" }} />
+          </div>
           <div style={{ height: "16px", width: "1px", background: "var(--ohmni-lab-border, #E2E4E9)" }} />
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span
@@ -211,11 +214,12 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
               }}
             />
             <span className="font-mono" style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ohmni-lab-text, #0F172A)" }}>
-              ESP32-S3 Demo Board
+              ESP32-S3 Environmental Controller (Virtual)
             </span>
           </div>
         </div>
 
+        {/* Center: OBSERVE -> TEST -> DIAGNOSE -> REPAIR -> VERIFY */}
         <div
           id="investigation-progress-strip"
           data-testid="investigation-progress-strip"
@@ -230,13 +234,14 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                   data-phase={phase}
                   data-active={isActive}
                   style={{
-                    background: isActive ? "var(--ohmni-lab-brand, #4967FF)" : "transparent",
-                    color: isActive ? "#FFFFFF" : "var(--ohmni-lab-muted, #94A3B8)",
-                    padding: "3px 10px",
-                    borderRadius: "9999px",
+                    padding: "3px 9px",
+                    borderRadius: "var(--radius-full, 9999px)",
                     fontSize: "11px",
                     fontWeight: isActive ? 800 : 600,
                     letterSpacing: "0.04em",
+                    color: isActive ? "var(--ohmni-lab-brand, #4967FF)" : "var(--ohmni-lab-muted, #94A3B8)",
+                    background: isActive ? "rgba(73, 103, 255, 0.08)" : "transparent",
+                    border: isActive ? "1px solid rgba(73, 103, 255, 0.25)" : "1px solid transparent",
                   }}
                 >
                   {phase}
@@ -246,7 +251,29 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
           })}
         </div>
 
+        {/* Right: Native WebMCP (if native), Provider Badge, Return to Investigation */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {isNativeMode && (
+            <span
+              data-testid="webmcp-mode-badge"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "3px 9px",
+                borderRadius: "var(--radius-full, 9999px)",
+                background: "rgba(39, 150, 107, 0.08)",
+                border: "1px solid rgba(39, 150, 107, 0.25)",
+                color: "var(--ohmni-lab-verified, #27966B)",
+                fontSize: "11px",
+                fontWeight: 600,
+              }}
+            >
+              <ShieldCheck size={12} />
+              <span>Native WebMCP</span>
+            </span>
+          )}
+
           <span
             data-testid={agentState?.agentMode === "demo" ? "demo-provider-badge" : "groq-provider-badge"}
             data-provider-badge="true"
@@ -266,8 +293,9 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
             }}
           >
             <Bot size={13} />
-            <span>{agentState?.agentMode === "demo" ? "Demo Walkthrough" : `${agentIdentity.displayName} Live`}</span>
+            <span>{agentState?.agentMode === "demo" ? "Demo Agent" : `${agentIdentity.displayName} Live`}</span>
           </span>
+
           <button
             type="button"
             onClick={onReturnToInvestigation}
@@ -313,7 +341,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
             </div>
 
             <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ohmni-ink)", margin: "8px 0 12px", lineHeight: 1.2 }}>
-              Move JP1: Shared 3.3V → Independent 5V
+              Move JP1: Shared 3.3 V → Independent 5 V
             </h2>
 
             <p className="body-text" style={{ fontSize: "15px", lineHeight: 1.6, margin: 0 }}>
@@ -491,7 +519,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     onClick={handleNotifyAgent}
                     className="btn-primary"
                     data-testid="tell-agent-repair-btn"
-                    data-testid-alias="tell-gemini-repair-btn"
+
                     id="tell-agent-repair-btn"
                     style={{
                       display: "flex",
@@ -562,7 +590,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
               <div style={{ height: "140px", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
                 <svg viewBox="0 0 300 120" style={{ width: "100%", height: "100%" }}>
                   <line x1="20" y1="60" x2="280" y2="60" stroke="#F59E0B" strokeWidth="1" strokeDasharray="3 3" />
-                  <text x="280" y="55" textAnchor="end" fill="#F59E0B" fontSize="9" fontFamily="var(--font-mono)">2.80V SAFE LIMIT</text>
+                  <text x="280" y="55" textAnchor="end" fill="#F59E0B" fontSize="9" fontFamily="var(--font-mono)">2.80 V reset threshold</text>
                   <path d="M 20 40 L 90 40 L 140 95 L 180 95 L 230 40 L 280 40" fill="none" stroke="#F43F5E" strokeWidth="2.5" />
                   <circle cx="160" cy="95" r="4" fill="#F43F5E" />
                   <text x="160" y="112" textAnchor="middle" fill="#F43F5E" fontSize="10" fontFamily="var(--font-mono)" fontWeight="700">
@@ -612,7 +640,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                 {hasVerified && afterMinVoltage !== undefined ? (
                   <svg viewBox="0 0 300 120" style={{ width: "100%", height: "100%" }}>
                     <line x1="20" y1="60" x2="280" y2="60" stroke="#F59E0B" strokeWidth="1" strokeDasharray="3 3" />
-                    <text x="280" y="55" textAnchor="end" fill="#F59E0B" fontSize="9" fontFamily="var(--font-mono)">2.80V SAFE LIMIT</text>
+                    <text x="280" y="55" textAnchor="end" fill="#F59E0B" fontSize="9" fontFamily="var(--font-mono)">2.80 V reset threshold</text>
                     <path d="M 20 40 L 90 40 L 140 46 L 180 46 L 230 40 L 280 40" fill="none" stroke="#22D3EE" strokeWidth="2.5" />
                     <circle cx="160" cy="46" r="4" fill="#22D3EE" />
                     <text x="160" y="32" textAnchor="middle" fill="#22D3EE" fontSize="10" fontFamily="var(--font-mono)" fontWeight="700">
@@ -621,7 +649,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                   </svg>
                 ) : (
                   <div style={{ color: "#64748B", fontSize: "13px", textAlign: "center" }}>
-                    Awaiting empirical verification stress test on 5.0V rail...
+                    Awaiting empirical verification stress test on 5.0 V rail...
                   </div>
                 )}
               </div>
@@ -630,7 +658,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                 {hasVerified
                   ? (typeof afterExperiment?.summary?.message === "string"
                       ? afterExperiment.summary.message
-                      : "Supply remains securely above safe limit during full fan actuation.")
+                      : "Supply remains securely above reset threshold during full fan actuation.")
                   : "Move jumper and notify Bench Agent to record empirical verification telemetry."}
               </div>
             </div>

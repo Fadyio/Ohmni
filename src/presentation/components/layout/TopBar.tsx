@@ -131,7 +131,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           </span>
 
           <span
-            data-testid="gemini-provider-badge"
+            data-testid="agent-provider-badge"
             style={{
               display: "inline-flex",
               alignItems: "center",

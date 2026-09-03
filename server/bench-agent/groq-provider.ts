@@ -418,7 +418,7 @@ export class GroqBenchAgentProvider implements BenchAgentProvider {
           model: this.model,
           messages: [{ role: "user", content: "Reply exactly OK." }],
           temperature: 0.0,
-          max_tokens: 16,
+          max_tokens: 128,
         }),
         signal: combinedSignal,
       });
@@ -433,8 +433,12 @@ export class GroqBenchAgentProvider implements BenchAgentProvider {
       }
 
       const data = (await response.json()) as GroqChatCompletionResponse;
-      const content = data.choices?.[0]?.message?.content?.trim();
-      if (!content) {
+      const choiceMsg = data.choices?.[0]?.message;
+      const rawContent = choiceMsg?.content?.trim();
+      const reasoning = (choiceMsg as any)?.reasoning || (choiceMsg as any)?.reasoning_content || "";
+      const content = stripThinking(rawContent || "");
+      const finalMsg = content || rawContent || reasoning;
+      if (!finalMsg) {
         return {
           ok: false,
           message: "Canary returned empty response from Groq.",
@@ -444,7 +448,7 @@ export class GroqBenchAgentProvider implements BenchAgentProvider {
 
       return {
         ok: true,
-        message: content,
+        message: finalMsg,
         model: this.model,
       };
     } catch (err: unknown) {

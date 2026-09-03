@@ -1,115 +1,122 @@
-# OHMNI — 3-Minute Hackathon Demo Video Script & Storyboard
+# OHMNI — Hackathon Demo Video Script & Storyboard
 
-**Target Duration:** 2:40 (160 seconds)  
-**Tone:** Confident, technical, crisp, evidence-first.  
-**Resolution:** 1920×1080 (1080p60) or 1440×900 Retina.  
-**Audio:** Clear voiceover with subtle lab background sound.
-
----
-
-### [0:00 – 0:20] The Hook: The Physical Blind Spot
-
-**Visual:**  
-Camera starts on a physical microcontroller board on a workbench, then cuts to a developer asking an AI coding assistant to debug it. The assistant shows code snippets, but cannot interact with the actual hardware.
-
-**Voiceover:**  
-*"AI coding agents can debug software, refactor services, and write unit tests. But when code meets the physical world—an IoT controller, a motor driver, a sensor board—AI is completely blind. It cannot touch the device sitting on your desk. WebMCP changes that."*
+**Target Duration:** 2:10 (130 seconds) — Strictly under 3 minutes  
+**Format:** YouTube Public Video with Narrated Voiceover (Audio Mandatory)  
+**Resolution:** 1920×1080 (1080p60) or 1440×900  
+**Tone:** Concise, technical, evidence-first, zero marketing fluff  
 
 ---
 
-### [0:20 – 0:45] What is WebMCP?
+## Storyboard & Voiceover Timeline
 
+### [0:00 – 0:10] Hook & Immediate Payoff
 **Visual:**  
-Cut to the Ohmni landing screen. Show the restrained 3D OHMNI wordmark, the light precision workbench, and the native WebMCP indicator badge in Google Chrome. Open Developer Inspector briefly to show `document.modelContext` exposing 19 live hardware instruments.
+Split-screen payoff comparison from the final reveal:  
+- **LEFT (Before):** 2.72 V waveform collapse and BROWNOUT RESET marker.  
+- **RIGHT (After):** 3.18 V stable line with zero resets under load.  
+- Subtitle: *Ohmni: Agent-Native Hardware Diagnostic Workbench*.  
 
 **Voiceover:**  
-*"This is Ohmni: a browser-native AI hardware investigation lab. A remote MCP server can reach your cloud database. WebMCP reaches the hardware connected to your browser. By exposing browser-owned diagnostic instruments directly through document-dot-modelContext, Gemini can safely inspect, actuate, and verify real devices."*
+> *"Coding agents can debug software, but they lose visibility when the bug crosses into hardware. Ohmni lets a browser expose hardware diagnostic instruments directly to agents through WebMCP."*
 
 ---
 
-### [0:45 – 1:10] The Blind Mystery Challenge
-
+### [0:10 – 0:25] Exposing Native WebMCP
 **Visual:**  
-Click **[ Start Mystery Diagnosis ]**.  
-The Mystery Challenge modal appears:  
-- **Mystery Device #A7F2**  
-- **Symptom:** *"The controller unexpectedly restarts when the cooling fan turns on."*  
-- **Sealed Ground Truth:** 🔒 *"Ground truth hidden outside model and tool context."*  
-Click **[ Begin Investigation ]**.
+Cut to the Ohmni lab interface in Google Chrome with the `Native WebMCP` badge glowing green. Open the Developer Inspector modal:  
+- Display `await document.modelContext.getTools()`.  
+- Highlight the real registered tool definitions:  
+  - `read_reset_history`  
+  - `measure_supply_voltage`  
+  - `run_relay_stress_test`  
+  - `propose_hypothesis`  
+- Close inspector.  
 
 **Voiceover:**  
-*"To prove this isn't scripted, we run a blind challenge. A fault has been injected into this controller. Neither I nor Gemini has been told what it is. The ground truth is sealed outside the agent's context."*
+> *"These are real document-dot-modelContext tools registered directly in the browser, not buttons pretending to be agent actions. Today we run this on a virtual ESP32 reference board, using the exact same adapter architecture designed for physical Web Serial hardware."*
 
 ---
 
-### [1:10 – 1:35] Autonomous Observation & The Amber Safety Gate
-
+### [0:25 – 0:55] Live Groq Agent Investigation
 **Visual:**  
-Gemini begins investigating.  
-1. Gemini autonomously queries `read_device_info` and `read_reset_history`. The narrative rail highlights the tool execution, and the Observing Scene displays past BROWNOUT reset entries.  
-2. Gemini decides to test the hypothesis under load and requests `run_relay_stress_test`.  
-3. The screen shifts to the **Amber Safety Gate**:  
-   - Large physical relay highlighted in amber.  
-   - Safety envelope: *"Maximum actuation 500ms • Automatic abort on reset."*  
-   - Click **[ Approve test ]** (or press key `A`).
+Show the top bar with **Groq Live** active.  
+- Click **[ Start investigation ]** on the center canvas.  
+- The narrative rail updates in real time as Groq receives the blind symptom: *"Controller resets when the fan turns on."*  
+- Groq autonomously calls `read_reset_history`.  
+- The timeline records the executed event: `read_reset_history (142 ms)`.  
+- The rail displays the findings: past `BROWNOUT` resets detected in non-volatile logs.  
+- Groq next calls `measure_supply_voltage`, noting a nominal baseline of 3.31 V.  
 
 **Voiceover:**  
-*"Gemini begins with passive observation—reading device configuration and reset registers without asking for approval. It notices past brownout flags. But when it wants to physically cycle the high-load cooling fan relay, the browser's safety boundary engages. Physical actuation requires human consent. I approve."*
+> *"We launch a blind investigation with a live Groq agent. The model receives only the symptom. It autonomously begins probing passive instruments—reading reset history and baseline voltage—without interrupting us. It notices past brownout records, but needs to test whether the cooling fan load actually collapses the power rail."*
 
 ---
 
-### [1:35 – 2:00] Live Oscilloscope & Hypothesis Synthesis
-
+### [0:55 – 1:15] The Amber Safety Gate
 **Visual:**  
-The main surface expands into the hero 60fps technical oscilloscope.  
-1. The relay armature moves with a tactile click.  
-2. The blue trace samples the supply rail in real time. The voltage collapses from 3.31V down to 2.72V, crossing the 2.80V threshold.  
-3. A red fault marker illuminates: `BROWNOUT RESET TRIGGERED`.  
-4. Evidence tokens `E-001` and `E-002` animate into the ledger.  
-5. Gemini proposes Hypothesis `H-001`: *"Relay-induced supply brownout on 3.3V rail."* (HIGH Confidence, citing E-001 and E-002).
+Groq requests the tool `run_relay_stress_test`.  
+- The screen transitions into the **Amber Safety Gate** (scene: `approval`).  
+- The schematic highlights the GPIO14 cooling fan relay in amber.  
+- The safety boundary is clearly displayed: *500 ms maximum actuation • Auto-abort on reset*.  
+- Notice: the relay remains open; zero current flows until human approval.  
+- Click **[ Approve test ]** (or press key `A`).  
 
 **Voiceover:**  
-*"Watch the live telemetry. The relay coil inrush current pulls the MCU supply rail below the 2.80V safe threshold, reproducing the reset. Gemini records empirical evidence tokens and elevates its hypothesis to High confidence. But notice: it does not claim the bug is fixed. A hypothesis is not proof."*
+> *"This is the Amber Safety Gate: our signature safety boundary. Passive reads execute autonomously, but physical side effects require human consent. The browser blocks the relay actuation until I verify the safety envelope and click Approve."*
 
 ---
 
-### [2:00 – 2:20] The Human Collaboration Loop
-
+### [1:15 – 1:35] Empirical Fault Reproduction
 **Visual:**  
-Gemini requests human intervention: *"I need your hands. Relocate jumper JP1 from shared 3.3V to the external 5V auxiliary rail."*  
-Click **[ Proceed to physical verification & repair ]**.  
-The Repair Verification scene mounts:  
-- Click **External 5 V** jumper toggle.  
-- Click **[ Tell Gemini I changed it ]**.
+The main canvas activates the 60fps technical oscilloscope:  
+- The relay closes.  
+- As inductive inrush current hits the shared rail, the voltage trace plummets from 3.31 V to 2.72 V.  
+- The waveform crosses the amber dashed line labeled **2.80 V reset threshold**.  
+- The MCU hardware brownout detector trips: red fault marker `BROWNOUT RESET TRIGGERED`.  
+- Evidence tokens `E-001` (Reset log) and `E-002` (Voltage dip to 2.72 V) appear in the ledger.  
+- The narrative rail updates to **DIAGNOSIS FORMED**: Groq registers Hypothesis `H-001` (*Relay-induced MCU supply brownout due to shared 3.3 V rail*).  
 
 **Voiceover:**  
-*"Gemini recognizes its own physical limitation. It cannot reach out and move a wire. It asks for my hands. In the repair workbench, I toggle jumper JP1 from the shared 3.3V rail to the external 5V auxiliary supply, and notify the agent."*
+> *"Watch the oscilloscope. Under load, the supply collapses to 2.72 V, breaching the 2.80 V reset threshold and triggering a hardware brownout. The agent records empirical evidence tokens and diagnoses the root cause. But notice: a hypothesis is not proof. It cannot claim the bug is fixed without physical repair."*
 
 ---
 
-### [2:20 – 2:40] Experimental Verification & Ground Truth Reveal
-
+### [1:35 – 1:50] The Human Collaboration Loop
 **Visual:**  
-1. Gemini immediately requests a post-intervention re-test (`run_relay_stress_test`).  
-2. Click **[ Approve Retest ]**.  
-3. The split-screen oscilloscope renders the comparison:  
-   - **BEFORE:** 2.72V minimum, BROWNOUT.  
-   - **AFTER:** 3.18V minimum, STABLE, 0 resets.  
-4. Gemini calls `confirm_hypothesis`.  
-5. Ground truth is unsealed:  
-   - **GROUND TRUTH:** Relay powered from shared 3.3V microcontroller rail.  
-   - **AGENT DIAGNOSIS:** Relay-induced MCU supply brownout.  
-   - **MATCH ✓** — Repair Experimentally Verified.
+Groq requests human intervention: *"Move jumper JP1 from the shared 3.3 V rail to the independent 5 V auxiliary rail."*  
+- Click **[ Proceed to Physical Repair ]**.  
+- The coherent shared shell opens: header remains *ESP32-S3 Environmental Controller (Virtual)*.  
+- Click **Independent 5 V** on the jumper selector.  
+- Click **[ Tell Agent I changed it ]**.  
 
 **Voiceover:**  
-*"Gemini does not guess. It reruns the exact same physical stress test on the reconfigured system. This time, the rail stays at a rock-solid 3.18V with zero resets. Gemini confirms the repair. And when we unseal the ground truth: exact match. An autonomous AI agent, live browser instruments, human hands, and verifiable truth."*
+> *"The agent recognizes its physical limitation: it has no hands. It asks for physical intervention. In the shared repair workbench, I toggle jumper JP1 from the shared 3.3 V rail to an independent 5 V rail, then notify the agent."*
 
 ---
 
-### [2:40 – 2:50] The Closer
-
+### [1:50 – 2:05] Retest & Empirical Verification
 **Visual:**  
-Return to the Ohmni logo and GitHub repository link.
+Groq re-evaluates the repair and requests an empirical re-test.  
+- Click **[ Approve test ]** for the verification run.  
+- The verification oscilloscope executes the identical relay stress test.  
+- The voltage dips briefly to 3.18 V, staying well above the 2.80 V threshold.  
+- Zero resets occur.  
+- The screen transitions to the final reveal:  
+  - **Repair verified**  
+  - **DIAGNOSIS MATCH ✓**  
+  - Before: 2.72 V Brownout → After: 3.18 V Stable.  
+  - Click **View evidence trail** to reveal the linked empirical records.  
 
 **Voiceover:**  
-*"A remote MCP server can reach your cloud. WebMCP can reach the device on your desk. That's Ohmni. Thank you."*
+> *"Groq does not assume the repair worked. It reruns the exact same physical stress test under identical load. This time, the rail stays at a rock-solid 3.18 V with zero resets. When we unseal the ground truth: exact diagnosis match."*
+
+---
+
+### [2:05 – 2:15] Closing
+**Visual:**  
+Return to Ohmni logo and GitHub repository / live production URL:  
+- `https://ohmni-three.vercel.app`  
+- `https://github.com/Fadyio/Ohmni`  
+
+**Voiceover:**  
+> *"The browser owns the device boundary and safety. The agent owns the investigation. The human owns physical consent and intervention. That's Ohmni. Thank you."*

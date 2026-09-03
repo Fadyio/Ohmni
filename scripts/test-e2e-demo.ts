@@ -55,8 +55,7 @@ function findChromePath(): string | null {
   }
   return null;
 }
-
-const ARTIFACTS_DIR = join(process.cwd(), "artifacts", "screenshots");
+const ARTIFACTS_DIR = join(process.cwd(), "artifacts", "final");
 if (!existsSync(ARTIFACTS_DIR)) {
   mkdirSync(ARTIFACTS_DIR, { recursive: true });
 }
@@ -383,7 +382,7 @@ async function runE2EGoldenPath(): Promise<void> {
     if (domText.includes("3v3") || domText.includes("External 5V") || domText.includes("shared with MCU")) {
       throw new Error("Hidden ground truth leaked in mystery intro card!");
     }
-    await recordScreenshot("02", "Blind Challenge", "02-blind-challenge.png");
+    await recordScreenshot("02", "Challenge", "02-challenge.png");
 
     // -----------------------------------------------------------------
     // Step 5 & 6 & 7: Click Begin, connect hardware, enter Lab
@@ -447,7 +446,7 @@ async function runE2EGoldenPath(): Promise<void> {
       )`,
       12000
     );
-    await recordScreenshot("04", "Observation", "04-observation.png");
+    await recordScreenshot("04", "Observing", "04-observing.png");
 
     // -----------------------------------------------------------------
     // Step 10, 11 & 12: Demo agent requests relay stress test -> Amber approval
@@ -466,7 +465,7 @@ async function runE2EGoldenPath(): Promise<void> {
       throw new Error(`Relay was not open before approval: ${relayStateBeforeApproval}`);
     }
     console.info("  ✓ Verified: Relay remained open before human approval.");
-    await recordScreenshot("05", "Physical Approval", "05-approval.png");
+    await recordScreenshot("05", "Approval", "05-approval.png");
 
     // -----------------------------------------------------------------
     // Step 13 & 14: Click Approve -> Real ExperimentRecord created -> Brownout reproduced
@@ -500,8 +499,7 @@ async function runE2EGoldenPath(): Promise<void> {
       `Boolean(window.__hypothesisStore && window.__hypothesisStore.getAll().length >= 1)`,
       10000
     );
-    await recordScreenshot("07", "Evidence", "07-evidence.png");
-    await recordScreenshot("08", "Diagnosis", "08-diagnosis.png");
+    await recordScreenshot("07", "Diagnosis", "07-diagnosis.png");
 
     // -----------------------------------------------------------------
     // Step 16 & 17: Agent requests human intervention -> UI enters Repair Scene
@@ -529,7 +527,7 @@ async function runE2EGoldenPath(): Promise<void> {
       throw new Error(`Initial jumper was not 3v3: ${initialJumper}`);
     }
     console.info("  ✓ Verified: Physical jumper initial position is 3V3.");
-    await recordScreenshot("09", "Human Action", "09-human-action.png");
+    await recordScreenshot("08", "Repair", "08-repair.png");
 
     // -----------------------------------------------------------------
     // Step 18 & 19: Human moves relay_power_jumper using UI click (External 5 V)
@@ -575,7 +573,7 @@ async function runE2EGoldenPath(): Promise<void> {
       `Boolean(document.getElementById("approve-test-btn") || document.querySelector("[data-testid='bench-agent-approve']"))`,
       12000
     );
-    await recordScreenshot("10", "Verification Retest Approval", "10-verification.png");
+
 
     // -----------------------------------------------------------------
     // Step 23, 24 & 25: Human approves -> Verification experiment runs with no brownout
@@ -611,7 +609,7 @@ async function runE2EGoldenPath(): Promise<void> {
       10000
     );
     console.info("  ✓ Verified: Hypothesis status is VERIFIED.");
-    await recordScreenshot("11", "Verified", "11-verified.png");
+    await recordScreenshot("09", "Verification", "09-verification.png");
 
     // -----------------------------------------------------------------
     // Step 28 & 29: Ground truth reveals -> Diagnosis matches
@@ -637,29 +635,7 @@ async function runE2EGoldenPath(): Promise<void> {
     );
     console.info(`  ✓ Delta Summary: \n${beforeAfterText}`);
 
-    await recordScreenshot("12", "Reveal", "12-reveal.png");
-
-    // -----------------------------------------------------------------
-    // Step 30: Capture screen 13 (Truthful Gemini Error)
-    // -----------------------------------------------------------------
-    console.info("\n[Screenshot 13] Navigating to ?agent=gemini to capture truthful Gemini Error UI...");
-    await cdpClient.send("Page.navigate", { url: `${serverUrl}/?scenario=brownout&agent=gemini` });
-    await waitFor(cdpClient, `Boolean(document.getElementById("welcome-view-root"))`);
-    await click(cdpClient, "#start-mystery-btn");
-    await waitFor(cdpClient, `Boolean(document.getElementById("mystery-intro-card"))`);
-    await click(cdpClient, "#begin-mystery-btn");
-    await waitFor(cdpClient, `Boolean(document.getElementById("lab-header"))`);
-
-    // In Gemini mode on static server (where /api/bench-agent is unavailable),
-    // the UI must truthfully display GEMINI ERROR / GEMINI UNAVAILABLE
-    await waitFor(
-      cdpClient,
-      `Boolean(document.body.innerText.includes("GEMINI ERROR") || document.body.innerText.includes("GEMINI UNAVAILABLE"))`,
-      10000
-    );
-    console.info("  ✓ Verified: Truthful GEMINI ERROR badge displayed (zero 'Demo Agent' false labeling).");
-    await recordScreenshot("13", "Gemini Error State", "13-gemini-error.png");
-
+    await recordScreenshot("10", "Result", "10-result.png");
     // Stop screencast
     console.info("\n[Video] Stopping screencast...");
     await cdpClient.send("Page.stopScreencast");

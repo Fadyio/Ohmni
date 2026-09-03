@@ -45,6 +45,7 @@ export interface DynamicInvestigationSceneProps {
   readonly onStartAgent?: () => void;
   readonly agentMode?: AgentMode;
   readonly onSwitchToDemo?: () => void;
+  readonly onRetryAgent?: () => void;
   readonly onRetryGemini?: () => void;
   readonly activeSceneOverride?: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null;
 }
@@ -65,6 +66,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   onStartAgent,
   agentMode = "groq",
   onSwitchToDemo,
+  onRetryAgent,
   onRetryGemini,
   activeSceneOverride,
 }) => {
@@ -187,12 +189,12 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
                   : stateMessage || `${agentIdentity.displayName} API quota is currently unavailable.`}
               </p>
               <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-                {onRetryGemini && (
+                {(onRetryAgent ?? onRetryGemini) && (
                   <button
                     type="button"
                     data-testid="retry-agent-btn"
                     id="retry-agent-btn"
-                    onClick={onRetryGemini}
+                    onClick={onRetryAgent ?? onRetryGemini}
                     className="btn-secondary"
                     style={{
                       padding: "8px 16px",

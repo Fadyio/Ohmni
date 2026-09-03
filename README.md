@@ -37,13 +37,13 @@ Evidence proves the diagnosis.
 │                             Human Consent   │
 │                                  ▼          │
 │                      Device Adapter         │
-│                      (Virtual / Serial)     │
+│                      (Virtual DUT / Serial) │
 └──────────────────────┬──────────────────────┘
                        │ Physical Telemetry & Reset Lines
                        ▼
 ┌─────────────────────────────────────────────┐
 │              ESP32-S3 Target                │
-│   MCU Rail (3.3V) • Relay • 12V Fan Load    │
+│   MCU Rail (3.3 V) • Relay • 12 V Fan Load   │
 │   Physical Jumpers (JP1) • I²C Sensor Bus   │
 └─────────────────────────────────────────────┘
 ```
@@ -54,7 +54,7 @@ Evidence proves the diagnosis.
 
 Embedded engineers waste hours determining whether a failure is firmware, wiring, power, buses, configuration, or physical hardware. Today's coding agents can inspect source code but stop at the edge of the computer.
 
-A remote Model Context Protocol (MCP) server reaches cloud databases. **WebMCP reaches the board on your desk.**
+A remote Model Context Protocol (MCP) server reaches cloud databases. Today Ohmni demonstrates the browser-native control plane on a deterministic virtual ESP32 reference board, with the device-adapter boundary designed for physical Web Serial hardware next.
 
 Ohmni lets the device's web console expose live measurements and bounded tests directly to an agent through the browser's native `document.modelContext` API. The browser owns the hardware connection, enforces safety boundaries, and requires human consent before physical actuation.
 
@@ -69,9 +69,9 @@ Ohmni features reproducible hardware fault challenges designed for autonomous ev
 1. **Observe:** The agent calls `read_reset_history` and `measure_supply_voltage` to observe power state.
 2. **Test:** The agent requests a controlled load test via `run_relay_stress_test`.
 3. **Safety Gate:** The browser halts execution until the human user authorizes the physical actuation.
-4. **Reproduce:** Under load, the 3.3V rail collapses to 2.72V, triggering a brownout reset captured on the live oscilloscope.
-5. **Human Hands:** The AI diagnoses the shared power rail fault. Unable to move physical jumpers itself, it requests human intervention: *"Move JP1 from 3.3V to the 5V auxiliary rail."*
-6. **Verify:** After the human switches the jumper, the agent reruns the stress test, confirms 3.18V rail stability with zero resets, and unseals the ground truth for an empirical diagnosis match.
+4. **Reproduce:** Under load, the 3.3 V rail collapses to 2.72 V, triggering a brownout reset captured on the live oscilloscope.
+5. **Human Hands:** The AI diagnoses the shared power rail fault. Unable to move physical jumpers itself, it requests human intervention: *"Move JP1 from 3.3 V to the 5 V auxiliary rail."*
+6. **Verify:** After the human switches the jumper, the agent reruns the stress test, confirms 3.18 V rail stability with zero resets, and unseals the ground truth for an empirical diagnosis match.
 
 ---
 
@@ -85,7 +85,7 @@ The connected board dynamically exposes diagnostic instruments tailored to its p
 4. `list_evidence` — Query captured empirical facts and telemetry citations.
 5. `request_human_intervention` — Request physical human action (e.g. relocate jumper, reseat wiring) with scientific rationale.
 
-*(Full tool registry with all 19 domain instruments is accessible in-app via the WebMCP Inspector).*
+*(Full tool registry with domain instruments is accessible in-app via the WebMCP Inspector).*
 
 ---
 
@@ -127,9 +127,11 @@ Open `http://localhost:5173` in Google Chrome.
 bun run typecheck
 bun test
 
-# Run the complete release verification suite
+# Run the fail-closed judge verification gate against production
+bun run judge:verify
+
+# Run the release verification suite
 bun run release:verify
-```
 
 The test suite validates:
 - 300+ unit, domain, safety, and scenario tests across 44 test suites (0 failures).

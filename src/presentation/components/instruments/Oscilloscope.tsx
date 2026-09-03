@@ -300,7 +300,7 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
         ctx.fillStyle = "rgba(148, 163, 184, 0.5)";
         ctx.font = '11px "JetBrains Mono", monospace';
         ctx.textAlign = "center";
-        ctx.fillText("LIVE SIGNAL READY • 3.31V NOMINAL BASELINE", padLeft + plotWidth / 2, baselineY - 12);
+        ctx.fillText("LIVE SIGNAL READY • 3.31 V NOMINAL BASELINE", padLeft + plotWidth / 2, baselineY - 12);
       }
 
       // 4. Moving Sweep Cursor during active acquisition
@@ -423,7 +423,7 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
             }}
           >
             <Activity size={12} />
-            CH1: 3.3V RAIL
+            CH1: 3.3 V RAIL
           </span>
           <span className="metadata-text">100 kSa/s • Real-time Voltage Acquisition</span>
         </div>

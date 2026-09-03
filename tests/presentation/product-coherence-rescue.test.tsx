@@ -474,7 +474,7 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
 
       // Shared shell top bar
       expect(html).toContain("/brand/ohmni-logo.svg");
-      expect(html).toContain("ESP32-S3 Demo Board");
+      expect(html).toContain("ESP32-S3 Environmental Controller (Virtual)");
       expect(html).toContain("OBSERVE");
       expect(html).toContain("TEST");
       expect(html).toContain("DIAGNOSE");
@@ -536,7 +536,7 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
       expect(html).toContain('aria-label="Physical Jumper Position"');
       expect(html).toContain("Shared 3.3 V");
       expect(html).toContain("Independent 5 V");
-      expect(html).toContain("Move JP1: Shared 3.3V → Independent 5V");
+      expect(html).toContain("Move JP1: Shared 3.3 V → Independent 5 V");
       expect(html).toContain("AFTER REPAIR (Independent 5 V supply)");
     });
   });

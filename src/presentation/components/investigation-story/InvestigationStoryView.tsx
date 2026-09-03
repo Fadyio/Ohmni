@@ -51,6 +51,7 @@ export interface InvestigationStoryViewProps {
   readonly onProceedToRepair?: () => void;
   readonly onOpenDevInspector?: () => void;
   readonly onSwitchToDemo?: () => void;
+  readonly onRetryAgent?: () => void;
   readonly onRetryGemini?: () => void;
   readonly labChromeRef?: React.RefObject<HTMLElement | null>;
   readonly labMainSceneRef?: React.RefObject<HTMLElement | null>;
@@ -80,6 +81,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   onProceedToRepair,
   onOpenDevInspector,
   onSwitchToDemo,
+  onRetryAgent,
   onRetryGemini,
   labChromeRef,
   labMainSceneRef,
@@ -248,7 +250,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               }}
             />
             <span className="font-mono" style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ohmni-lab-text, #0F172A)" }}>
-              {descriptor?.name ? descriptor.name.replace("ENVIRONMENTAL CONTROLLER", "Demo Board") : "ESP32-S3 Demo Board"}
+              {descriptor?.name ?? "ESP32-S3 Environmental Controller (Virtual)"}
             </span>
           </div>
         </div>
@@ -543,7 +545,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             onStartAgent={onStartAgent}
             agentMode={agentMode}
             onSwitchToDemo={onSwitchToDemo}
-            onRetryGemini={onRetryGemini}
+            onRetryAgent={onRetryAgent ?? onRetryGemini}
             activeSceneOverride={activeSceneOverride}
           />
         </main>

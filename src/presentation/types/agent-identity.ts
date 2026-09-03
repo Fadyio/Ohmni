@@ -31,20 +31,6 @@ export function getAgentIdentity(
       isBlind: false,
     };
   }
-
-  const effectiveProvider = (liveProvider || mode || "groq").toLowerCase();
-  if (effectiveProvider === "gemini") {
-    return {
-      id: "gemini",
-      displayName: "Gemini",
-      shortName: "Gemini",
-      model: liveModel ?? "Gemini 2.5 Flash",
-      mode: "gemini",
-      isDeterministic: false,
-      isBlind: true,
-    };
-  }
-
   return {
     id: "groq",
     displayName: "Groq",

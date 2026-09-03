@@ -194,7 +194,15 @@ export class CapabilityRegistry {
       annotations: {
         readOnlyHint: false,
       },
-      execute: async (input, options) => {
+      execute: async (rawInput, options) => {
+        let input: Record<string, unknown> = {};
+        if (typeof rawInput === "string") {
+          try {
+            input = JSON.parse(rawInput);
+          } catch {}
+        } else if (rawInput && typeof rawInput === "object") {
+          input = rawInput as Record<string, unknown>;
+        }
         const cycles = typeof input.cycles === "number" ? input.cycles : 3;
         const durationMs = typeof input.duration_ms === "number" ? input.duration_ms : 50;
 
