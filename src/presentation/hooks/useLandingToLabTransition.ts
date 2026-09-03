@@ -36,15 +36,23 @@ export function useLandingToLabTransition() {
       if (timelineRef.current) {
         timelineRef.current.kill();
       }
+      let didComplete = false;
+      const completeWrapper = () => {
+        if (didComplete) return;
+        didComplete = true;
+        clearTimeout(fallbackTimer);
+        isTransitioningRef.current = false;
+        onComplete();
+      };
+
+      const fallbackTimer = setTimeout(() => {
+        completeWrapper();
+      }, 1200);
 
       const tl = gsap.timeline({
-        onComplete: () => {
-          isTransitioningRef.current = false;
-          onComplete();
-        },
+        onComplete: completeWrapper,
       });
       timelineRef.current = tl;
-
       const {
         rootContainerRef,
         heroTextRef,

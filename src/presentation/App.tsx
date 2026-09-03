@@ -227,14 +227,9 @@ export const App: React.FC<AppProps> = ({
 
     setViewMode("investigation");
 
-    void connectPromise
-      .then(() => {
-        startAgent();
-      })
-      .catch((err) => {
-        console.error("Failed to connect hardware during transition:", err);
-      });
-
+    void connectPromise.catch((err) => {
+      console.error("Failed to connect hardware during transition:", err);
+    });
     // Execute GSAP transition in parallel
     playTransition(
       {
@@ -265,7 +260,11 @@ export const App: React.FC<AppProps> = ({
         await resolvedRegistrar.registerDevice(resolvedAdapter);
       }
     })();
+    setViewMode("investigation");
 
+    void connectPromise.catch((err) => {
+      console.error("Failed to connect hardware during demo transition:", err);
+    });
     playTransition(
       {
         rootContainerRef,
@@ -277,16 +276,9 @@ export const App: React.FC<AppProps> = ({
         labMainSceneRef,
         agentRailRef,
       },
-      async () => {
-        try {
-          await connectPromise;
-        } catch (err) {
-          console.error("Failed to connect hardware during transition:", err);
-        }
-        setViewMode("investigation");
-      }
+      () => undefined
     );
-  }, [connect, resolvedAdapter, resolvedRegistrar, setGoal, playTransition]);
+  }, [connect, resolvedAdapter, resolvedRegistrar, setGoal, playTransition, startAgent]);
 
   const handleConnectHardware = useCallback(async () => {
     try {

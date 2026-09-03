@@ -2,7 +2,7 @@
   {
     "fileName": "01-landing.png",
     "scene": "Landing",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -14,12 +14,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T02:07:41.323Z"
+    "timestamp": "2026-09-03T02:18:21.376Z"
   },
   {
     "fileName": "02-blind-challenge.png",
     "scene": "Blind Challenge",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -31,12 +31,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T02:07:41.473Z"
+    "timestamp": "2026-09-03T02:18:21.510Z"
   },
   {
     "fileName": "03-ready.png",
     "scene": "Ready",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -48,12 +48,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T02:07:42.194Z"
+    "timestamp": "2026-09-03T02:18:22.229Z"
   },
   {
     "fileName": "04-observation.png",
     "scene": "Observation",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -65,12 +65,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T02:07:42.351Z"
+    "timestamp": "2026-09-03T02:18:22.337Z"
   },
   {
     "fileName": "05-approval.png",
     "scene": "Physical Approval",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -82,12 +82,12 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T02:07:42.490Z"
+    "timestamp": "2026-09-03T02:18:22.930Z"
   },
   {
     "fileName": "06-experiment.png",
     "scene": "Experiment",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -99,12 +99,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T02:07:42.866Z"
+    "timestamp": "2026-09-03T02:18:23.271Z"
   },
   {
     "fileName": "07-evidence.png",
     "scene": "Evidence",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -116,12 +116,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T02:07:42.980Z"
+    "timestamp": "2026-09-03T02:18:23.353Z"
   },
   {
     "fileName": "08-diagnosis.png",
     "scene": "Diagnosis",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -133,12 +133,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T02:07:43.095Z"
+    "timestamp": "2026-09-03T02:18:23.434Z"
   },
   {
     "fileName": "09-human-action.png",
     "scene": "Human Action",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -150,12 +150,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T02:07:43.447Z"
+    "timestamp": "2026-09-03T02:18:23.771Z"
   },
   {
     "fileName": "10-verification.png",
     "scene": "Verification Retest Approval",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -167,12 +167,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "NOT_VERIFIED"
     },
-    "timestamp": "2026-09-03T02:07:44.015Z"
+    "timestamp": "2026-09-03T02:18:24.338Z"
   },
   {
     "fileName": "11-verified.png",
     "scene": "Verified",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -184,12 +184,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "VERIFIED"
     },
-    "timestamp": "2026-09-03T02:07:44.320Z"
+    "timestamp": "2026-09-03T02:18:24.643Z"
   },
   {
     "fileName": "12-reveal.png",
     "scene": "Reveal",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -201,12 +201,12 @@
       "hypothesesCount": 1,
       "hypothesisStatus": "VERIFIED"
     },
-    "timestamp": "2026-09-03T02:07:44.370Z"
+    "timestamp": "2026-09-03T02:18:24.693Z"
   },
   {
     "fileName": "13-gemini-error.png",
     "scene": "Gemini Error State",
-    "buildSha": "a71fb1ad2936359d1871c7e01ecb3d6ea310f64e",
+    "buildSha": "development",
     "agentMode": "demo",
     "scenario": "brownout",
     "domainState": {
@@ -218,6 +218,6 @@
       "hypothesesCount": 0,
       "hypothesisStatus": "none"
     },
-    "timestamp": "2026-09-03T02:07:44.738Z"
+    "timestamp": "2026-09-03T02:18:25.078Z"
   }
 ]

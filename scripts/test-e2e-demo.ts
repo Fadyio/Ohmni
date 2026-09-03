@@ -420,13 +420,17 @@ async function runE2EGoldenPath(): Promise<void> {
 
     await recordScreenshot("03", "Ready", "03-ready.png");
 
-    // If start investigation button is present on ready scene, click it
-    try {
-      const hasStartBtn = await cdpClient.evaluate<boolean>(`Boolean(document.getElementById("start-investigation-btn"))`);
-      if (hasStartBtn) {
-        await click(cdpClient, "#start-investigation-btn");
-      }
-    } catch {}
+    // Step 7: Click Start investigation button
+    console.info("\n[Step 7] Clicking 'Start investigation'...");
+    await waitFor(
+      cdpClient,
+      `Boolean(document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']"))`,
+      8000
+    );
+    await cdpClient.evaluate(`(() => {
+      const btn = document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']");
+      if (btn) btn.click();
+    })()`);
     // -----------------------------------------------------------------
     // Step 8 & 9: Demo agent calls read_reset_history -> UI updates
     // -----------------------------------------------------------------

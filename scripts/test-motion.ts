@@ -347,7 +347,7 @@ async function runMotionTests(): Promise<void> {
   await buildPromise;
 
   const distDir = join(process.cwd(), "dist");
-  const { server, url: serverUrl } = await startStaticServer(distDir, 5176);
+  const { server, url: serverUrl } = await startStaticServer(distDir, 5177);
 
   const tempProfile = mkdtempSync(join(tmpdir(), "ohmni-chrome-motion-"));
   const debugPort = 9234;
