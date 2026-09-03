@@ -29,10 +29,42 @@ export const GROQ_API_ENDPOINT = "https://api.groq.com/openai/v1/chat/completion
 export const MAX_COMPACTED_TOOL_RESULT_BYTES = 2_048;
 export const GROQ_MAX_COMPLETION_TOKENS = 768;
 const GROQ_MAX_TOOL_DESCRIPTION_CHARACTERS = 240;
+const VERIFICATION_RETEST_MARKER = "The requested intervention is complete. Re-run run_relay_stress_test";
+const VERIFICATION_TOOL_NAMES = new Set([
+  "run_relay_stress_test",
+  "list_evidence",
+  "get_evidence",
+  "update_hypothesis",
+  "confirm_hypothesis",
+  "record_conclusion",
+]);
 export type FetchFunction = (
   input: RequestInfo | URL,
   init?: RequestInit
 ) => Promise<Response>;
+
+export function selectGroqToolChoice(
+  input: AgentTurnRequest["input"]
+): "auto" | { type: "function"; function: { name: "run_relay_stress_test" } } {
+  if (typeof input === "string" && input.includes(VERIFICATION_RETEST_MARKER)) {
+    return {
+      type: "function",
+      function: { name: "run_relay_stress_test" },
+    };
+  }
+  return "auto";
+}
+
+export function isGroqVerificationWorkflow(request: AgentTurnRequest): boolean {
+  if (typeof request.input === "string" && request.input.includes(VERIFICATION_RETEST_MARKER)) {
+    return true;
+  }
+  return Boolean(
+    request.history?.some(
+      (item) => item.role === "user" && item.content.includes(VERIFICATION_RETEST_MARKER)
+    )
+  );
+}
 
 
 export class GroqRateLimitError extends Error {
@@ -322,8 +354,11 @@ export class GroqBenchAgentProvider implements BenchAgentProvider {
     options?: { signal?: AbortSignal }
   ): Promise<AgentTurnResult> {
     const messages = buildGroqMessages(this.systemInstruction, request);
+    const eligibleTools = isGroqVerificationWorkflow(request)
+      ? request.tools.filter((tool) => VERIFICATION_TOOL_NAMES.has(tool.name))
+      : request.tools;
     const tools =
-      request.tools.length > 0 ? translateToolsToGroq(request.tools) : undefined;
+      eligibleTools.length > 0 ? translateToolsToGroq(eligibleTools) : undefined;
 
     const requestBody: Record<string, unknown> = {
       model: this.model,
@@ -334,7 +369,7 @@ export class GroqBenchAgentProvider implements BenchAgentProvider {
 
     if (tools) {
       requestBody.tools = tools;
-      requestBody.tool_choice = "auto";
+      requestBody.tool_choice = selectGroqToolChoice(request.input);
     }
 
     const controller = new AbortController();

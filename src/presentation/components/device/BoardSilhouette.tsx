@@ -22,6 +22,8 @@ export interface BoardSilhouetteProps {
   readonly isConnected: boolean;
   readonly relayState: "open" | "closed";
   readonly statusVisual: "nominal" | "reset" | "disconnected";
+  readonly diagnosticPhase?: "idle" | "sampling" | "brownout" | "verified";
+  readonly railVoltage?: number;
   readonly className?: string;
   readonly style?: React.CSSProperties;
 }
@@ -30,10 +32,15 @@ export const BoardSilhouette: React.FC<BoardSilhouetteProps> = ({
   isConnected,
   relayState,
   statusVisual,
+  diagnosticPhase = "idle",
+  railVoltage,
   className = "",
   style,
 }) => {
   const isRelayEnergized = relayState === "closed";
+  const isDiagnostic = diagnosticPhase !== "idle";
+  const isBrownout = diagnosticPhase === "brownout";
+  const isVerified = diagnosticPhase === "verified";
 
   const statusLedColor =
     statusVisual === "reset"
@@ -49,6 +56,17 @@ export const BoardSilhouette: React.FC<BoardSilhouetteProps> = ({
     <div
       id="hardware-target-node"
       data-testid="hardware-silhouette"
+      data-diagnostic-phase={diagnosticPhase}
+      role="img"
+      aria-label={
+        isVerified
+          ? `Board power path verified: JP1 isolated at 5 volts and 3.3 volt rail stable at ${(railVoltage ?? 3.18).toFixed(2)} volts.`
+          : isBrownout
+          ? `Captured board fault: relay load pulled the 3.3 volt rail to ${(railVoltage ?? 2.72).toFixed(2)} volts and reset the microcontroller.`
+          : diagnosticPhase === "sampling"
+          ? "Live board test: energizing relay K1, starting the fan load, and sampling the 3.3 volt rail."
+          : "ESP32-S3 environmental controller board diagram."
+      }
       className={`board-silhouette-container ${className}`}
       style={{
         width: "100%",
@@ -58,7 +76,7 @@ export const BoardSilhouette: React.FC<BoardSilhouetteProps> = ({
         borderRadius: "var(--radius-lg, 14px)",
         position: "relative",
         overflow: "hidden",
-        boxShadow: "0 18px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        boxShadow: "0 10px 28px rgba(0, 0, 0, 0.24)",
         ...style,
       }}
     >
@@ -128,12 +146,26 @@ export const BoardSilhouette: React.FC<BoardSilhouetteProps> = ({
         {/* 3.3V Power Rail Trace (Electric Blue) */}
         <path
           d="M 180 110 L 260 110 L 260 145 L 340 145"
+          className={isDiagnostic ? "board-power-trace" : undefined}
           fill="none"
-          stroke="var(--ohmni-lab-brand, #4967FF)"
+          stroke={isBrownout ? "var(--ohmni-lab-fault, #DC5050)" : isVerified ? "var(--ohmni-lab-verified, #27966B)" : "var(--ohmni-lab-measurement, #1687C9)"}
           strokeWidth="2.5"
           filter="url(#board-trace-glow)"
           opacity={isConnected ? "0.9" : "0.3"}
         />
+
+        {/* Independent relay supply after moving JP1. */}
+        <path
+          d="M 258 232 L 305 232 L 305 182 L 340 182"
+          className={isVerified ? "board-power-trace board-power-trace--verified" : undefined}
+          fill="none"
+          stroke={isVerified ? "var(--ohmni-lab-verified, #27966B)" : "#334155"}
+          strokeWidth="2.5"
+          opacity={isVerified ? 1 : 0.32}
+        />
+        <text x="254" y="247" fill={isVerified ? "#70D4AA" : "#64748B"} fontSize="7" fontFamily="var(--font-mono)">
+          JP1 AUX 5V
+        </text>
 
         {/* GPIO14 Relay Control Trace (Amber) */}
         <path
@@ -252,6 +284,7 @@ export const BoardSilhouette: React.FC<BoardSilhouetteProps> = ({
             cy="8"
             r="4"
             fill={statusLedColor}
+            className={isBrownout ? "board-reset-led" : undefined}
             style={{
               filter: isConnected ? `drop-shadow(0 0 6px ${statusLedColor})` : "none",
               transition: "fill 0.2s, filter 0.2s",
@@ -354,7 +387,7 @@ export const BoardSilhouette: React.FC<BoardSilhouetteProps> = ({
           <rect width="80" height="65" rx="6" fill="#181F2C" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="1" />
           <circle cx="40" cy="32" r="22" fill="#0B0F17" stroke="rgba(255, 255, 255, 0.1)" />
           {/* Fan Blades */}
-          <g transform="translate(40, 32)">
+          <g className={isRelayEnergized ? "board-fan-rotor" : undefined} transform="translate(40, 32)">
             <circle cx="0" cy="0" r="6" fill="var(--ohmni-lab-brand, #4967FF)" />
             <path d="M 0 -6 C 8 -14 12 -14 12 -6 C 12 0 8 0 0 0 Z" fill="#64748B" opacity="0.85" />
             <path d="M 6 0 C 14 8 14 12 6 12 C 0 12 0 8 0 0 Z" fill="#64748B" opacity="0.85" />
@@ -378,6 +411,20 @@ export const BoardSilhouette: React.FC<BoardSilhouetteProps> = ({
           ))}
         </g>
       </svg>
+      {isDiagnostic && (
+        <div className="board-diagnostic-readout" aria-live="polite">
+          <span className="board-diagnostic-state">
+            {isVerified ? "POWER PATH VERIFIED" : isBrownout ? "FAULT CAPTURED" : "LOAD TEST RUNNING"}
+          </span>
+          <span className="board-diagnostic-cause">
+            {isVerified
+              ? `JP1 5V isolated → ${(railVoltage ?? 3.18).toFixed(2)} V stable`
+              : isBrownout
+              ? `${(railVoltage ?? 2.72).toFixed(2)} V minimum → MCU brownout reset`
+              : "3V3 rail → K1 coil → fan load"}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

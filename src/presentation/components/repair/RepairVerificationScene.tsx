@@ -36,6 +36,17 @@ export interface RepairVerificationSceneProps {
   readonly onReturnToInvestigation: () => void;
 }
 
+export function buildRepairObservation(
+  jumperPosition: "3V3" | "5V",
+  hypothesisId?: string
+): string {
+  if (jumperPosition === "5V") {
+    const target = hypothesisId ? `the existing hypothesis ${hypothesisId}` : "the existing hypothesis";
+    return `Human observation: Relay power jumper moved from shared 3.3V rail to external 5V rail. The requested intervention is complete. Re-run run_relay_stress_test with the same parameters now. If the rail is stable, use the evidence_ids from that exact verification experiment to update and confirm ${target}.`;
+  }
+  return "Human observation: Relay power jumper moved back to shared 3.3V rail.";
+}
+
 export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = ({
   deviceAdapter,
   experimentStore,
@@ -71,7 +82,9 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
     resolvedAdapter?.getInterventionPoint?.("relay_power_jumper") === "5v" ? "5V" : "3V3";
 
   const [jumperPosition, setJumperPosition] = useState<"3V3" | "5V">(initialJumper);
-  const [observationSent, setObservationSent] = useState<boolean>(false);
+  const [observationSent, setObservationSent] = useState<boolean>(
+    agentState?.status === "approval"
+  );
 
   // Read all experiment records
   const allExperiments = useMemo<readonly ExperimentRecord[]>(() => {
@@ -112,10 +125,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
 
   // Notify Bench Agent of human observation
   const handleNotifyAgent = useCallback(() => {
-    const observationText =
-      jumperPosition === "5V"
-        ? "Human observation: Relay power jumper moved from shared 3.3V rail to external 5V rail."
-        : "Human observation: Relay power jumper moved back to shared 3.3V rail.";
+    const observationText = buildRepairObservation(jumperPosition, hypothesis?.id);
     setObservationSent(true);
     if (resolvedEvidenceStore && typeof resolvedEvidenceStore.addHumanObservation === "function") {
       resolvedEvidenceStore.addHumanObservation({
@@ -127,7 +137,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
     if (onSendObservation) {
       onSendObservation(observationText);
     }
-  }, [jumperPosition, resolvedEvidenceStore, onSendObservation]);
+  }, [jumperPosition, resolvedEvidenceStore, onSendObservation, hypothesis?.id]);
 
   const beforeMinVoltage = beforeExperiment?.summary?.supply_voltage?.minimum_v;
   const afterMinVoltage = afterExperiment?.summary?.supply_voltage?.minimum_v;
@@ -388,7 +398,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     <CheckCircle2 size={14} />
                     <span>Empirically Verified by Bench Agent (VERIFIED)</span>
                   </div>
-                ) : isAgentApproval ? (
+                ) : observationSent && isAgentApproval ? (
                   /* Amber Safety Authorization Gate requested by agent */
                   <div
                     style={{
@@ -409,6 +419,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                       <button
                         onClick={onApproveTest}
                         className="btn-primary"
+                        id="approve-test-btn"
                         data-testid="repair-approve-btn"
                         style={{
                           background: "var(--ohmni-warning)",
@@ -439,7 +450,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                       </button>
                     </div>
                   </div>
-                ) : isAgentInvestigating ? (
+                ) : observationSent && isAgentInvestigating ? (
                   /* Agent actively running retest / reading evidence */
                   <div
                     style={{

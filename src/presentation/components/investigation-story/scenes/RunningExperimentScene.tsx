@@ -12,7 +12,8 @@
 
 import React, { useRef, useEffect } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Activity, Zap, ShieldAlert, Cpu } from "lucide-react";
+import { Activity, Zap, ShieldAlert } from "lucide-react";
+import { BoardSilhouette } from "../../device/BoardSilhouette";
 import type { TelemetryRingBuffer } from "@/domain/telemetry/ring-buffer";
 import type { ScopeEventMarker } from "../../../hooks/useOscilloscopeBuffer";
 
@@ -22,6 +23,7 @@ export interface RunningExperimentSceneProps {
   readonly isRunning: boolean;
   readonly relayState: "open" | "closed";
   readonly railVoltage: number;
+  readonly isVerification?: boolean;
 }
 
 export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
@@ -30,12 +32,21 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
   isRunning,
   relayState,
   railVoltage,
+  isVerification = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // When actively running, relay is energized. When test has completed or aborted, relay is safely open.
   const isClosed = isRunning || relayState === "closed";
   const shouldReduceMotion = useReducedMotion();
   const safeThresholdVoltage = 2.80;
+  const diagnosticPhase = isVerification ? "verified" : isRunning ? "sampling" : "brownout";
+  const capturedSamples = ringBufferRef.current?.getSamples() ?? [];
+  const capturedMinimum = capturedSamples.reduce(
+    (minimum, sample) => Math.min(minimum, sample.value),
+    Number.POSITIVE_INFINITY
+  );
+  const diagnosticVoltage =
+    !isRunning && Number.isFinite(capturedMinimum) ? capturedMinimum : railVoltage;
   useEffect(() => {
     let animationFrameId: number;
     const canvas = canvasRef.current;
@@ -105,9 +116,9 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
           ctx.fillStyle = "#E59D37";
           ctx.fillText(`${vt.toFixed(2)} V`, padLeft - 8, y);
 
-          ctx.textAlign = "left";
+          ctx.textAlign = "right";
           ctx.font = 'bold 9.5px "JetBrains Mono", monospace';
-          ctx.fillText("2.80 V reset threshold", padLeft + plotWidth + 8, y);
+          ctx.fillText("RESET THRESHOLD", padLeft + plotWidth - 8, y - 9);
           ctx.textAlign = "right";
           ctx.font = '11px "JetBrains Mono", monospace';
         } else {
@@ -264,7 +275,7 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
       }}
     >
       {/* Header Tag */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "end", gap: "1rem" }}>
         <div>
           <div
             data-testid="experiment-header-tag"
@@ -308,10 +319,11 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
             display: "inline-flex",
             alignItems: "center",
             gap: "8px",
-            padding: "6px 14px",
-            borderRadius: "var(--radius-full)",
-            background: isRunning ? "rgba(229, 157, 55, 0.12)" : "var(--ohmni-lab-raised)",
-            border: `1px solid ${isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-border)"}`,
+            padding: "5px 0",
+            borderRadius: 0,
+            background: "transparent",
+            borderTop: `1px solid ${isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-border)"}`,
+            borderBottom: `1px solid ${isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-border)"}`,
           }}
         >
           <Zap size={14} color={isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-muted)"} />
@@ -321,11 +333,11 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
         </div>
       </div>
 
-      {/* Scope Hero Viewport (65-70% width) & Tactile Relay Module */}
+      {/* Measurement and physical cause shown together. */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 280px",
+          gridTemplateColumns: "minmax(0, 1.15fr) minmax(330px, 0.85fr)",
           gap: "1.5rem",
           alignItems: "stretch",
         }}
@@ -356,59 +368,28 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
           />
         </div>
 
-        {/* Live Physical Relay Module & Armature Contact */}
+        {/* Board-level cause and effect */}
         <div
-          id="relay-module-group"
-          data-testid="relay-module-group"
-          data-relay-state={isClosed ? "closed" : "open"}
           style={{
-            background: "var(--ohmni-lab-raised)",
-            border: `1.5px solid ${isClosed ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-border)"}`,
-            borderRadius: "var(--radius-lg)",
-            padding: "1.25rem",
             display: "flex",
             flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "space-between",
-            boxShadow: isClosed ? "0 0 24px rgba(229, 157, 55, 0.2)" : "var(--shadow-sm)",
-            transition: "all 0.2s ease",
+            gap: "0.625rem",
+            minWidth: 0,
           }}
         >
-          <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-muted)" }}>
-            TACTILE RELAY ARMATURE
+          <div className="font-mono" style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--ohmni-lab-muted)" }}>
+            DUT POWER PATH · {isRunning ? "LIVE STATE" : "CAPTURED STATE"}
           </div>
-
-          <svg viewBox="0 0 160 120" style={{ width: "100%", height: "120px" }}>
-            {/* Coil block */}
-            <rect x="20" y="30" width="40" height="50" rx="4" fill={isClosed ? "rgba(229, 157, 55, 0.2)" : "#1E293B"} stroke={isClosed ? "var(--ohmni-lab-warning)" : "#475569"} strokeWidth="1.5" />
-            <path d="M 28 40 Q 40 35 52 40 M 28 50 Q 40 45 52 50 M 28 60 Q 40 55 52 60 M 28 70 Q 40 65 52 70" stroke={isClosed ? "var(--ohmni-lab-warning)" : "#64748B"} strokeWidth="2" fill="none" />
-            <text x="40" y="95" textAnchor="middle" fill="#94A3B8" fontSize="8" fontFamily="var(--font-mono)">COIL</text>
-
-            {/* Armature switch contacts */}
-            <circle cx="85" cy="55" r="4" fill="#D4AF37" />
-            <circle cx="130" cy="35" r="4" fill="#D4AF37" />
-            <circle cx="130" cy="75" r="4" fill="#D4AF37" />
-            <text x="80" y="45" fill="#94A3B8" fontSize="8" fontFamily="var(--font-mono)">COM</text>
-            <text x="138" y="38" fill="#94A3B8" fontSize="8" fontFamily="var(--font-mono)">NO</text>
-            <text x="138" y="78" fill="#94A3B8" fontSize="8" fontFamily="var(--font-mono)">NC</text>
-
-            {/* Moving Armature Lever */}
-            <line
-              id="relay-armature-lever"
-              data-testid="relay-armature-lever"
-              data-relay-state={isClosed ? "closed" : "open"}
-              x1="85"
-              y1="55"
-              x2={isClosed ? "128" : "126"}
-              y2={isClosed ? "36" : "70"}
-              stroke={isClosed ? "var(--ohmni-lab-warning)" : "#E2E8F0"}
-              strokeWidth="3.5"
-              strokeLinecap="round"
-            />
-          </svg>
-
-          <div className="font-mono" style={{ fontSize: "11px", fontWeight: 700, color: isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-muted)" }}>
-            {isRunning ? "⚡ COIL ENERGIZED" : "COIL INERT (SAFELY OPEN)"}
+          <BoardSilhouette
+            isConnected={true}
+            relayState={isClosed ? "closed" : "open"}
+            statusVisual={diagnosticPhase === "brownout" ? "reset" : "nominal"}
+            diagnosticPhase={diagnosticPhase}
+            railVoltage={diagnosticVoltage}
+            style={{ padding: "0.75rem" }}
+          />
+          <div className="font-mono" style={{ fontSize: "10.5px", fontWeight: 700, color: isRunning ? "var(--ohmni-lab-warning)" : "var(--ohmni-lab-muted)" }}>
+            {isRunning ? "COIL ENERGIZED" : "COIL INERT (SAFELY OPEN)"}
           </div>
         </div>
       </div>

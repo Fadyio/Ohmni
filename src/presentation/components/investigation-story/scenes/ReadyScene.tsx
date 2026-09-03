@@ -9,8 +9,8 @@
  * - Less card UI chrome
  */
 
-import React, { useState, useCallback } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import React from "react";
+import { motion } from "motion/react";
 import { BoardSilhouette } from "../../device/BoardSilhouette";
 
 export interface ReadySceneProps {
@@ -26,27 +26,6 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
   railVoltage = 3.31,
   onStartInvestigation,
 }) => {
-  const shouldReduceMotion = useReducedMotion();
-  const [rotX, setRotX] = useState<number>(2);
-  const [rotY, setRotY] = useState<number>(-3);
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (shouldReduceMotion) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const normX = (e.clientX - rect.left) / rect.width - 0.5;
-      const normY = (e.clientY - rect.top) / rect.height - 0.5;
-      setRotY(normX * 6);
-      setRotX(-normY * 4);
-    },
-    [shouldReduceMotion]
-  );
-
-  const handlePointerLeave = useCallback(() => {
-    setRotX(2);
-    setRotY(-3);
-  }, []);
-
   return (
     <motion.div
       data-scene="ready"
@@ -57,37 +36,27 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
       style={{
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
+        alignItems: "stretch",
         justifyContent: "center",
         height: "100%",
         gap: "1.5rem",
-        textAlign: "center",
-        padding: "1rem 0",
+        textAlign: "left",
+        padding: "0.5rem 0",
       }}
     >
       {/* Title & Symptom Hierarchy */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "center" }}>
-        <span
-          style={{
-            fontSize: "11px",
-            fontWeight: 800,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "var(--ohmni-lab-brand, #4967FF)",
-          }}
-        >
-          TARGET HARDWARE
-        </span>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: "1.5rem", alignItems: "end" }}>
+        <div>
         <h2
           style={{
-            fontSize: "24px",
-            fontWeight: 800,
+            fontSize: "26px",
+            fontWeight: 750,
             color: "var(--ohmni-lab-text)",
             letterSpacing: "-0.02em",
             margin: 0,
           }}
         >
-          Mystery Controller
+          ESP32-S3 Environmental Controller
         </h2>
         <p
           style={{
@@ -98,12 +67,9 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
             lineHeight: 1.5,
           }}
         >
-          <strong>Symptom:</strong> Controller resets when fan starts.
+          Controller resets when the fan starts. Establish a baseline, reproduce the fault, and verify the power-path repair.
         </p>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "6px" }}>
-          <span style={{ fontSize: "13px", color: "var(--ohmni-lab-verified, #27966B)", fontWeight: 700 }}>
-            ● Agent: Ready.
-          </span>
+        </div>
           {onStartInvestigation && (
             <button
               type="button"
@@ -123,44 +89,27 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
               <span>Start investigation</span>
             </button>
           )}
-        </div>
       </div>
-      {/* Hero Hardware Object Container with 3D Parallax */}
-      <motion.div
+      {/* Static hardware viewport. Motion is reserved for measured cause and effect. */}
+      <div
         id="hardware-target-node"
         data-testid="hardware-target-node"
-        onPointerMove={handlePointerMove}
-        onPointerLeave={handlePointerLeave}
-        animate={{
-          rotateX: rotX,
-          rotateY: rotY,
-        }}
-        transition={{
-          type: "spring",
-          stiffness: 120,
-          damping: 18,
-          mass: 0.5,
-        }}
         style={{
-          perspective: "1000px",
-          transformStyle: "preserve-3d",
           width: "100%",
-          maxWidth: "660px",
+          maxWidth: "760px",
           display: "flex",
-          justifyContent: "center",
+          justifyContent: "flex-start",
           alignItems: "center",
-          cursor: "default",
-          filter: "drop-shadow(0 24px 48px rgba(18, 21, 26, 0.12))",
         }}
       >
-        <div style={{ width: "100%", transformStyle: "preserve-3d" }}>
+        <div style={{ width: "100%" }}>
           <BoardSilhouette
             isConnected={isConnected}
             relayState={relayState}
             statusVisual={isConnected ? "nominal" : "disconnected"}
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Quiet Instrument Strip */}
       <div
@@ -170,20 +119,20 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
           alignItems: "center",
           gap: "14px",
           padding: "7px 18px",
-          borderRadius: "var(--radius-full)",
-          background: "var(--ohmni-lab-soft-raised)",
-          border: "1px solid var(--ohmni-lab-border)",
+          borderRadius: "var(--radius-sm)",
+          background: "transparent",
+          borderTop: "1px solid var(--ohmni-lab-border)",
+          borderBottom: "1px solid var(--ohmni-lab-border)",
           fontSize: "13px",
           fontWeight: 600,
           color: "var(--ohmni-lab-text)",
-          marginTop: "4px",
+          width: "fit-content",
         }}
       >
         <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
           <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#4967FF" }} />
           <span>{railVoltage.toFixed(2)} V supply</span>
         </span>
-        <span style={{ color: "var(--ohmni-lab-border)" }}>•</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
           <span
             style={{
@@ -195,8 +144,7 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
           />
           <span style={{ textTransform: "capitalize" }}>Relay {relayState}</span>
         </span>
-        <span style={{ color: "var(--ohmni-lab-border)" }}>•</span>
-        <span style={{ color: "var(--ohmni-lab-muted)" }}>
+        <span style={{ color: "var(--ohmni-lab-muted)", borderLeft: "1px solid var(--ohmni-lab-border)", paddingLeft: "14px" }}>
           No active experiment
         </span>
       </div>

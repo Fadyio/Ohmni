@@ -14,7 +14,7 @@
  * 8. Empirical fault reproduction: relay load collapses rail below 2.80 V threshold
  * 9. Semantic diagnosis: grounded hypothesis formulated ("DIAGNOSIS FORMED")
  * 10. Shared repair shell: coherent device identity & 2.80 V reset threshold
- * 11. Physical repair (JP1 -> 5 V) & retest authorization
+ * 11. Explicit virtual DUT intervention (JP1 -> 5 V) & retest authorization
  * 12. Verification payoff: 3.18 V stable & final verified state reached
  * 13. Zero uncaught console/runtime errors
  *
@@ -470,6 +470,7 @@ async function runGate(): Promise<void> {
       }>(`(() => {
         const approveBtn = document.getElementById("approve-test-btn") ||
                            document.querySelector("[data-testid='approve-test-btn']") ||
+                           document.querySelector("[data-testid='repair-approve-btn']") ||
                            document.querySelector("[data-testid='bench-agent-approve']");
         const failedCard = document.querySelector("[data-testid='agent-unavailable-card']") ||
                            document.querySelector("[data-testid='bench-agent-failed-diagnostic']");
@@ -601,7 +602,7 @@ async function runGate(): Promise<void> {
     // --------------------------------------------------------------------------
     // Step 10: Enter Shared Repair Shell & Verify Unified Identity
     // --------------------------------------------------------------------------
-    console.info("\n[Gate Step 10/12] Entering physical repair mode & verifying shared shell...");
+    console.info("\n[Gate Step 10/12] Entering virtual repair mode & verifying shared shell...");
     const proceededToRepair = await cdpClient.evaluate<boolean>(`(() => {
       const btns = Array.from(document.querySelectorAll("button"));
       const target = btns.find(b =>
@@ -655,12 +656,14 @@ async function runGate(): Promise<void> {
     console.info("  ✅ Repair screen uses shared shell identity and '2.80 V reset threshold' label");
 
     // --------------------------------------------------------------------------
-    // Step 11: Perform Physical Intervention & Retest
+    // Step 11: Perform explicit virtual intervention & retest
     // --------------------------------------------------------------------------
-    console.info("\n[Gate Step 11/12] Moving jumper JP1 to Independent 5 V and notifying agent...");
+    console.info("\n[Gate Step 11/12] Simulating JP1 move to Independent 5 V and notifying agent...");
     const jumperMoved = await cdpClient.evaluate<boolean>(`(() => {
       const btns = Array.from(document.querySelectorAll("button"));
-      const btn5v = btns.find(b => b.innerText.includes("Independent 5 V") || b.innerText.includes("5 V"));
+      const btn5v = document.getElementById("simulate-jp1-btn") ||
+                    document.querySelector("[data-testid='simulate-jp1-btn']") ||
+                    btns.find(b => b.innerText.includes("Simulate moving JP1"));
       if (btn5v) {
         btn5v.click();
         return true;
@@ -668,7 +671,7 @@ async function runGate(): Promise<void> {
       return false;
     })()`);
     if (!jumperMoved) {
-      throw new Error("[FAIL-CLOSED] Independent 5 V jumper button not found");
+      throw new Error("[FAIL-CLOSED] Explicit JP1 virtual-intervention button not found");
     }
     await sleep(300);
 
@@ -678,7 +681,7 @@ async function runGate(): Promise<void> {
     if (jumperState !== "5v") {
       throw new Error(`[FAIL-CLOSED] Jumper state is '${jumperState}', expected '5v'`);
     }
-    console.info("  ↳ Physical jumper JP1 switched to 5 V rail");
+    console.info("  ↳ Virtual DUT jumper JP1 switched to the independent 5 V rail");
 
     // Notify agent
     const notified = await cdpClient.evaluate<boolean>(`(() => {
@@ -693,7 +696,7 @@ async function runGate(): Promise<void> {
     if (!notified) {
       throw new Error("[FAIL-CLOSED] 'Tell Agent I changed it' button not found");
     }
-    console.info("  ↳ Agent notified of human intervention");
+    console.info("  ↳ Agent notified of the explicit virtual DUT intervention");
 
     // Wait for agent to request retest / handle second amber approval
     console.info("  ↳ Waiting for verification retest and empirical confirmation...");
@@ -724,6 +727,7 @@ async function runGate(): Promise<void> {
         await cdpClient.evaluate(`(() => {
           const btn = document.getElementById("approve-test-btn") ||
                       document.querySelector("[data-testid='approve-test-btn']") ||
+                      document.querySelector("[data-testid='repair-approve-btn']") ||
                       document.querySelector("[data-testid='bench-agent-approve']");
           if (btn) btn.click();
         })()`);

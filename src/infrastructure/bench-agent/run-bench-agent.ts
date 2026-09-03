@@ -41,6 +41,10 @@ function errorMessage(error: unknown, fallback: string): string {
 
 function isRetryableError(error: unknown): boolean {
   if (error instanceof Error) {
+    const status = (error as Error & { status?: unknown }).status;
+    if (status === 429 || (typeof status === "number" && status >= 500)) {
+      return true;
+    }
     const msg = error.message.toLowerCase();
     // Do NOT retry client errors or auth errors
     if (msg.includes("400") || msg.includes("401") || msg.includes("403") || msg.includes("invalid argument")) {

@@ -695,7 +695,9 @@ export function useBenchAgent(
           goal: current.goal,
           runGoal: current.runGoal,
           activity: current.activity,
-          providerAvailable: isDemo ? true : false,
+          // A failed turn does not mean the configured provider disappeared.
+          // Keep recovery actions and human-observation continuations enabled.
+          providerAvailable: true,
           providerStatus: isDemo ? "demo" : "error",
           steps: stepCount(current.activity),
           requestId: reqId,
@@ -709,7 +711,17 @@ export function useBenchAgent(
       const trimmed = observation.trim();
       const previous = stateRef.current;
       const modelContext = window.__agentModelContext ?? document.modelContext;
-      if (!trimmed || !previous.providerAvailable || isActive(previous)) return;
+      if (!trimmed || !previous.providerAvailable) return;
+
+      // A human-confirmed intervention supersedes any trailing diagnostic turn.
+      // Abort it before starting the self-contained verification phase.
+      if (isActive(previous)) {
+        controllerRef.current?.abort();
+        controllerRef.current = null;
+        const pending = pendingApprovalRef.current;
+        pendingApprovalRef.current = null;
+        pending?.resolve(false);
+      }
 
       const isDemo = agentModeRef.current === "demo";
 
@@ -771,10 +783,12 @@ export function useBenchAgent(
         });
       };
 
-      const continuationHistory: AgentTranscriptItem[] =
-        transcriptRef.current.length > 0
-          ? [...transcriptRef.current, { role: "user" as const, content: trimmed }]
-          : [{ role: "user" as const, content: trimmed }];
+      // Human intervention starts a self-contained verification phase. The
+      // observation names the target hypothesis, so prior diagnostic turns do
+      // not need to be resent through the provider's short token window.
+      const continuationHistory: AgentTranscriptItem[] = [
+        { role: "user" as const, content: trimmed },
+      ];
       transcriptRef.current = continuationHistory;
 
       void runBenchAgent({
@@ -851,7 +865,8 @@ export function useBenchAgent(
             goal: current.goal,
             runGoal: current.runGoal,
             activity: current.activity,
-            providerAvailable: isDemo ? true : false,
+            // Preserve retryability after transient live-provider failures.
+            providerAvailable: true,
             providerStatus: isDemo ? "demo" : "error",
             steps: stepCount(current.activity),
             requestId: reqId,

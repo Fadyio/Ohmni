@@ -16,7 +16,6 @@
 import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Square, Play, ShieldAlert, RotateCcw, Activity, Check } from "lucide-react";
-import { AgentOrbNode } from "../agent/AgentOrbNode";
 import { buildToolReceipt, type BenchAgentState, type ToolReceipt } from "../../hooks/useBenchAgent";
 import type { InvestigationPhase } from "@/domain/investigation/lifecycle";
 import type { Hypothesis } from "@/domain/hypothesis/types";
@@ -193,7 +192,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
       {/* Header: Agent ● Status */}
       <div
         style={{
-          padding: "1.25rem 1.5rem",
+          padding: "1rem 1.25rem",
           borderBottom: "1px solid var(--ohmni-lab-border)",
           display: "flex",
           alignItems: "center",
@@ -201,15 +200,19 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           background: "var(--ohmni-lab-raised)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <AgentOrbNode
-            status={agentState.status}
-            isExecutingTool={isExecutingTool || isWaitingApproval}
-            size={20}
+        <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+          <span
+            aria-hidden="true"
+            style={{
+              width: "8px",
+              height: "8px",
+              borderRadius: "50%",
+              background: active ? "var(--ohmni-lab-brand)" : "var(--ohmni-lab-verified)",
+            }}
           />
           <div>
-            <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--ohmni-lab-text)", letterSpacing: "-0.01em" }}>
-              {identity.displayName}
+            <div style={{ fontSize: "13px", fontWeight: 750, color: "var(--ohmni-lab-text)", letterSpacing: "-0.01em" }}>
+              Investigation log · {identity.displayName}
             </div>
             <div
               data-testid="bench-agent-status"
@@ -287,10 +290,10 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
         style={{
           flex: 1,
           overflowY: "auto",
-          padding: "1.5rem",
+          padding: "1.25rem",
           display: "flex",
           flexDirection: "column",
-          gap: "1.5rem",
+          gap: "1.25rem",
         }}
       >
         {/* GOAL */}
@@ -315,8 +318,8 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               onInput={handleGoalChange}
               rows={2}
               style={{
-                background: "var(--ohmni-lab-soft-raised)",
-                border: "1px solid var(--ohmni-lab-border)",
+                background: "transparent",
+                border: "1px solid rgba(18, 21, 26, 0.16)",
                 borderRadius: "var(--radius-md)",
                 padding: "0.75rem 0.85rem",
                 outline: "none",
@@ -335,7 +338,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                 fontWeight: 500,
                 color: "var(--ohmni-lab-text)",
                 lineHeight: 1.45,
-                background: "var(--ohmni-lab-soft-raised)",
+                background: "transparent",
                 padding: "0.75rem 0.85rem",
                 borderRadius: "var(--radius-md)",
                 border: "1px solid var(--ohmni-lab-border)",
@@ -539,7 +542,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
 
           {completedEvents.length === 0 && !active && (
             <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted)", fontStyle: "italic", padding: "4px 0" }}>
-              No instrument actions executed yet.
+              Start the investigation to record instrument calls and evidence.
             </div>
           )}
 

@@ -43,6 +43,8 @@ describe("Milestone 8 — Experiment Temporal Truth Invariant", () => {
     expect(html).toContain("RELAY ENERGIZED (ACTIVE)");
     expect(html).toContain("COIL ENERGIZED");
     expect(html).toContain('data-relay-state="closed"');
+    expect(html).toContain('data-diagnostic-phase="sampling"');
+    expect(html).toContain("3V3 rail → K1 coil → fan load");
     expect(html).not.toContain("FAULT REPRODUCED");
   });
 
@@ -67,5 +69,46 @@ describe("Milestone 8 — Experiment Temporal Truth Invariant", () => {
     expect(html).toContain("RELAY SAFELY OPEN (INERT)");
     expect(html).toContain("COIL INERT (SAFELY OPEN)");
     expect(html).toContain('data-relay-state="open"');
+    expect(html).toContain('data-diagnostic-phase="brownout"');
+    expect(html).toContain("2.72 V minimum → MCU brownout reset");
+  });
+
+  it("renders the isolated 5 V recovery path during verification", () => {
+    const html = renderToString(
+      <RunningExperimentScene
+        ringBufferRef={ringBufferRef}
+        markersRef={markersRef}
+        isRunning={true}
+        relayState="closed"
+        railVoltage={3.18}
+        isVerification={true}
+      />
+    );
+
+    expect(html).toContain('data-diagnostic-phase="verified"');
+    expect(html).toContain("JP1 5V isolated →");
+    expect(html).toContain("3.18 V stable");
+  });
+
+  it("does not animate a completed historical experiment as live", () => {
+    const capturedBuffer = new TelemetryRingBuffer(10);
+    capturedBuffer.push(0, 3.31);
+    capturedBuffer.push(100, 2.72);
+    capturedBuffer.push(200, 3.30);
+    const html = renderToString(
+      <RunningExperimentScene
+        ringBufferRef={{ current: capturedBuffer }}
+        markersRef={markersRef}
+        isRunning={false}
+        relayState="open"
+        railVoltage={3.31}
+      />
+    );
+
+    expect(html).toContain("FAULT CAPTURED");
+    expect(html).toContain("2.72 V minimum");
+    expect(html).toContain("CAPTURED STATE");
+    expect(html).not.toContain("LOAD TEST RUNNING");
+    expect(html).not.toContain("board-fan-rotor");
   });
 });

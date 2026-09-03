@@ -135,8 +135,6 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   const {
     tools: webmcpTools,
     toolCount,
-    investigationToolCount,
-    deviceToolCount,
     isDiscovering,
   } = useWebMCPTools();
 
@@ -229,9 +227,8 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0.75rem 2.25rem",
-          background: "var(--ohmni-lab-nav, rgba(255, 255, 255, 0.88))",
-          backdropFilter: "blur(12px)",
+          padding: "0.65rem 1.5rem",
+          background: "#FFFFFF",
           borderBottom: "1px solid var(--ohmni-lab-border, #E2E4E9)",
           flex: "none",
           zIndex: 10,
@@ -275,19 +272,19 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             const isActive = phase === currentProgressStep;
             return (
               <React.Fragment key={phase}>
-                {idx > 0 && <span style={{ color: "var(--ohmni-lab-border, #CBD5E1)", fontSize: "11px" }}>→</span>}
+                {idx > 0 && <span aria-hidden="true" style={{ width: "12px", height: "1px", background: "var(--ohmni-lab-border, #CBD5E1)" }} />}
                 <span
                   data-phase={phase}
                   data-active={isActive}
                   style={{
-                    padding: "3px 9px",
-                    borderRadius: "var(--radius-full, 9999px)",
+                    padding: "4px 5px 5px",
+                    borderRadius: 0,
                     fontSize: "11px",
                     fontWeight: isActive ? 800 : 600,
                     letterSpacing: "0.04em",
-                    color: isActive ? "var(--ohmni-lab-brand, #4967FF)" : "var(--ohmni-lab-muted, #94A3B8)",
-                    background: isActive ? "rgba(73, 103, 255, 0.08)" : "transparent",
-                    border: isActive ? "1px solid rgba(73, 103, 255, 0.25)" : "1px solid transparent",
+                    color: isActive ? "var(--ohmni-lab-text)" : "var(--ohmni-lab-muted, #737A86)",
+                    background: "transparent",
+                    borderBottom: isActive ? "2px solid var(--ohmni-lab-brand, #4967FF)" : "2px solid transparent",
                   }}
                 >
                   {phase}
@@ -320,12 +317,6 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             </span>
           )}
 
-          {deviceToolCount > 0 && (
-            <span className="font-mono" style={{ fontSize: "10px", color: "var(--ohmni-lab-muted, #64748B)" }}>
-              {investigationToolCount} investigation + {deviceToolCount} virtual-device instruments
-            </span>
-          )}
-
           <span
             data-testid={agentMode === "demo" ? "demo-provider-badge" : "groq-provider-badge"}
             data-provider-badge="true"
@@ -334,21 +325,10 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
               display: "inline-flex",
               alignItems: "center",
               gap: "6px",
-              padding: "4px 11px",
-              borderRadius: "var(--radius-full, 9999px)",
-              background:
-                agentMode === "demo"
-                  ? "rgba(73, 103, 255, 0.08)"
-                  : providerStatus === "live"
-                  ? "rgba(39, 150, 107, 0.08)"
-                  : "rgba(73, 103, 255, 0.08)",
-              border: `1px solid ${
-                agentMode === "demo"
-                  ? "rgba(73, 103, 255, 0.25)"
-                  : providerStatus === "live"
-                  ? "rgba(39, 150, 107, 0.25)"
-                  : "rgba(73, 103, 255, 0.25)"
-              }`,
+              padding: "3px 0",
+              borderRadius: 0,
+              background: "transparent",
+              border: "none",
               color:
                 agentMode === "demo"
                   ? "var(--ohmni-lab-brand, #4967FF)"
@@ -363,10 +343,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             {agentMode === "demo" ? (
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <Bot size={13} />
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.1 }}>
-                  <span>DEMO AGENT</span>
-                  <span style={{ fontSize: "9px", fontWeight: 500, opacity: 0.85 }}>Deterministic walkthrough</span>
-                </div>
+                <span>DEMO AGENT · Deterministic walkthrough</span>
               </div>
             ) : providerStatus === "live" ? (
               <>
@@ -525,7 +502,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
         style={{
           flex: 1,
           display: "grid",
-          gridTemplateColumns: "72% 28%",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 27%)",
           overflow: "hidden",
           minHeight: 0,
         }}
@@ -537,7 +514,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
           style={{
             height: "100%",
             overflowY: "auto",
-            padding: "1.5rem 2rem",
+            padding: "1.35rem 1.6rem",
             background: "var(--ohmni-lab-canvas, #F4F5F7)",
           }}
         >

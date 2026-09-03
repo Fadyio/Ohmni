@@ -9,6 +9,8 @@ import {
   parseGroqToolCalls,
   DEFAULT_GROQ_MODEL,
   GROQ_MAX_COMPLETION_TOKENS,
+  selectGroqToolChoice,
+  isGroqVerificationWorkflow,
   BENCH_AGENT_SYSTEM_INSTRUCTION,
   type FetchFunction,
 } from "../../server/bench-agent/groq-provider";
@@ -31,6 +33,53 @@ const VOLTAGE_TOOL: AgentToolDeclaration = {
 };
 
 describe("GroqBenchAgentProvider", () => {
+  describe("selectGroqToolChoice", () => {
+    it("forces the evidence-bound stress retest after the explicit intervention", () => {
+      expect(
+        selectGroqToolChoice(
+          "Human observation: JP1 moved. The requested intervention is complete. Re-run run_relay_stress_test with the same parameters now."
+        )
+      ).toEqual({
+        type: "function",
+        function: { name: "run_relay_stress_test" },
+      });
+    });
+
+    it("keeps ordinary diagnostic turns model-directed", () => {
+      expect(selectGroqToolChoice("Diagnose the controller reset.")).toBe("auto");
+      expect(
+        selectGroqToolChoice([
+          {
+            type: "function_result",
+            call_id: "call_1",
+            name: "read_reset_history",
+            result: [{ type: "text", text: "{}" }],
+          },
+        ])
+      ).toBe("auto");
+    });
+  });
+
+  describe("isGroqVerificationWorkflow", () => {
+    it("keeps the verification phase active across subsequent tool-result turns", () => {
+      const marker = "The requested intervention is complete. Re-run run_relay_stress_test";
+      expect(
+        isGroqVerificationWorkflow({
+          input: [
+            {
+              type: "function_result",
+              call_id: "call_retest",
+              name: "run_relay_stress_test",
+              result: [{ type: "text", text: '{"minimum_v":3.18}' }],
+            },
+          ],
+          tools: [],
+          history: [{ role: "user", content: marker }],
+        })
+      ).toBe(true);
+    });
+  });
+
   describe("stripThinking", () => {
     it("strips think tags from output text", () => {
       const input = "<think>\nThinking about voltage measurements...\n</think>I will measure the voltage.";

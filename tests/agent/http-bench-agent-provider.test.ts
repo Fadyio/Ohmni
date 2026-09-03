@@ -51,10 +51,14 @@ interface FetchCall {
   readonly init?: RequestInit;
 }
 
-function jsonResponse(value: unknown, status = 200): Response {
+function jsonResponse(
+  value: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(value), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
   });
 }
 
@@ -197,6 +201,30 @@ describe("HttpBenchAgentProvider", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(Error);
       expect((error as Error).message).toBe("Gemini API key is not configured.");
+    }
+  });
+
+  it("preserves rate-limit status and retry delay for the bounded agent retry loop", async () => {
+    const { fetchImpl } = recordingFetch([
+      jsonResponse(
+        {
+          error: "RATE_LIMITED",
+          message: "The free Groq allocation is temporarily rate limited.",
+          retryAfter: 2,
+        },
+        429,
+        { "retry-after": "2" },
+      ),
+    ]);
+    const provider = new HttpBenchAgentProvider(fetchImpl);
+
+    try {
+      await provider.turn(TURN_REQUEST);
+      throw new Error("Expected the provider turn to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error & { status?: number }).status).toBe(429);
+      expect((error as Error & { retryAfterSeconds?: number }).retryAfterSeconds).toBe(2);
     }
   });
 

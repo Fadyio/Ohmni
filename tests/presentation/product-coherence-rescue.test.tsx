@@ -24,7 +24,7 @@ import { ReadyScene } from "@/presentation/components/investigation-story/scenes
 import { HypothesisScene } from "@/presentation/components/investigation-story/scenes/HypothesisScene";
 import { ObservingScene } from "@/presentation/components/investigation-story/scenes/ObservingScene";
 import { RunningExperimentScene } from "@/presentation/components/investigation-story/scenes/RunningExperimentScene";
-import { RepairVerificationScene } from "@/presentation/components/repair/RepairVerificationScene";
+import { buildRepairObservation, RepairVerificationScene } from "@/presentation/components/repair/RepairVerificationScene";
 import { GroundTruthRevealScene } from "@/presentation/components/mystery/GroundTruthRevealScene";
 import { Oscilloscope } from "@/presentation/components/instruments/Oscilloscope";
 import { InvestigationNarrativeRail } from "@/presentation/components/investigation-story/InvestigationNarrativeRail";
@@ -184,8 +184,8 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
       );
 
       expect(html).toContain('data-scene="ready"');
-      expect(html).toContain("TARGET HARDWARE");
-      expect(html).toContain("Agent: Ready.");
+      expect(html).toContain("ESP32-S3 Environmental Controller");
+      expect(html).not.toContain("Agent: Ready.");
       expect(html).toContain('id="start-investigation-btn"');
       expect(html).toContain("Start investigation");
       expect(html).toContain("3.31");
@@ -464,6 +464,42 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
   });
 
   describe("7. Unified Repair Application Shell & Visible Deny Button", () => {
+    it("gives the live agent an explicit evidence-bound verification sequence", () => {
+      const observation = buildRepairObservation("5V", "H-001");
+
+      expect(observation).toContain("Re-run run_relay_stress_test with the same parameters now");
+      expect(observation).toContain("evidence_ids from that exact verification experiment");
+      expect(observation).toContain("confirm the existing hypothesis");
+      expect(observation).toContain("H-001");
+    });
+
+    it("keeps the repair notification available until the observation is sent", () => {
+      const investigatingState = {
+        status: "investigating",
+        agentMode: "groq",
+        activity: [],
+        providerAvailable: true,
+        providerStatus: "live",
+      } as unknown as BenchAgentState;
+      const adapter = {
+        getInterventionPoint: () => "5v",
+      } as any;
+
+      const html = renderToString(
+        <RepairVerificationScene
+          deviceAdapter={adapter}
+          hypothesis={sampleHypothesis}
+          agentState={investigatingState}
+          onSendObservation={() => undefined}
+          onReturnToInvestigation={() => undefined}
+        />
+      );
+
+      expect(html).toContain('id="tell-agent-repair-btn"');
+      expect(html).toContain("Notify Groq and run verification");
+      expect(html).not.toContain("is evaluating the virtual DUT change");
+    });
+
     it("uses shared application navigation shell with REPAIR highlighted", () => {
       const html = renderToString(
         <RepairVerificationScene
@@ -515,6 +551,7 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
       );
 
       expect(html).toContain("Authorize &amp; Energize");
+      expect(html).toContain('id="approve-test-btn"');
       expect(html).toContain('data-testid="repair-deny-btn"');
       expect(html).toContain("Deny retest");
 

@@ -78,6 +78,11 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
       a.result !== undefined
   );
   const hasInspectedResetHistory = Boolean(resetActivity);
+  const isStressToolRunning = agentState.activity.some(
+    (activity) =>
+      (activity.call.name.includes("relay") || activity.call.name.includes("stress")) &&
+      activity.status !== "completed"
+  );
 
   let parsedBrownout: number | string | undefined = undefined;
   let parsedWatchdog: number | string | undefined = undefined;
@@ -322,9 +327,10 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             key="running"
             ringBufferRef={ringBufferRef}
             markersRef={markersRef}
-            isRunning={experimentStatus === "running"}
+            isRunning={agentState.status === "investigating" && isStressToolRunning}
             relayState={relayState}
             railVoltage={railVoltage}
+            isVerification={evidenceRecords.some((record) => record.source === "human")}
           />
         )}
 

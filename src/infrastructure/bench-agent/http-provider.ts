@@ -115,6 +115,25 @@ async function readResponseJson(response: Response): Promise<unknown> {
 }
 
 function responseError(response: Response, payload: unknown): Error {
+  const decorate = (error: Error): Error => {
+    const payloadRecord =
+      payload !== null && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : undefined;
+    const payloadRetryAfter = payloadRecord?.retryAfter;
+    const headerRetryAfter = Number(response.headers.get("retry-after"));
+    const retryAfterSeconds =
+      typeof payloadRetryAfter === "number" && Number.isFinite(payloadRetryAfter)
+        ? payloadRetryAfter
+        : Number.isFinite(headerRetryAfter) && headerRetryAfter > 0
+          ? headerRetryAfter
+          : undefined;
+    return Object.assign(error, {
+      status: response.status,
+      ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+    });
+  };
+
   if (payload !== null && typeof payload === "object" && !Array.isArray(payload)) {
     const record = payload as Record<string, unknown>;
     const requestId = typeof record.requestId === "string" ? record.requestId : undefined;
@@ -128,24 +147,24 @@ function responseError(response: Response, payload: unknown): Error {
         "Vercel Protected Deployment: Vercel Authentication is enabled on this preview deployment. Disable Vercel Authentication under Project Settings -> Deployment Protection or access with bypass credentials.",
       );
       if (requestId) Object.assign(err, { requestId });
-      return err;
+      return decorate(err);
     }
     if (typeof record.error === "object" && record.error !== null) {
       const nestedMessage = (record.error as Record<string, unknown>).message;
       if (typeof nestedMessage === "string" && nestedMessage.trim() !== "") {
         const err = new Error(nestedMessage);
         if (requestId) Object.assign(err, { requestId });
-        return err;
+        return decorate(err);
       }
     }
     const message = record.message;
     if (typeof message === "string" && message.trim() !== "") {
       const err = new Error(message);
       if (requestId) Object.assign(err, { requestId });
-      return err;
+      return decorate(err);
     }
   }
-  return new Error(`Bench agent request failed with status ${response.status}.`);
+  return decorate(new Error(`Bench agent request failed with status ${response.status}.`));
 }
 
 export type FetchFunction = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
