@@ -597,12 +597,18 @@ export class GroqBenchAgentProvider implements BenchAgentProvider {
     }
 
     if (response.status === 429) {
-      const retryAfter = parseRetryAfter(response.headers.get("retry-after"));
+      let retryAfter = parseRetryAfter(response.headers.get("retry-after"));
       let errorMessage = "The free Groq allocation is temporarily rate limited.";
       try {
         const errorJson = (await response.json()) as GroqChatCompletionResponse;
         if (errorJson.error?.message) {
           errorMessage = errorJson.error.message;
+          if (retryAfter === undefined) {
+            const match = errorMessage.match(/try again in ([0-9]+(?:\.[0-9]+)?)s/i);
+            if (match) {
+              retryAfter = Math.ceil(parseFloat(match[1]));
+            }
+          }
         }
       } catch {
         // use default

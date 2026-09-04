@@ -59,7 +59,9 @@ function isRetryableError(error: unknown): boolean {
       msg.includes("504") ||
       msg.includes("timeout") ||
       msg.includes("network") ||
-      msg.includes("fetch failed")
+      msg.includes("fetch failed") ||
+      msg.includes("rate limit") ||
+      msg.includes("rate_limited")
     ) {
       return true;
     }
@@ -144,10 +146,14 @@ async function executeProviderTurnWithRetry(
             : typeof (error as { retryAfter?: unknown })?.retryAfter === "number"
               ? ((error as { retryAfter: number }).retryAfter)
               : undefined;
+        const match = error instanceof Error ? error.message.match(/try again in ([0-9]+(?:\.[0-9]+)?)s/i) : null;
+        const parsedFromMsg = match ? Math.ceil(parseFloat(match[1])) : undefined;
         const delayMs =
           retryAfterSec !== undefined && retryAfterSec > 0
-            ? Math.min(retryAfterSec * 1000, 30_000)
-            : attempts * 75;
+            ? Math.min(retryAfterSec * 1000 + 400, 30_000)
+            : parsedFromMsg !== undefined
+              ? Math.min(parsedFromMsg * 1000 + 400, 30_000)
+              : attempts * 75;
         await new Promise((resolve) => setTimeout(resolve, delayMs));
         continue;
       }
