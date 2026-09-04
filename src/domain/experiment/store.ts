@@ -13,11 +13,13 @@ export interface ExperimentStore {
   latest(): ExperimentRecord | undefined;
   clear(): void;
   count(): number;
+  subscribe?(listener: (records: readonly ExperimentRecord[]) => void): () => void;
 }
 
 export class InMemoryExperimentStore implements ExperimentStore {
   private readonly records: Map<string, ExperimentRecord> = new Map();
   private readonly orderedIds: string[] = [];
+  private readonly listeners: Set<(records: readonly ExperimentRecord[]) => void> = new Set();
 
   public save(record: ExperimentRecord): void {
     const { id } = record.metadata;
@@ -25,6 +27,7 @@ export class InMemoryExperimentStore implements ExperimentStore {
       this.orderedIds.push(id);
     }
     this.records.set(id, record);
+    this.notify();
   }
 
   public getExperiment(id: string): ExperimentRecord | undefined {
@@ -46,9 +49,28 @@ export class InMemoryExperimentStore implements ExperimentStore {
   public clear(): void {
     this.records.clear();
     this.orderedIds.length = 0;
+    this.notify();
   }
 
   public count(): number {
     return this.records.size;
+  }
+
+  public subscribe(listener: (records: readonly ExperimentRecord[]) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notify(): void {
+    const records = this.getExperiments();
+    for (const listener of this.listeners) {
+      try {
+        listener(records);
+      } catch (err) {
+        console.error("Error in ExperimentStore listener:", err);
+      }
+    }
   }
 }
