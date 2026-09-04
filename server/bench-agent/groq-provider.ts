@@ -366,9 +366,17 @@ export class GroqBenchAgentProvider implements BenchAgentProvider {
   ): Promise<AgentTurnResult> {
     const messages = buildGroqMessages(this.systemInstruction, request);
     const verificationWorkflow = isGroqVerificationWorkflow(request);
-    const eligibleTools = verificationWorkflow
+    const toolChoice = selectGroqToolChoice(request.input, verificationWorkflow);
+    let eligibleTools = verificationWorkflow
       ? request.tools.filter((tool) => VERIFICATION_TOOL_NAMES.has(tool.name))
       : request.tools;
+    if (typeof toolChoice === "object" && toolChoice.type === "function") {
+      const targetName = toolChoice.function.name;
+      const matched = eligibleTools.filter((tool) => tool.name === targetName);
+      if (matched.length > 0) {
+        eligibleTools = matched;
+      }
+    }
     const tools =
       eligibleTools.length > 0 ? translateToolsToGroq(eligibleTools) : undefined;
 
@@ -381,7 +389,7 @@ export class GroqBenchAgentProvider implements BenchAgentProvider {
 
     if (tools) {
       requestBody.tools = tools;
-      requestBody.tool_choice = selectGroqToolChoice(request.input, verificationWorkflow);
+      requestBody.tool_choice = toolChoice;
     }
 
     const controller = new AbortController();

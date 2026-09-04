@@ -732,18 +732,29 @@ async function runGate(): Promise<void> {
         hasVerifiedBadge: boolean;
         hasRevealCTA: boolean;
         expCount: number;
+        agentStatus?: string;
+        agentMessage?: string;
+        activityCount?: number;
       }>(`(() => {
         const approveBtn = document.getElementById("approve-test-btn") ||
                            document.querySelector("[data-testid='approve-test-btn']") ||
                            document.querySelector("[data-testid='bench-agent-approve']");
         const body = document.body.innerText;
+        const state = window.__benchAgentState;
         return {
           hasApproveBtn: approveBtn !== null,
           hasVerifiedBadge: body.includes("STABLE • VERIFIED") || body.includes("VERIFIED") || body.includes("Repair verified"),
           hasRevealCTA: Array.from(document.querySelectorAll("button")).some(b => b.innerText.includes("Reveal") || b.innerText.includes("Ground Truth")),
           expCount: Number(window.__experimentStore ? window.__experimentStore.getExperiments().length : 0),
+          agentStatus: state?.status,
+          agentMessage: state && 'message' in state ? state.message : undefined,
+          activityCount: state?.activity?.length,
         };
       })()`);
+
+      if (i % 5 === 0) {
+        console.info(`  ↳ [${(i * 0.8).toFixed(1)}s] expCount=${vState.expCount}, hasVerifiedBadge=${vState.hasVerifiedBadge}, hasApproveBtn=${vState.hasApproveBtn}, agentStatus=${vState.agentStatus}, activities=${vState.activityCount}${vState.agentMessage ? `, message="${vState.agentMessage}"` : ""}`);
+      }
 
       // If retest requires human approval again, grant it
       if (vState.hasApproveBtn) {
@@ -763,7 +774,16 @@ async function runGate(): Promise<void> {
       }
     }
     if (!verifiedReached) {
-      throw new Error("[FAIL-CLOSED] Verification retest did not confirm repair within 45s");
+      const diag = await cdpClient.evaluate<{ status?: string; message?: string; activities?: string[] }>(`(() => {
+        const state = window.__benchAgentState;
+        const rows = Array.from(document.querySelectorAll("[data-testid='bench-agent-activity-row']")).map(r => (r.innerText || '').slice(0, 100));
+        return {
+          status: state?.status,
+          message: state && 'message' in state ? state.message : undefined,
+          activities: rows,
+        };
+      })()`);
+      throw new Error(`[FAIL-CLOSED] Verification retest did not confirm repair within 45s (agent status: ${diag?.status}, message: "${diag?.message}", activities: ${JSON.stringify(diag?.activities)})`);
     }
     console.info("  ✅ Verification experiment confirmed 3.18 V rail stability under load");
 
