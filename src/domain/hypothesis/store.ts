@@ -109,6 +109,12 @@ export interface UpdateHypothesisParams {
   };
 }
 
+export interface VerifyRepairParams {
+  readonly hypothesisId: string;
+  readonly verifiedExperimentId: string;
+  readonly rationale?: string;
+}
+
 export interface HypothesisStore {
   create(params: CreateHypothesisParams): Hypothesis;
   get(id: string): Hypothesis | undefined;
@@ -119,6 +125,7 @@ export interface HypothesisStore {
   linkEvidence(params: LinkEvidenceParams): Hypothesis;
   reject(params: RejectHypothesisParams): Hypothesis;
   confirm(params: ConfirmHypothesisParams): Hypothesis;
+  verifyRepair(params: VerifyRepairParams): Hypothesis;
   subscribe(listener: (hypotheses: readonly Hypothesis[]) => void): () => void;
   clear(): void;
   size(): number;
@@ -489,6 +496,62 @@ export class InMemoryHypothesisStore implements HypothesisStore {
       throw new Error(
         `Cannot confirm hypothesis "${params.hypothesisId}" without cited successful post-intervention verification evidence from experiment "${params.verifiedExperimentId}".`,
       );
+    }
+
+    const updatedLinks = Array.from(linksMap.values());
+    const supportingIds = updatedLinks
+      .filter((l) => isSupportingRelationship(l.relationship))
+      .map((l) => l.evidenceId);
+    const contradictingIds = updatedLinks
+      .filter((l) => isContradictingRelationship(l.relationship))
+      .map((l) => l.evidenceId);
+
+    const updated: Hypothesis = {
+      ...existing,
+      status: "CONFIRMED",
+      confidence: "VERY_HIGH",
+      verificationStatus: "VERIFIED",
+      confirmationRationale: rationale,
+      evidenceLinks: updatedLinks,
+      supportingEvidenceIds: supportingIds,
+      contradictingEvidenceIds: contradictingIds,
+      updatedAt: Date.now(),
+    };
+    this.hypotheses.set(existing.id, updated);
+    this.notify();
+    return cloneAndFreeze(updated);
+  }
+
+  public verifyRepair(params: VerifyRepairParams): Hypothesis {
+    const existing = this.hypotheses.get(params.hypothesisId);
+    if (!existing) {
+      throw new Error(`Hypothesis "${params.hypothesisId}" not found`);
+    }
+
+    if (existing.verificationStatus === "VERIFIED") {
+      return cloneAndFreeze(existing);
+    }
+
+    const rationale =
+      params.rationale?.trim() ||
+      "Post-repair verification retest empirically confirmed relay load isolation with zero resets.";
+
+    const linksMap = new Map<string, HypothesisEvidenceLink>();
+    for (const link of existing.evidenceLinks) {
+      linksMap.set(link.evidenceId, link);
+    }
+
+    const verificationEvidence = this.evidenceStore?.getByExperiment(
+      params.verifiedExperimentId
+    ) ?? [];
+    for (const record of verificationEvidence) {
+      if (!linksMap.has(record.id)) {
+        linksMap.set(record.id, {
+          evidenceId: record.id,
+          relationship: "STRONGLY_SUPPORTS",
+          note: rationale,
+        });
+      }
     }
 
     const updatedLinks = Array.from(linksMap.values());

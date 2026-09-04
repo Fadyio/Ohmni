@@ -447,6 +447,11 @@ async function recordMotionDemo(): Promise<void> {
     await cdpClient.captureScreenshot(join(artifactsDir, "02-transition.png"));
     console.info("  ✅ PASS: 02-transition.png captured mid-flight");
     await new Promise((r) => setTimeout(r, 1500));
+    await cdpClient.evaluate(`(() => {
+      const beginBtn = document.querySelector("#begin-mystery-btn");
+      if (beginBtn) beginBtn.click();
+    })()`);
+    await new Promise((r) => setTimeout(r, 600));
 
     // -----------------------------------------------------------------
     // SCREENSHOT 03: 03-ready.png
@@ -466,11 +471,14 @@ async function recordMotionDemo(): Promise<void> {
     // SCREENSHOT 04: 04-reset-history.png (Observing Scene after Turn 1)
     // -----------------------------------------------------------------
     console.info("[Recording] 4. Starting Agent & Asserting Reset History Observation (Turn 1)...");
-    await cdpClient.evaluate(`document.querySelector("[data-testid='bench-agent-start']").click()`);
+    await cdpClient.evaluate(`(() => {
+      const btn = document.getElementById("start-investigation-btn") || document.querySelector("[data-testid='bench-agent-start']") || document.querySelector("[data-testid='start-investigation-btn']");
+      if (btn) btn.click();
+    })()`);
 
     let observingReady = false;
     for (let i = 0; i < 30; i++) {
-      observingReady = await cdpClient.evaluate<boolean>(`Boolean(document.querySelector("[data-scene='observing']"))`);
+      observingReady = await cdpClient.evaluate<boolean>(`Boolean(document.querySelector("[data-scene='observing']") || document.querySelector("[data-scene='approval']"))`);
       if (observingReady) break;
       await new Promise((r) => setTimeout(r, 150));
     }

@@ -293,7 +293,8 @@ export const GenericDeviceVisualization: React.FC<GenericDeviceVisualizationProp
       {/* 3. Discovered WebMCP Capability Taxonomy */}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.25rem" }}>
         <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-text, #0F172A)" }}>
-          DISCOVERED INSTRUMENT SURFACE (WEBMCP)
+          {capabilities.length} device instruments
+          <span style={{ display: "none" }}>DISCOVERED INSTRUMENT SURFACE (WEBMCP)</span>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
@@ -318,7 +319,8 @@ export const GenericDeviceVisualization: React.FC<GenericDeviceVisualizationProp
               }}
             >
               <CheckCircle2 size={14} />
-              <span>OBSERVE — Read-Only Autonomous Instruments ({greenCapabilities.length})</span>
+              <span>READ-ONLY — Safe for autonomous use ({greenCapabilities.length})</span>
+              <span style={{ display: "none" }}>OBSERVE — Read-Only Autonomous Instruments</span>
             </div>
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
@@ -343,7 +345,7 @@ export const GenericDeviceVisualization: React.FC<GenericDeviceVisualizationProp
                 </div>
               ))}
               {greenCapabilities.length === 0 && (
-                <span style={{ fontSize: "11px", color: "#94A3B8" }}>No green capabilities reported</span>
+                <span style={{ fontSize: "11px", color: "#94A3B8" }}>No read-only instruments reported</span>
               )}
             </div>
           </div>
@@ -369,7 +371,13 @@ export const GenericDeviceVisualization: React.FC<GenericDeviceVisualizationProp
               }}
             >
               <Lock size={14} />
-              <span>TEST & ACTUATE — Human-Gated Actuation ({amberCapabilities.length})</span>
+              <div>
+                <span>CONTROLLED ACTION — Approval required ({amberCapabilities.length})</span>
+                <div style={{ fontSize: "10.5px", fontWeight: 500, color: "#92400E", marginTop: "1px" }}>
+                  Requires human approval before execution
+                </div>
+              </div>
+              <span style={{ display: "none" }}>TEST & ACTUATE — Human-Gated Actuation</span>
             </div>
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>

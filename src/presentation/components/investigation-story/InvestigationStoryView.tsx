@@ -22,6 +22,12 @@ import { getAgentIdentity } from "@/presentation/types/agent-identity";
 import { useWebMCPTools } from "@/presentation/hooks/useWebMCPTools";
 import type { ToolLedgerEntry } from "@/domain/investigation/tool-ledger";
 import type { ToolApprovalRequest } from "@/domain/safety/approval-gate";
+import type { DeviceAdapter } from "@/domain/device/adapter";
+import type { ExperimentStore } from "@/domain/experiment/store";
+import type { EvidenceStore } from "@/domain/evidence/store";
+import type { HypothesisStore } from "@/domain/hypothesis/store";
+import type { ScenarioGroundTruth } from "@/domain/scenario/types";
+import type { DiagnosisMatchResult } from "@/domain/scenario/engine";
 
 export interface InvestigationStoryViewProps {
   readonly isConnected: boolean;
@@ -53,6 +59,16 @@ export interface InvestigationStoryViewProps {
   readonly labChromeRef?: React.RefObject<HTMLElement | null>;
   readonly labMainSceneRef?: React.RefObject<HTMLElement | null>;
   readonly agentRailRef?: React.RefObject<HTMLElement | null>;
+  readonly viewMode?: "welcome" | "investigation" | "repair" | "reveal";
+  readonly deviceAdapter?: DeviceAdapter;
+  readonly experimentStore?: ExperimentStore;
+  readonly evidenceStore?: EvidenceStore;
+  readonly hypothesisStore?: HypothesisStore;
+  readonly revealedGroundTruth?: ScenarioGroundTruth | null;
+  readonly matchResult?: DiagnosisMatchResult | null;
+  readonly onSendObservation?: (observation: string) => void;
+  readonly onRunAnotherMystery?: () => void;
+  readonly onReturnToWorkbench?: () => void;
 }
 
 export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
@@ -85,6 +101,16 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   labChromeRef,
   labMainSceneRef,
   agentRailRef,
+  viewMode,
+  deviceAdapter,
+  experimentStore,
+  evidenceStore,
+  hypothesisStore,
+  revealedGroundTruth,
+  matchResult,
+  onSendObservation,
+  onRunAnotherMystery,
+  onReturnToWorkbench,
 }) => {
   const [activeSceneOverride, setActiveSceneOverride] = useState<"ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null>(null);
   const agentIdentity = getAgentIdentity(agentMode, agentState.liveProvider, agentState.liveModel);
@@ -151,6 +177,8 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
   const materializedToolCount = registeredToolCount ?? toolCount;
 
   const currentProgressStep: "OBSERVE" | "TEST" | "DIAGNOSE" | "REPAIR" | "VERIFY" = (() => {
+    if (viewMode === "reveal") return "VERIFY";
+    if (viewMode === "repair") return "REPAIR";
     switch (investigationPhase) {
       case "welcome":
       case "challenge_ready":
@@ -245,6 +273,16 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             onSwitchToDemo={onSwitchToDemo}
             onRetryAgent={onRetryAgent}
             activeSceneOverride={activeSceneOverride}
+            viewMode={viewMode}
+            deviceAdapter={deviceAdapter}
+            experimentStore={experimentStore}
+            evidenceStore={evidenceStore}
+            hypothesisStore={hypothesisStore}
+            revealedGroundTruth={revealedGroundTruth}
+            matchResult={matchResult}
+            onSendObservation={onSendObservation}
+            onRunAnotherMystery={onRunAnotherMystery}
+            onReturnToWorkbench={onReturnToWorkbench}
           />
         </main>
 

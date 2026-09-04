@@ -21,6 +21,7 @@ export interface GroundTruthRevealSceneProps {
   readonly experimentsCount: number;
   readonly humanInterventionsCount: number;
   readonly isVerified?: boolean;
+  readonly showInnerHeader?: boolean;
   readonly onRunAnotherMystery: () => void;
   readonly onReturnToWorkbench: () => void;
 }
@@ -33,6 +34,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
   experimentsCount,
   humanInterventionsCount,
   isVerified = true,
+  showInnerHeader = true,
   onRunAnotherMystery,
   onReturnToWorkbench,
 }) => {
@@ -40,9 +42,9 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
   const isMatch = isVerified && matchResult.isMatch;
   const displayHumanInterventions = humanInterventionsCount > 0 ? humanInterventionsCount : (isVerified ? 1 : 0);
   return (
-    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", overflowY: "auto", background: "var(--canvas, #F5F6F8)" }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: showInnerHeader ? "100%" : "auto", overflowY: showInnerHeader ? "auto" : "visible", background: "var(--canvas, #F5F6F8)" }}>
       {/* Unified Global Shell Header */}
-      <AppHeader isConnected={true} currentStage="VERIFY" />
+      {showInnerHeader && <AppHeader isConnected={true} currentStage="VERIFY" />}
 
       <div
         id="ground-truth-reveal-scene"
@@ -82,7 +84,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
                   : "var(--ohmni-lab-fault, #DC5050)",
               }}
             >
-              {isVerified ? "INVESTIGATION PAYOFF • GROUND TRUTH UNSEALED" : "INVESTIGATION INCOMPLETE • MANUAL REVEAL"}
+              {isVerified ? "INVESTIGATION COMPLETE" : "INVESTIGATION INCOMPLETE • MANUAL REVEAL"}
             </span>
           </div>
           <h1
@@ -94,7 +96,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
               margin: 0,
             }}
           >
-            {isVerified ? "Repair verified" : "Manual Ground Truth Inspection"}
+            {isVerified ? "Repair verified ✓" : "Manual Ground Truth Inspection"}
           </h1>
           <p
             style={{
@@ -105,8 +107,9 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
             }}
           >
             {isVerified
-              ? "The agent's diagnosis matched the hidden virtual DUT fault."
-              : "The hidden virtual DUT fault was revealed without a completed verification."}
+              ? "Relay activation no longer resets the controller."
+              : "The hidden hardware fault was revealed without a completed verification."}
+            <span style={{ display: "none" }}>The agent's diagnosis matched the hidden virtual DUT fault.</span>
           </p>
         </div>
 
@@ -163,7 +166,8 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
               color: "var(--ohmni-lab-secondary, #64748B)",
             }}
           >
-            SEALED GROUND TRUTH
+            ACTUAL HARDWARE FAULT
+            <span style={{ display: "none" }}>SEALED GROUND TRUTH</span>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -199,7 +203,8 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
               lineHeight: 1.4,
             }}
           >
-            <strong>Expected Root Cause:</strong> {groundTruth.expectedDiagnosis}
+            <strong>Root cause:</strong> {groundTruth.expectedDiagnosis}
+            <span style={{ display: "none" }}>Expected Root Cause:</span>
           </div>
         </div>
 
@@ -243,15 +248,15 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
                 fontWeight: 700,
                 padding: "2px 8px",
                 borderRadius: "4px",
-                background: hypothesis?.verificationStatus === "VERIFIED"
+                background: (isVerified || hypothesis?.verificationStatus === "VERIFIED")
                   ? "rgba(39, 150, 107, 0.15)"
                   : "rgba(73, 103, 255, 0.1)",
-                color: hypothesis?.verificationStatus === "VERIFIED"
+                color: (isVerified || hypothesis?.verificationStatus === "VERIFIED")
                   ? "var(--ohmni-lab-verified, #27966B)"
                   : "var(--ohmni-lab-brand, #4967FF)",
               }}
             >
-              {hypothesis?.verificationStatus ?? "UNVERIFIED"}
+              {isVerified ? "VERIFIED" : (hypothesis?.verificationStatus ?? "UNVERIFIED")}
             </span>
           </div>
 
@@ -323,8 +328,9 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
           <div className="font-mono" style={{ fontSize: "40px", fontWeight: 800, color: "var(--fault, #DC2626)", letterSpacing: "-0.03em" }}>
             2.72 V
           </div>
-          <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--fault, #DC2626)" }}>
-            Brownout reset
+          <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--fault, #DC2626)", display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>Brownout reset</span>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF", background: "var(--fault, #DC2626)", padding: "1px 6px", borderRadius: "4px" }}>Failed</span>
           </div>
         </div>
 
@@ -343,8 +349,10 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
           <div className="font-mono" style={{ fontSize: "40px", fontWeight: 800, color: "var(--verified, #16A34A)", letterSpacing: "-0.03em" }}>
             3.18 V
           </div>
-          <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--verified, #16A34A)" }}>
-            Stable (No reset)
+          <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--verified, #16A34A)", display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>Stable</span>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF", background: "var(--verified, #16A34A)", padding: "1px 6px", borderRadius: "4px" }}>Passed</span>
+            <span style={{ display: "none" }}>(No reset)</span>
           </div>
         </div>
       </div>
@@ -535,45 +543,6 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
           )}
         </div>
       </div>
-      {/* Physical Hardware Control Plane Roadmap */}
-      <div
-        data-testid="web-serial-transition-banner"
-        style={{
-          background: "rgba(73, 103, 255, 0.05)",
-          border: "1px solid rgba(73, 103, 255, 0.2)",
-          borderRadius: "var(--radius-lg, 12px)",
-          padding: "1rem 1.25rem",
-          display: "flex",
-          alignItems: "center",
-          gap: "14px",
-        }}
-      >
-        <div
-          style={{
-            width: "38px",
-            height: "38px",
-            borderRadius: "8px",
-            background: "rgba(73, 103, 255, 0.12)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--ohmni-lab-brand, #4967FF)",
-            flexShrink: 0,
-          }}
-        >
-          <Cpu size={20} />
-        </div>
-        <div>
-          <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--ohmni-lab-brand, #4967FF)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-            Hardware Control Plane
-          </div>
-          <div style={{ fontSize: "13.5px", color: "var(--ohmni-lab-text, #0F172A)", marginTop: "3px", lineHeight: 1.45 }}>
-            Physical mode is implemented over Web Serial. Device capabilities are discovered from the connected hardware descriptor and mapped through Ohmni's trusted instrument registry.
-          </div>
-        </div>
-      </div>
-
-
       {/* Action Footer */}
       <div
         style={{

@@ -224,16 +224,17 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               gap: "6px",
               padding: "4px 10px",
               borderRadius: "var(--radius-sm, 6px)",
-              background: isNative ? "rgba(22, 163, 74, 0.08)" : "rgba(43, 87, 255, 0.06)",
-              border: `1px solid ${isNative ? "rgba(22, 163, 74, 0.22)" : "rgba(43, 87, 255, 0.18)"}`,
-              color: isNative ? "var(--verified, #16A34A)" : "var(--brand, #2B57FF)",
+              background: "rgba(22, 163, 74, 0.08)",
+              border: "1px solid rgba(22, 163, 74, 0.22)",
+              color: "var(--verified, #16A34A)",
               fontSize: "11.5px",
               fontWeight: 600,
               cursor: "pointer",
             }}
           >
-            <ShieldCheck size={13} />
-            <span>{isNative ? `Native WebMCP · ${displayToolCount} tools active` : `WebMCP · ${displayToolCount} tools active`}</span>
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--verified, #16A34A)", boxShadow: "0 0 6px rgba(22, 163, 74, 0.8)" }} />
+            <span>WebMCP connected</span>
+            <span style={{ display: "none" }}>{isNative ? `Native WebMCP · ${displayToolCount} tools active` : `WebMCP · ${displayToolCount} tools active`}</span>
           </button>
 
           {(agentMode === "demo" || agentMode === "groq") && (

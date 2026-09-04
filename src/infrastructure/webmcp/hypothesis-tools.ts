@@ -63,14 +63,13 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
         },
         description: {
           type: "string",
-          minLength: 3,
           maxLength: 600,
-          description: "Detailed explanation of the causal mechanism and affected subsystems.",
+          description: "Detailed explanation of the causal mechanism and affected subsystems. If omitted, title or rationale is used.",
         },
         confidence: {
           type: "string",
           enum: ["UNTESTED", "LOW", "MEDIUM"],
-          description: "Initial qualitative confidence tier (UNTESTED, LOW, or MEDIUM). Initial HIGH/VERY_HIGH is prohibited without prior evidence integration.",
+          description: "Initial qualitative confidence tier (UNTESTED, LOW, or MEDIUM, default: MEDIUM). Initial HIGH/VERY_HIGH is prohibited without prior evidence integration.",
         },
         rationale: {
           type: "string",
@@ -83,7 +82,7 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
           description: "Optional array of existing factual evidence IDs (e.g. ['E-001', 'E-002']) that initially support this hypothesis.",
         },
       },
-      required: ["title", "description", "confidence"],
+      required: ["title"],
       additionalProperties: false,
     },
     annotations: {
@@ -92,9 +91,11 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
     execute: async (rawInput) => {
       const input = parseToolInput(rawInput);
       const title = String(input.title || "").trim();
-      const description = String(input.description || "").trim();
-      const confidence = String(input.confidence || "").trim() as HypothesisConfidence;
-      const rationale = typeof input.rationale === "string" ? input.rationale.trim() : undefined;
+      const rawDesc = typeof input.description === "string" ? input.description.trim() : "";
+      const rawRationale = typeof input.rationale === "string" ? input.rationale.trim() : "";
+      const description = rawDesc || rawRationale || title;
+      const confidence = String(input.confidence || "MEDIUM").trim() as HypothesisConfidence;
+      const rationale = rawRationale || undefined;
 
       const initialEvidenceLinks = Array.isArray(input.evidence_ids)
         ? (input.evidence_ids as string[]).map((eid) => ({

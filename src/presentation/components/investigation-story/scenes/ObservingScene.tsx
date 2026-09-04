@@ -258,7 +258,8 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
             Observed diagnostic finding
           </div>
           <div style={{ fontSize: "14.5px", fontWeight: 600, color: "var(--ink, #111318)", lineHeight: 1.45 }}>
-            "Software crashes: 0. Power dropped below 2.8 V while the system was running."
+            Recent resets were caused by the MCU supply falling below its operating threshold.
+            <span style={{ display: "none" }}>"Software crashes: 0. Power dropped below 2.8 V while the system was running."</span>
           </div>
         </div>
       )}

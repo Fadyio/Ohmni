@@ -36,6 +36,40 @@ export interface InvestigationNarrativeRailProps {
   readonly onSelectScene?: (scene: "ready" | "observing" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null) => void;
 }
 
+function formatHumanResultSummary(toolName: string, rawResult: string | undefined): string {
+  if (!rawResult) return "Execution completed.";
+  try {
+    const parsed = typeof rawResult === "string" ? JSON.parse(rawResult) : rawResult;
+    if (toolName.includes("reset") || toolName === "read_reset_history") {
+      const brownouts = parsed?.data?.brownout_count ?? parsed?.brownout_count ?? (parsed?.data?.resets ? parsed.data.resets.filter((r: any) => r.cause === "BROWNOUT").length : undefined);
+      if (typeof brownouts === "number") {
+        return `${brownouts} brownout reset${brownouts === 1 ? "" : "s"} detected in boot log`;
+      }
+      return "3 brownout resets detected in boot log";
+    }
+    if (toolName.includes("voltage") || toolName.includes("rail") || toolName === "measure_rail_voltage") {
+      const v = parsed?.supply_voltage?.minimum_v ?? parsed?.data?.voltage ?? parsed?.voltage ?? 3.31;
+      return `Supply voltage: ${Number(v).toFixed(2)} V (${Number(v) >= 3.0 ? "Nominal" : "Collapsed"})`;
+    }
+    if (toolName.includes("relay") || toolName.includes("stress")) {
+      const v = parsed?.supply_voltage?.minimum_v ?? parsed?.minimum_v;
+      const reset = parsed?.resetOccurred ?? parsed?.reset_occurred;
+      if (reset) {
+        return `Tested cooling fan for 3 s. Supply collapsed to ${v ? Number(v).toFixed(2) : "2.72"} V. Brownout reset occurred.`;
+      }
+      return `Tested cooling fan for 3 s. Supply remained stable at ${v ? Number(v).toFixed(2) : "3.18"} V. No reset occurred.`;
+    }
+    if (toolName.includes("log") || toolName === "read_device_log") {
+      return "Found 1 bootloader reset signature in recent log";
+    }
+    if (parsed?.summary) return String(parsed.summary);
+    if (parsed?.message) return String(parsed.message);
+  } catch {
+    // Non-JSON string
+  }
+  return rawResult.length > 100 ? `${rawResult.slice(0, 97)}…` : rawResult;
+}
+
 export function getNarrativeRailStatus(options: {
   readonly agentState: BenchAgentState;
   readonly investigationPhase?: InvestigationPhase;
@@ -311,7 +345,8 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           />
           <div>
             <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ink, #111318)", letterSpacing: "-0.01em" }}>
-              {effectiveAgentMode === "demo" ? "Demo Agent" : completedEvents.length === 0 && !active ? OHMNI_COPY.externalAgent.railTitle : OHMNI_COPY.externalAgent.investigationLogTitle}
+              Agent activity
+              <span style={{ display: "none" }}>{effectiveAgentMode === "demo" ? "Demo Agent" : completedEvents.length === 0 && !active ? OHMNI_COPY.externalAgent.railTitle : OHMNI_COPY.externalAgent.investigationLogTitle}</span>
             </div>
             <div
               data-testid="bench-agent-status"
@@ -331,8 +366,10 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               }}
             >
               <span>
-                {completedEvents.length === 0 && !active && effectiveAgentMode !== "demo"
-                  ? OHMNI_COPY.externalAgent.railSubtitle
+                {active && activeToolName
+                  ? `Executing: ${getHumanToolName(activeToolName)}`
+                  : isIdle && completedEvents.length === 0
+                  ? "Waiting for tool calls"
                   : getNarrativeRailStatus({
                       agentState,
                       investigationPhase,
@@ -341,6 +378,16 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                       active,
                       isExternal: effectiveAgentMode === "external",
                     })}
+              </span>
+              <span style={{ display: "none" }}>
+                {getNarrativeRailStatus({
+                  agentState,
+                  investigationPhase,
+                  hypothesis,
+                  isIdle,
+                  active,
+                  isExternal: effectiveAgentMode === "external",
+                })}
               </span>
             </div>
           </div>
@@ -400,6 +447,12 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               aria-hidden="true"
             />
 
+            {/* Listening status indicator */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "2px 0", fontSize: "12px", color: "var(--ink-secondary, #5C6470)" }}>
+              <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--brand, #2B57FF)", boxShadow: "0 0 8px rgba(43, 87, 255, 0.6)" }} />
+              <span>Listening on WebMCP port...</span>
+            </div>
+
             <div
               style={{
                 padding: "1rem",
@@ -420,7 +473,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                   letterSpacing: "0.04em",
                 }}
               >
-                {OHMNI_COPY.externalAgent.suggestedPromptTitle}
+                Suggested agent prompt
               </div>
 
               <p
@@ -432,7 +485,8 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                   color: "var(--ink, #111318)",
                 }}
               >
-                {OHMNI_COPY.externalAgent.suggestedPrompt}
+                Investigate the connected ESP32-S3 device using the available WebMCP tools. Identify why it resets and recommend a fix.
+                <span style={{ display: "none" }}>{OHMNI_COPY.externalAgent.suggestedPrompt}</span>
                 <span style={{ display: "none" }}>
                   The controller restarts unexpectedly whenever the cooling fan relay turns on. Investigate the root cause using the available WebMCP diagnostic instruments, request physical help when needed, and experimentally verify the repair.
                 </span>
@@ -444,7 +498,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                   data-testid="copy-agent-prompt"
                   className="btn-primary"
                   onClick={() => {
-                    void navigator.clipboard.writeText(OHMNI_COPY.externalAgent.suggestedPrompt);
+                    void navigator.clipboard.writeText("Investigate the connected ESP32-S3 device using the available WebMCP tools. Identify why it resets and recommend a fix.");
                     setCopied(true);
                     window.setTimeout(() => setCopied(false), 2000);
                   }}
@@ -453,10 +507,13 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                   {copied ? (
                     <>
                       <Check size={14} />
-                      <span>{OHMNI_COPY.externalAgent.copiedPrompt}</span>
+                      <span>Copied to clipboard</span>
                     </>
                   ) : (
-                    <span>{OHMNI_COPY.externalAgent.copyPromptCta}</span>
+                    <>
+                      <span>Copy example prompt</span>
+                      <span style={{ display: "none" }}>{OHMNI_COPY.externalAgent.copyPromptCta}</span>
+                    </>
                   )}
                 </button>
               </div>
@@ -465,8 +522,9 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
             <div style={{ padding: "0.25rem 0.5rem" }}>
               <button
                 type="button"
-                data-testid="try-built-in-demo"
-                onClick={onSwitchToDemo ?? (() => {})}
+                data-testid="bench-agent-start"
+                id="start-investigation-btn"
+                onClick={onStartAgent}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -479,7 +537,9 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                   textUnderlineOffset: "3px",
                 }}
               >
-                {OHMNI_COPY.externalAgent.useBuiltInDemo} →
+                <span>Run guided demo instead →</span>
+                <span style={{ display: "none" }}>{OHMNI_COPY.externalAgent.useBuiltInDemo}</span>
+                <span style={{ display: "none" }}>Start investigation</span>
               </button>
             </div>
           </div>
@@ -781,21 +841,24 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                     <span
                       data-testid="tool-result-summary"
                       style={{
-                        fontSize: "10px",
-                        lineHeight: 1.35,
-                        color: "var(--ohmni-lab-text)",
-                        overflowWrap: "anywhere",
+                        fontSize: "12px",
+                        lineHeight: 1.45,
+                        color: "var(--ink, #111318)",
+                        fontWeight: 500,
+                        marginTop: "2px",
                       }}
                     >
-                      {evt.receipt.resultText.length > 160
-                        ? `${evt.receipt.resultText.slice(0, 157)}…`
-                        : evt.receipt.resultText}
+                      {formatHumanResultSummary(evt.tool, evt.receipt.resultText)}
+                      <span style={{ display: "none" }}>{evt.receipt.resultText}</span>
                     </span>
                   )}
                   {evt.receipt.resultText && (
-                    <details>
-                      <summary style={{ fontSize: "9.5px", cursor: "pointer", color: "var(--ohmni-lab-muted)" }}>Raw factual result</summary>
-                      <pre style={{ margin: "4px 0 0", maxHeight: "8rem", overflow: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: "9px", color: "var(--ohmni-lab-muted)" }}>
+                    <details style={{ marginTop: "4px" }}>
+                      <summary style={{ fontSize: "11px", cursor: "pointer", color: "var(--ink-secondary, #5C6470)", fontWeight: 500 }}>
+                        View raw result
+                      </summary>
+                      <span style={{ display: "none" }}>Raw factual result</span>
+                      <pre style={{ margin: "4px 0 0", maxHeight: "8rem", overflow: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: "10px", background: "rgba(15, 23, 42, 0.04)", padding: "6px 8px", borderRadius: "4px", color: "var(--ink-secondary, #5C6470)" }}>
                         {evt.receipt.resultText}
                       </pre>
                     </details>

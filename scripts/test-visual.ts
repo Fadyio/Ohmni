@@ -50,7 +50,7 @@ if (!existsSync(ARTIFACTS_DIR)) {
 console.info("[Build] Building production distribution (vite build)...");
 execSync("bun run build", { stdio: "inherit" });
 
-async function startVisualServer(distDir: string, port = 5178): Promise<{ server: Server; url: string }> {
+async function startVisualServer(distDir: string, port = 0): Promise<{ server: Server; url: string }> {
   const mimeTypes: Record<string, string> = {
     ".html": "text/html; charset=utf-8",
     ".js": "application/javascript; charset=utf-8",
@@ -65,7 +65,7 @@ async function startVisualServer(distDir: string, port = 5178): Promise<{ server
 
   const server = createServer(async (req, res) => {
     try {
-      const url = new URL(req.url || "/", `http://127.0.0.1:${port}`);
+      const url = new URL(req.url || "/", "http://127.0.0.1");
       const filePath = join(distDir, url.pathname === "/" ? "index.html" : url.pathname);
       const ext = filePath.includes(".") ? filePath.substring(filePath.lastIndexOf(".")) : ".html";
       const contentType = mimeTypes[ext] || "text/html; charset=utf-8";
@@ -88,7 +88,8 @@ async function startVisualServer(distDir: string, port = 5178): Promise<{ server
   const { promise, resolve } = Promise.withResolvers<void>();
   server.listen(port, "127.0.0.1", () => resolve());
   await promise;
-  return { server, url: `http://127.0.0.1:${port}` };
+  const assignedPort = (server.address() as any).port;
+  return { server, url: `http://127.0.0.1:${assignedPort}` };
 }
 
 class CDPClient {
@@ -198,7 +199,7 @@ async function runVisualRegression(): Promise<void> {
   const distDir = join(process.cwd(), "dist");
   const { server, url } = await startVisualServer(distDir);
   const tempProfile = mkdtempSync(join(tmpdir(), "ohmni-visual-reg-"));
-  const debugPort = 9238;
+  const debugPort = 9254;
 
   const chromeProc: ChildProcess = spawn(
     chromePath,

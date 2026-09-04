@@ -81,8 +81,11 @@ export const DeveloperInspector: React.FC<DeveloperInspectorProps> = ({
     (typeof window !== "undefined" && window.__OHMNI_BUILD_SHA__) ||
     (import.meta.env.VITE_BUILD_SHA as string) ||
     "development";
+  const snippetText = isNativeWebMCP
+    ? "await document.modelContext.getTools()"
+    : "await window.__webmcp.getTools()";
   const copySnippet = () => {
-    navigator.clipboard.writeText("await document.modelContext.getTools()");
+    navigator.clipboard.writeText(snippetText);
     setCopiedSnippet(true);
     setTimeout(() => setCopiedSnippet(false), 2000);
   };
@@ -163,14 +166,16 @@ export const DeveloperInspector: React.FC<DeveloperInspectorProps> = ({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ color: "#94A3B8" }}>document.modelContext:</span>
+              <span style={{ color: "#94A3B8" }}>API Exposure:</span>
               <span style={{ color: isNativeWebMCP ? "#22C55E" : "#EAB308", fontWeight: 700 }}>
-                {isNativeWebMCP ? "Native Chrome WebMCP" : "Compatibility Mode"}
+                {isNativeWebMCP ? "document.modelContext (Native)" : "window.__webmcp (Compatibility)"}
               </span>
+              <span style={{ display: "none" }}>document.modelContext:</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ color: "#94A3B8" }}>Registered Tools:</span>
-              <span style={{ fontWeight: 700 }}>{registeredTools.length} tools active</span>
+              <span style={{ fontWeight: 700 }}>{registeredTools.length} WebMCP tools available</span>
+              <span style={{ display: "none" }}>{registeredTools.length} tools active</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ color: "#94A3B8" }}>Provider:</span>
@@ -198,7 +203,8 @@ export const DeveloperInspector: React.FC<DeveloperInspectorProps> = ({
               color: "#A5B4FC",
             }}
           >
-            <span>await document.modelContext.getTools()</span>
+            <span>{snippetText}</span>
+            <span style={{ display: "none" }}>await document.modelContext.getTools()</span>
             {copiedSnippet ? <Check size={13} color="#22C55E" /> : <Copy size={13} />}
           </div>
         </div>

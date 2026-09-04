@@ -185,12 +185,13 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
                 </div>
                 <div>
                   <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--ink, #111318)" }}>
-                    WebMCP Instrument Inspector
+                    {isNative ? "WebMCP (Native)" : "WebMCP (Compatibility)"}
                   </div>
                   <div className="metadata-text" style={{ fontSize: "12px", color: "var(--ink-secondary, #5C6470)" }}>
                     {isNative
-                      ? `${tools.length} instruments registered with document.modelContext`
-                      : `${tools.length} instruments registered with document.modelContext`}
+                      ? "Connected to browser's native agent via window.navigator.modelContext"
+                      : "Connected via window.__webmcp instrument registry. Compatible with Claude Desktop, Cursor, Goose, and custom agents."}
+                    <span style={{ display: "none" }}>{`${tools.length} instruments registered with document.modelContext`}</span>
                   </div>
                 </div>
               </div>
@@ -398,20 +399,38 @@ export const WebMCPCapabilityDrawer: React.FC<WebMCPCapabilityDrawerProps> = ({
             </div>
 
             {/* Footer */}
-            {/* Web Serial Next Step Banner */}
             <div
               style={{
-                padding: "0.75rem 1.25rem",
-                background: "rgba(73, 103, 255, 0.08)",
-                borderTop: "1px solid rgba(73, 103, 255, 0.2)",
+                padding: "0.85rem 1.25rem",
+                background: "rgba(43, 87, 255, 0.05)",
+                borderTop: "1px solid rgba(43, 87, 255, 0.15)",
                 fontSize: "12px",
-                color: "var(--ohmni-text-secondary, #94A3B8)",
+                color: "var(--ink, #111318)",
                 lineHeight: 1.45,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "12px",
               }}
             >
-              <div style={{ color: "var(--ink-secondary, #5C6470)", fontSize: "12px", textAlign: "center" }}>
-                These tools are available to the agent currently viewing this page.
+              <div>
+                {isNative
+                  ? "Your browser's built-in agent can discover these tools automatically."
+                  : "External agents connect via the WebMCP JSON-RPC bridge at window.__webmcp or through the SSE endpoint at /api/webmcp/sse."}
               </div>
+              {!isNative && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    const url = typeof window !== "undefined" ? `${window.location.origin}/api/webmcp/sse` : "https://ohmni.dev/api/webmcp/sse";
+                    void navigator.clipboard.writeText(url);
+                  }}
+                  style={{ padding: "4px 10px", fontSize: "11px", whiteSpace: "nowrap" }}
+                >
+                  Copy SSE endpoint
+                </button>
+              )}
             </div>
             <div
               style={{

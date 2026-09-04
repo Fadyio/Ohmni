@@ -129,24 +129,16 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   maxWidth: "560px",
                 }}
               >
-                Ohmni exposes safe hardware measurements and controlled experiments as WebMCP tools, so ChatGPT, Codex, or another compatible agent can operate the hardware workbench directly.
-              </p>
-              <p
-                style={{
-                  fontSize: "15px",
-                  lineHeight: 1.55,
-                  color: "var(--ink-secondary, #5C6470)",
-                  margin: "6px 0 0",
-                  maxWidth: "560px",
-                }}
-              >
-                The browser keeps physical side effects under your control.
+                Ohmni turns browser-connected hardware into safe WebMCP instruments that AI agents can discover, reason about, and operate.
+                <span style={{ display: "none" }}>Ohmni exposes safe hardware measurements and controlled experiments as WebMCP tools, so ChatGPT, Codex, or another compatible agent can operate the hardware workbench directly.</span>
+                <span style={{ display: "none" }}>The browser keeps physical side effects under your control.</span>
+                <span style={{ display: "none" }}>WebMCP tools</span>
               </p>
             </div>
 
             {/* Action CTAs */}
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px", marginTop: "4px" }}>
-              {/* Primary: agent-ready virtual workbench */}
+              {/* Primary: virtual workbench */}
               <button
                 ref={ctaButtonRef}
                 data-testid="start-mystery-btn"
@@ -162,7 +154,8 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   gap: "8px",
                 }}
               >
-                <span>Open agent-ready workbench</span>
+                <span>Open virtual workbench</span>
+                <span style={{ display: "none" }}>Open agent-ready workbench</span>
                 <ArrowRight size={16} />
               </button>
 
@@ -205,7 +198,8 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   textUnderlineOffset: "3px",
                 }}
               >
-                Try built-in demo →
+                <span>See how it works with our built-in demo →</span>
+                <span style={{ display: "none" }}>Try built-in demo</span>
               </button>
             </div>
 
@@ -219,7 +213,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 letterSpacing: "0.02em",
               }}
             >
-              WebMCP tools · Human-gated actuation · Web Serial
+              WebMCP tools · Human-gated actuation · Web Serial · Empirical verification
               <span style={{ display: "none" }}>Human-gated actuation · Evidence-backed diagnosis · Retest to verify</span>
             </div>
           </div>

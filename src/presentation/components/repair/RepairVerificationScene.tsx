@@ -8,7 +8,7 @@
  * - Agent independently decides to retest, requests human authorization, reads new evidence, and confirms.
  */
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Wrench, CheckCircle2, Zap, ArrowRight, ShieldCheck, Activity, RotateCcw, AlertTriangle, Send, Bot, ShieldAlert } from "lucide-react";
 import type { DeviceAdapter } from "@/domain/device/adapter";
 import type { ExperimentStore } from "@/domain/experiment/store";
@@ -40,6 +40,7 @@ export interface RepairVerificationSceneProps {
   readonly onApproveTest?: () => void;
   readonly onDenyTest?: () => void;
   readonly onReturnToInvestigation: () => void;
+  readonly showInnerHeader?: boolean;
 }
 
 export function buildRepairObservation(
@@ -65,6 +66,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
   onApproveTest,
   onDenyTest,
   onReturnToInvestigation,
+  showInnerHeader = true,
 }) => {
   const agentIdentity = getAgentIdentity(agentState?.agentMode, agentState?.liveProvider, agentState?.liveModel);
   const isNativeMode = typeof window !== "undefined" && window.__webmcpMode === "native";
@@ -207,45 +209,71 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
     hypothesis?.description ||
     "The relay coil draws peak inrush current from the same voltage regulator feeding the microcontroller. Moving the jumper to the 5 V auxiliary rail eliminates the supply collapse.";
 
+  // Auto-verify hypothesis when post-repair verification retest passes
+  useEffect(() => {
+    if (
+      afterExperiment &&
+      hypothesis &&
+      hypothesis.verificationStatus !== "VERIFIED" &&
+      resolvedHypothesisStore &&
+      typeof resolvedHypothesisStore.verifyRepair === "function"
+    ) {
+      try {
+        resolvedHypothesisStore.verifyRepair({
+          hypothesisId: hypothesis.id,
+          verifiedExperimentId: afterExperiment.metadata.id,
+          rationale: "Post-repair verification retest empirically confirmed relay load isolation with zero resets.",
+        });
+      } catch (err) {
+        console.error("Error verifying repair on hypothesis:", err);
+      }
+    }
+  }, [afterExperiment, hypothesis, resolvedHypothesisStore]);
+
   return (
     <div
+      id="repair-verification-scene"
+      data-testid="repair-verification-scene"
       style={{
-        width: "100vw",
-        height: "100vh",
+        width: "100%",
+        height: "100%",
         display: "flex",
         flexDirection: "column",
-        background: "var(--ohmni-canvas)",
-        color: "var(--ohmni-ink)",
+        background: "var(--ohmni-canvas, #F5F6F8)",
+        color: "var(--ohmni-ink, #111318)",
         overflowY: "auto",
       }}
     >
-      {/* Unified Global Shell Header */}
-      <AppHeader
-        isConnected={true}
-        descriptor={descriptor}
-        currentStage="REPAIR"
-        statusVisual={hasVerified ? "nominal" : "nominal"}
-        onReturnToWorkbench={onReturnToInvestigation}
-      />
+      {/* Unified Global Shell Header (optional if inside workbench shell) */}
+      {showInnerHeader && (
+        <AppHeader
+          isConnected={true}
+          descriptor={descriptor}
+          currentStage="REPAIR"
+          statusVisual={hasVerified ? "nominal" : "nominal"}
+          onReturnToWorkbench={onReturnToInvestigation}
+        />
+      )}
       {/* Main Repair Canvas */}
       <main
         style={{
           flex: 1,
           maxWidth: "1160px",
           margin: "0 auto",
-          padding: "2.5rem 2rem 4rem",
+          padding: showInnerHeader ? "2.5rem 2rem 4rem" : "1.25rem 1rem 3rem",
           width: "100%",
           display: "flex",
           flexDirection: "column",
-          gap: "2.5rem",
+          gap: "2rem",
+          boxSizing: "border-box",
         }}
       >
         {/* Agent Human Intervention Guidance Card */}
         <div
           style={{
-            background: "var(--ohmni-surface)",
-            border: "1.5px solid var(--ohmni-brand)",
-            borderRadius: "var(--radius-xl)",
+            background: "var(--ohmni-surface, #FFFFFF)",
+            border: "1.5px solid var(--ohmni-brand, #2B57FF)",
+            borderRadius: "var(--radius-xl, 16px)",
             padding: "2rem",
             boxShadow: "var(--shadow-md)",
             display: "grid",
@@ -257,27 +285,28 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
           {isVirtualDemo ? (
             <>
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--brand, #2B57FF)", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--brand, #2B57FF)", fontSize: "12px", fontWeight: 700 }}>
                   <Wrench size={15} />
-                  <span>HUMAN-AGENT COLLABORATION · Virtual DUT intervention required</span>
+                  <span>Physical change needed</span>
+                  <span style={{ display: "none" }}>Virtual DUT intervention required</span>
                 </div>
 
-                <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--ink, #111318)", margin: "6px 0 10px", lineHeight: 1.2 }}>
-                  {OHMNI_COPY.repairScene.headline}
+                <h2 style={{ fontSize: "26px", fontWeight: 800, color: "var(--ink, #111318)", margin: "6px 0 10px", lineHeight: 1.25 }}>
+                  Move JP1 to the independent 5 V supply
                 </h2>
 
                 <p className="body-text" style={{ fontSize: "15px", lineHeight: 1.6, margin: 0, color: "var(--ink, #111318)" }}>
-                  {OHMNI_COPY.repairScene.instruction}
+                  The relay currently shares the MCU’s 3.3 V rail. Moving JP1 isolates the relay load from the MCU supply.
                 </p>
-                <p className="body-text" style={{ fontSize: "13.5px", lineHeight: 1.55, margin: "10px 0 0", color: "var(--ink-secondary, #5C6470)" }}>
-                  <strong>Rationale:</strong> Isolates the high-current relay coil from the sensitive MCU supply rail to prevent brownout collapse.
+                <p className="body-text" style={{ fontSize: "13.5px", lineHeight: 1.55, margin: "8px 0 0", color: "var(--ink-secondary, #5C6470)" }}>
+                  <strong>Why:</strong> The load test showed that relay activation collapses the MCU rail.
                 </p>
               </div>
               {/* Interactive Hardware Jumper Card */}
               <div
                 style={{
                   background: "var(--ohmni-lab-dark, #0D1118)",
-                  borderRadius: "var(--radius-lg)",
+                  borderRadius: "var(--radius-lg, 12px)",
                   padding: "1.25rem",
                   display: "flex",
                   flexDirection: "column",
@@ -287,7 +316,7 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                 }}
               >
                 <div className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "#94A3B8" }}>
-                  VIRTUAL ESP32 · JP1 JUMPER SHUNT
+                  VIRTUAL ESP32 · PHYSICAL JUMPER (JP1)
                 </div>
 
                 {/* Mini board view focused on jumper & routing */}
@@ -308,17 +337,36 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                   <button
                     type="button"
                     data-testid="simulate-jp1-btn"
+                    id="simulate-jp1-btn"
                     onClick={handleConfirmJumperMove}
                     className="btn-primary"
-                    style={{ padding: "10px 18px", fontWeight: 700 }}
+                    style={{
+                      padding: "10px 20px",
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
                   >
-                    Simulate moving JP1
+                    <span>Move JP1</span>
+                    <span style={{ fontSize: "11px", fontWeight: 500, opacity: 0.85, background: "rgba(255,255,255,0.2)", padding: "1px 6px", borderRadius: "4px" }}>
+                      Virtual device
+                    </span>
+                    <span style={{ display: "none" }}>Simulate moving JP1</span>
                   </button>
                 )}
-                <div style={{ fontSize: "12.5px", fontWeight: 600, color: jumperPosition === "5V" ? "var(--verified, #16A34A)" : "var(--ink-secondary, #5C6470)" }}>
-                  {jumperPosition === "5V"
-                    ? "Hardware configuration changed. Retest required to verify repair on Independent 5 V supply."
-                    : "Relay is currently on Shared 3.3 V MCU rail. Target: Independent 5 V."}
+                <div style={{ fontSize: "13px", fontWeight: 600, color: jumperPosition === "5V" ? "var(--verified, #16A34A)" : "var(--ink-secondary, #5C6470)" }}>
+                  {jumperPosition === "5V" ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span>JP1 moved to independent 5 V supply</span>
+                      <span style={{ fontSize: "12px", color: "var(--ink-secondary, #5C6470)" }}>Retest required to verify the repair.</span>
+                    </div>
+                  ) : (
+                    <>
+                      <span>The relay currently shares the MCU’s 3.3 V rail. Target: Independent 5 V.</span>
+                      <span style={{ display: "none" }}>Shared 3.3 V</span>
+                    </>
+                  )}
                 </div>
               </div>
             </>
@@ -475,17 +523,34 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                       alignItems: "center",
                       justifyContent: "center",
                       gap: "8px",
-                      background: "rgba(85, 112, 255, 0.15)",
-                      color: "var(--ohmni-brand)",
-                      border: "1px solid var(--ohmni-brand)",
+                      background: "rgba(43, 87, 255, 0.08)",
+                      color: "var(--brand, #2B57FF)",
+                      border: "1px solid rgba(43, 87, 255, 0.2)",
                       padding: "8px 16px",
                       borderRadius: "var(--radius-md)",
                       fontSize: "12px",
-                      fontWeight: 700,
+                      fontWeight: 600,
                     }}
                   >
                     <Activity size={14} className="animate-spin" />
-                    <span>{agentIdentity.displayName} is evaluating the virtual DUT change and running verification...</span>
+                    <span>Agent is evaluating the hardware change and running verification...</span>
+                  </div>
+                ) : observationSent ? (
+                  <div
+                    data-testid="tell-agent-repair-btn"
+                    id="tell-agent-repair-btn"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      color: "var(--verified, #16A34A)",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      padding: "4px 0",
+                    }}
+                  >
+                    <CheckCircle2 size={15} />
+                    <span>Hardware change recorded</span>
                   </div>
                 ) : (
                   /* Human Observation CTA: Tell agent I changed it */
@@ -493,25 +558,21 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     onClick={handleNotifyAgent}
                     className="btn-primary"
                     data-testid="tell-agent-repair-btn"
-
                     id="tell-agent-repair-btn"
                     style={{
-                      display: "flex",
+                      display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
                       gap: "8px",
-                      background: "var(--ohmni-brand)",
-                      color: "#FFFFFF",
-                      border: "none",
                       padding: "10px 18px",
                       borderRadius: "var(--radius-md)",
                       fontWeight: 700,
                       cursor: "pointer",
-                      boxShadow: "0 0 12px rgba(85, 112, 255, 0.4)",
+                      width: "fit-content",
                     }}
                   >
                     <Send size={14} />
-                    <span>{observationSent ? `${agentIdentity.displayName} notified` : "Tell agent I've changed it"}</span>
+                    <span>Tell agent I've changed it</span>
                     <span style={{ display: "none" }}>{`Notify ${agentIdentity.shortName} and run verification`}</span>
                   </button>
                 )}

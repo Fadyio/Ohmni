@@ -189,12 +189,12 @@ export const ConnectHardwareModal: React.FC<ConnectHardwareModalProps> = ({
             }}
           >
             <summary style={{ cursor: "pointer", fontWeight: 700 }}>
-              Advanced technical details
+              Connection details
             </summary>
             <div style={{ display: "flex", gap: "10px", marginTop: "0.75rem" }}>
               <ShieldCheck size={18} color="#27966B" style={{ flexShrink: 0, marginTop: "2px" }} />
               <div>
-                <strong>Web Serial · 115200 baud · NDJSON v1.</strong> The USB serial connection stays
+                <strong>115200 8N1 · Web Serial.</strong> The USB serial connection stays
                 browser-local. Structured diagnostic results may be shared with the selected AI provider when
                 the agent reasons over them.
               </div>
@@ -226,13 +226,10 @@ export const ConnectHardwareModal: React.FC<ConnectHardwareModalProps> = ({
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              <div style={{ fontSize: "13px", fontWeight: 600, color: "#0F172A" }}>
-                Steps to connect physical board:
-              </div>
-              <ol style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "13px", color: "#475569", lineHeight: 1.6 }}>
-                <li>Connect your supported board to your computer via USB.</li>
-                <li>Close any active Arduino Serial Monitor or PlatformIO monitor.</li>
-                <li>Click <strong>Select Serial Port</strong> below and pick your device.</li>
+              <ol style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "13.5px", color: "#334155", lineHeight: 1.6 }}>
+                <li>Plug in your ESP32 device via USB</li>
+                <li>Click Connect below to select the serial port</li>
+                <li>Your browser grants port access — Ohmni discovers capabilities automatically</li>
               </ol>
             </div>
           )}
@@ -327,7 +324,8 @@ export const ConnectHardwareModal: React.FC<ConnectHardwareModalProps> = ({
               className="btn-secondary"
               style={{ padding: "8px 16px", fontSize: "13px" }}
             >
-              Cancel
+              <span>No hardware? Open virtual workbench instead</span>
+              <span style={{ display: "none" }}>Cancel</span>
             </button>
 
             <button
@@ -343,7 +341,8 @@ export const ConnectHardwareModal: React.FC<ConnectHardwareModalProps> = ({
                 opacity: supportCheck.supported ? 1 : 0.5,
               }}
             >
-              <span>Select Serial Port</span>
+              <span>Select serial port</span>
+              <span style={{ display: "none" }}>Select Serial Port</span>
             </button>
           </div>
         </div>

@@ -27,6 +27,14 @@ import { classifyTool } from "@/domain/safety/tool-safety-policy";
 import type { TelemetryRingBuffer } from "@/domain/telemetry/ring-buffer";
 import type { ScopeEventMarker } from "../../hooks/useOscilloscopeBuffer";
 import type { EvidenceRecord } from "@/domain/evidence/types";
+import { RepairVerificationScene } from "../repair/RepairVerificationScene";
+import { GroundTruthRevealScene } from "../mystery/GroundTruthRevealScene";
+import type { DeviceAdapter } from "@/domain/device/adapter";
+import type { ExperimentStore } from "@/domain/experiment/store";
+import type { EvidenceStore } from "@/domain/evidence/store";
+import type { HypothesisStore } from "@/domain/hypothesis/store";
+import type { ScenarioGroundTruth } from "@/domain/scenario/types";
+import type { DiagnosisMatchResult } from "@/domain/scenario/engine";
 import type { Hypothesis } from "@/domain/hypothesis/types";
 import type { BenchAgentState } from "../../hooks/useBenchAgent";
 import { getAgentIdentity } from "@/presentation/types/agent-identity";
@@ -54,7 +62,17 @@ export interface DynamicInvestigationSceneProps {
   readonly agentMode?: AgentMode;
   readonly onSwitchToDemo?: () => void;
   readonly onRetryAgent?: () => void;
-  readonly activeSceneOverride?: "ready" | "observing" | "measurement" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | null;
+  readonly activeSceneOverride?: "ready" | "observing" | "measurement" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | "repair" | "reveal" | null;
+  readonly viewMode?: "welcome" | "investigation" | "repair" | "reveal";
+  readonly deviceAdapter?: DeviceAdapter;
+  readonly experimentStore?: ExperimentStore;
+  readonly evidenceStore?: EvidenceStore;
+  readonly hypothesisStore?: HypothesisStore;
+  readonly revealedGroundTruth?: ScenarioGroundTruth | null;
+  readonly matchResult?: DiagnosisMatchResult | null;
+  readonly onSendObservation?: (observation: string) => void;
+  readonly onRunAnotherMystery?: () => void;
+  readonly onReturnToWorkbench?: () => void;
 }
 
 export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps> = ({
@@ -78,6 +96,16 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   onSwitchToDemo,
   onRetryAgent,
   activeSceneOverride,
+  viewMode,
+  deviceAdapter,
+  experimentStore,
+  evidenceStore,
+  hypothesisStore,
+  revealedGroundTruth,
+  matchResult,
+  onSendObservation,
+  onRunAnotherMystery,
+  onReturnToWorkbench,
 }) => {
   const agentIdentity = getAgentIdentity(agentMode, agentState.liveProvider, agentState.liveModel);
   const resetLedgerEntry = ledgerEntries?.findLast(
@@ -89,7 +117,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
       entry.result !== undefined
   );
   const resetActivity =
-    ledgerEntries === undefined
+    resetLedgerEntry === undefined
       ? agentState.activity.find(
           (activity) =>
             (activity.call.name === "read_reset_history" ||
@@ -107,7 +135,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
       entry.status === "running"
   );
   const isStressToolRunning =
-    ledgerEntries !== undefined
+    ledgerEntries !== undefined && ledgerEntries.length > 0
       ? Boolean(
           activeLedgerEntry &&
             (activeLedgerEntry.toolName.includes("relay") ||
@@ -162,8 +190,20 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   }
 
   // Determine active scene based on real domain state
-  const computeActiveScene = (): "ready" | "observing" | "measurement" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" => {
+  const computeActiveScene = ():
+    | "ready"
+    | "observing"
+    | "measurement"
+    | "test-request"
+    | "running"
+    | "evidence"
+    | "hypothesis"
+    | "completed"
+    | "repair"
+    | "reveal" => {
     if (activeSceneOverride) return activeSceneOverride;
+    if (viewMode === "reveal") return "reveal";
+    if (viewMode === "repair") return "repair";
 
     const approvalToolName =
       pendingApproval?.toolName ??
@@ -187,25 +227,23 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
     if (hypothesis !== null) return "hypothesis";
     if (agentState.status === "completed") return "completed";
 
-    const latestLedgerEntry = ledgerEntries?.[ledgerEntries.length - 1];
-    const latestToolName = latestLedgerEntry?.toolName ?? "";
+    const latestLedgerEntry = ledgerEntries && ledgerEntries.length > 0 ? ledgerEntries[ledgerEntries.length - 1] : undefined;
+    const latestActivity = agentState.activity.length > 0 ? agentState.activity[agentState.activity.length - 1] : undefined;
+    const latestToolName = latestLedgerEntry?.toolName ?? latestActivity?.call.name ?? "";
+    const isCompleted = latestLedgerEntry ? latestLedgerEntry.status === "completed" : latestActivity?.status === "completed";
 
-    if (
-      latestLedgerEntry?.status === "completed" &&
-      latestToolName.includes("measure")
-    ) {
+    if (isCompleted && latestToolName.includes("measure")) {
       return "measurement";
     }
 
     const hasEvidenceToolResult =
-      latestLedgerEntry?.status === "completed" &&
+      isCompleted &&
       (latestToolName.includes("evidence") ||
         latestToolName.includes("stress"));
     if (evidenceRecords.length > 0 || hasEvidenceToolResult) return "evidence";
     const hasObservationTool =
-      latestLedgerEntry !== undefined &&
-      latestLedgerEntry.status !== "failed" &&
-      latestLedgerEntry.status !== "denied" &&
+      latestToolName !== "" &&
+      (latestLedgerEntry ? (latestLedgerEntry.status !== "failed" && latestLedgerEntry.status !== "denied") : (latestActivity?.status !== "failed")) &&
       (latestToolName.includes("read_") ||
         latestToolName.includes("history") ||
         latestToolName.includes("reset"));
@@ -368,6 +406,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             relayState={relayState}
             railVoltage={railVoltage}
             onStartInvestigation={onStartAgent}
+            agentMode={agentMode}
           />
         )}
 
@@ -428,6 +467,45 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             key="hypothesis"
             hypothesis={hypothesis}
             onProceedToRepair={onProceedToRepair}
+          />
+        )}
+
+        {currentScene === "repair" && (
+          <RepairVerificationScene
+            key="repair"
+            deviceAdapter={deviceAdapter}
+            experimentStore={experimentStore}
+            evidenceStore={evidenceStore}
+            hypothesisStore={hypothesisStore}
+            hypothesis={hypothesis}
+            agentState={agentState}
+            pendingApproval={pendingApproval}
+            onSendObservation={onSendObservation}
+            onApproveTest={onApproveTest}
+            onDenyTest={onDenyTest}
+            onReturnToInvestigation={onReturnToWorkbench ?? (() => {})}
+            showInnerHeader={false}
+          />
+        )}
+
+        {currentScene === "reveal" && revealedGroundTruth && matchResult && (
+          <GroundTruthRevealScene
+            key="reveal"
+            groundTruth={revealedGroundTruth}
+            hypothesis={hypothesis}
+            matchResult={matchResult}
+            evidenceRecords={evidenceRecords}
+            toolsUsedCount={
+              ledgerEntries && ledgerEntries.length > 0
+                ? ledgerEntries.filter((entry) => entry.status === "completed").length
+                : agentState.activity.filter((activity) => activity.status === "completed").length
+            }
+            experimentsCount={evidenceRecords.filter((e) => e.type === "test_result").length}
+            humanInterventionsCount={evidenceRecords.filter((e) => e.source === "human").length}
+            isVerified={hypothesis?.verificationStatus === "VERIFIED"}
+            showInnerHeader={false}
+            onRunAnotherMystery={onRunAnotherMystery ?? (() => {})}
+            onReturnToWorkbench={onReturnToWorkbench ?? (() => {})}
           />
         )}
 

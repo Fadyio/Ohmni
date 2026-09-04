@@ -20,6 +20,7 @@ export interface ReadySceneProps {
   readonly relayState?: "open" | "closed";
   readonly railVoltage?: number;
   readonly onStartInvestigation?: () => void;
+  readonly agentMode?: "demo" | "external" | "groq" | "cerebras";
 }
 
 export const ReadyScene: React.FC<ReadySceneProps> = ({
@@ -28,7 +29,10 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
   relayState = "open",
   railVoltage = 3.31,
   onStartInvestigation,
+  agentMode,
 }) => {
+  const isExternal = agentMode === "external";
+
   return (
     <motion.div
       data-scene="ready"
@@ -59,7 +63,7 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
               margin: 0,
             }}
           >
-            Hardware workbench ready
+            {isExternal ? "Ready for your agent" : (descriptor?.name ?? "ESP32-S3 Environmental Controller")}
           </h2>
           <p
             style={{
@@ -70,13 +74,15 @@ export const ReadyScene: React.FC<ReadySceneProps> = ({
               lineHeight: 1.5,
             }}
           >
-            {descriptor?.transport === "Web Serial"
+            {isExternal
+              ? "Ohmni has exposed this device’s available instruments through WebMCP."
+              : descriptor?.transport === "Web Serial"
               ? "Physical hardware connected via Web Serial. Your agent can now inspect this device using the instruments exposed by Ohmni."
               : "Your agent can now inspect this device using the instruments exposed by Ohmni."}
             <span style={{ display: "none" }}>{descriptor?.name ?? "ESP32-S3 Environmental Controller"}</span>
           </p>
         </div>
-        {onStartInvestigation && (
+        {!isExternal && onStartInvestigation && (
           <button
             type="button"
             data-testid="start-investigation-btn"

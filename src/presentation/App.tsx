@@ -33,9 +33,7 @@ import { VirtualDeviceAdapter } from "@/domain/device/virtual-adapter";
 
 import { WelcomeView } from "./components/welcome/WelcomeView";
 import { InvestigationStoryView } from "./components/investigation-story/InvestigationStoryView";
-import { RepairVerificationScene } from "./components/repair/RepairVerificationScene";
 import { MysteryIntroModal } from "./components/mystery/MysteryIntroModal";
-import { GroundTruthRevealScene } from "./components/mystery/GroundTruthRevealScene";
 import { DeveloperInspector } from "./components/inspector/DeveloperInspector";
 import { useDeviceState } from "./hooks/useDeviceState";
 import { useExperimentTimeline } from "./hooks/useExperimentTimeline";
@@ -725,10 +723,12 @@ export const App: React.FC<AppProps> = ({
 
       {/* Workbench View */}
       <div
+        id="workbench-view"
+        data-testid="workbench-view"
         style={{
           width: "100%",
           height: "100%",
-          display: viewMode === "welcome" || viewMode === "repair" || viewMode === "reveal" ? "none" : "flex",
+          display: viewMode === "welcome" ? "none" : "flex",
           flexDirection: "column",
           boxSizing: "border-box",
         }}
@@ -763,48 +763,18 @@ export const App: React.FC<AppProps> = ({
           labChromeRef={labChromeRef}
           labMainSceneRef={labMainSceneRef}
           agentRailRef={agentRailRef}
+          viewMode={viewMode}
+          deviceAdapter={activeAdapter}
+          experimentStore={experimentRunner?.getStore() ?? (typeof window !== "undefined" ? (window as any).__experimentStore : undefined)}
+          evidenceStore={resolvedEvidenceStore}
+          hypothesisStore={resolvedHypothesisStore}
+          revealedGroundTruth={revealedGroundTruth}
+          matchResult={matchResult}
+          onSendObservation={sendAgentObservation}
+          onRunAnotherMystery={handleRunAnotherMystery}
+          onReturnToWorkbench={() => setViewMode("investigation")}
         />
       </div>
-
-      {/* State 3: Human Intervention & Repair Verification */}
-      {viewMode === "repair" && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 50, boxSizing: "border-box" }}>
-          <RepairVerificationScene
-            deviceAdapter={activeAdapter}
-            evidenceStore={resolvedEvidenceStore}
-            hypothesisStore={resolvedHypothesisStore}
-            hypothesis={activeHypothesis}
-            agentState={presentedAgentState}
-            pendingApproval={pendingApproval}
-            onSendObservation={sendAgentObservation}
-            onApproveTest={approveTest}
-            onDenyTest={denyTest}
-            onReturnToInvestigation={() => setViewMode("investigation")}
-          />
-        </div>
-      )}
-
-      {/* State 4: Dedicated Ground Truth Reveal Payoff Scene */}
-      {viewMode === "reveal" && revealedGroundTruth && matchResult && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 60, overflowY: "auto", background: "var(--ohmni-lab-canvas, #F4F5F7)", boxSizing: "border-box" }}>
-          <GroundTruthRevealScene
-            groundTruth={revealedGroundTruth}
-            hypothesis={activeHypothesis}
-            matchResult={matchResult}
-            evidenceRecords={evidenceRecords}
-            toolsUsedCount={
-              ledgerEntries.length > 0
-                ? ledgerEntries.filter((entry) => entry.status === "completed").length
-                : presentedAgentState.activity.filter((activity) => activity.status === "completed").length
-            }
-            experimentsCount={evidenceRecords.filter((e) => e.type === "test_result").length}
-            humanInterventionsCount={evidenceRecords.filter((e) => e.source === "human").length}
-            isVerified={activeScenario?.isVerified ?? false}
-            onRunAnotherMystery={handleRunAnotherMystery}
-            onReturnToWorkbench={() => setViewMode("investigation")}
-          />
-        </div>
-      )}
 
       {/* Developer Inspector Drawer */}
       <DeveloperInspector
