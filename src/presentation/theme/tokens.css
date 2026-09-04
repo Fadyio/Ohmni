@@ -367,3 +367,31 @@ body {
     display: none !important;
   }
 }
+
+.workbench-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 70%) minmax(320px, 30%);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .workbench-main-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  #lab-main-scene {
+    height: auto !important;
+    overflow: visible !important;
+    flex: none !important;
+    padding: 1.25rem 1rem !important;
+  }
+  #lab-agent-rail {
+    height: auto !important;
+    min-height: 440px !important;
+    flex: none !important;
+  }
+}
+

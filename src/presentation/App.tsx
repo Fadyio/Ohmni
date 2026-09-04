@@ -302,6 +302,21 @@ export const App: React.FC<AppProps> = ({
     }
   }, [presentedAgentState]);
 
+  // In demo mode, auto-start after a perceptible ready state window (~750ms)
+  useEffect(() => {
+    if (
+      viewMode === "investigation" &&
+      agentMode === "demo" &&
+      presentedAgentState.status === "idle" &&
+      ledgerEntries.length === 0
+    ) {
+      const timer = window.setTimeout(() => {
+        startAgent();
+      }, 750);
+      return () => window.clearTimeout(timer);
+    }
+  }, [viewMode, agentMode, presentedAgentState.status, ledgerEntries.length, startAgent]);
+
   const approveTest = useCallback(() => {
     if (
       pendingApproval &&

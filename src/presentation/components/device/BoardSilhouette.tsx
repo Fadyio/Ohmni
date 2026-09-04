@@ -219,19 +219,6 @@ export const BoardSilhouette: React.FC<BoardSilhouetteProps> = ({
           strokeDasharray="4 4"
         />
 
-        {/* Board Title Silkscreen */}
-        <text
-          x="28"
-          y="32"
-          fill="rgba(148, 163, 184, 0.55)"
-          fontSize="8"
-          fontFamily="var(--font-mono)"
-          fontWeight="700"
-          letterSpacing="0.08em"
-        >
-          OHMNI LABS • ESP32-S3-ENV-CTL-V2 • REV B
-        </text>
-
         {/* =====================================================================
            COPPER TRACES & POWER BUS ROUTING
            ===================================================================== */}
@@ -412,49 +399,42 @@ export const BoardSilhouette: React.FC<BoardSilhouetteProps> = ({
           >
             Xtensa Dual-Core 240MHz
           </text>
-          <text
-            x="71"
-            y="110"
-            fill="#64748B"
-            fontSize="7.5"
-            fontFamily="var(--font-mono)"
-            textAnchor="middle"
-          >
-            16MB Flash • 8MB PSRAM
-          </text>
-
-          {/* Internal Brownout Detector (BOD) Circuit Silhouette */}
-          <rect
-            x="20"
-            y="122"
-            width="102"
-            height="24"
-            rx="4"
-            fill={isBrownout ? "rgba(220, 80, 80, 0.25)" : "rgba(15, 23, 42, 0.6)"}
-            stroke={isBrownout ? "var(--ohmni-lab-fault, #DC5050)" : "rgba(255, 255, 255, 0.12)"}
-            strokeWidth="1"
-          />
-          <text
-            x="71"
-            y="134"
-            fill={isBrownout ? "#FFA3A3" : "#CBD5E1"}
-            fontSize="7"
-            fontFamily="var(--font-mono)"
-            fontWeight="700"
-            textAnchor="middle"
-          >
-            {isBrownout ? "⚠ BOD TRIP (V < 2.80V)" : "BOD REG: 2.80V THRESHOLD"}
-          </text>
-          <text
-            x="71"
-            y="143"
-            fill={isBrownout ? "#FF6B6B" : "#64748B"}
-            fontSize="6"
-            fontFamily="var(--font-mono)"
-            textAnchor="middle"
-          >
-            {isBrownout ? "CPU RESET TRIGGERED" : "SUPPLY SUPERVISOR ACTIVE"}
-          </text>
+          {/* Internal Brownout Detector Fault Indicator (Rendered only on active fault) */}
+          {isBrownout && (
+            <>
+              <rect
+                x="20"
+                y="122"
+                width="102"
+                height="24"
+                rx="4"
+                fill="rgba(220, 80, 80, 0.25)"
+                stroke="var(--ohmni-lab-fault, #DC5050)"
+                strokeWidth="1"
+              />
+              <text
+                x="71"
+                y="134"
+                fill="#FFA3A3"
+                fontSize="7"
+                fontFamily="var(--font-mono)"
+                fontWeight="700"
+                textAnchor="middle"
+              >
+                ⚠ BROWNOUT TRIP (V &lt; 2.80V)
+              </text>
+              <text
+                x="71"
+                y="143"
+                fill="#FF6B6B"
+                fontSize="6"
+                fontFamily="var(--font-mono)"
+                textAnchor="middle"
+              >
+                CPU RESET TRIGGERED
+              </text>
+            </>
+          )}
         </g>
 
         {/* =====================================================================

@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from "react";
+import { motion } from "motion/react";
 import { AppHeader } from "../layout/AppHeader";
 import { DynamicInvestigationScene } from "./DynamicInvestigationScene";
 import { InvestigationNarrativeRail } from "./InvestigationNarrativeRail";
@@ -204,7 +205,10 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
     }
   })();
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       style={{
         width: "100%",
         maxWidth: "100%",
@@ -231,14 +235,13 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
         onOpenDevInspector={onOpenDevInspector}
         onToggleConnect={onToggleConnect}
       />
-      {/* Main 72% / 28% Workbench Layout */}
+      {/* Main 70% / 30% Workbench Layout */}
       <div
+        className="workbench-main-grid"
         style={{
           flex: 1,
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 27%)",
-          overflow: "hidden",
           minHeight: 0,
+          overflow: "hidden",
         }}
       >
         {/* Left 70%: Current Scene Canvas (Hardware, Scope, Evidence) */}
@@ -272,6 +275,7 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
             agentMode={agentMode}
             onSwitchToDemo={onSwitchToDemo}
             onRetryAgent={onRetryAgent}
+            onOpenDevInspector={onOpenDevInspector}
             activeSceneOverride={activeSceneOverride}
             viewMode={viewMode}
             deviceAdapter={deviceAdapter}
@@ -313,6 +317,6 @@ export const InvestigationStoryView: React.FC<InvestigationStoryViewProps> = ({
           />
         </aside>
       </div>
-    </div>
+    </motion.div>
   );
 };

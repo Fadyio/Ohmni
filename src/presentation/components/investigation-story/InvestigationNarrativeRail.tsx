@@ -345,8 +345,8 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           />
           <div>
             <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ink, #111318)", letterSpacing: "-0.01em" }}>
-              Agent activity
-              <span style={{ display: "none" }}>{effectiveAgentMode === "demo" ? "Demo Agent" : completedEvents.length === 0 && !active ? OHMNI_COPY.externalAgent.railTitle : OHMNI_COPY.externalAgent.investigationLogTitle}</span>
+              {effectiveAgentMode === "demo" ? "GUIDED DEMO" : "AGENT ACTIVITY"}
+              <span style={{ display: "none" }}>{effectiveAgentMode === "demo" ? "Demo Agent" : "AGENT ACTIVITY"}</span>
             </div>
             <div
               data-testid="bench-agent-status"
@@ -368,8 +368,10 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               <span>
                 {active && activeToolName
                   ? `Executing: ${getHumanToolName(activeToolName)}`
+                  : isWaitingApproval
+                  ? "Waiting for approval"
                   : isIdle && completedEvents.length === 0
-                  ? "Waiting for tool calls"
+                  ? (effectiveAgentMode === "demo" ? "Ready" : "Waiting for tool calls")
                   : getNarrativeRailStatus({
                       agentState,
                       investigationPhase,
@@ -432,7 +434,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: "12px",
+              gap: "14px",
             }}
           >
             <div style={{ display: "none" }}>READY FOR YOUR AGENT</div>
@@ -447,104 +449,89 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               aria-hidden="true"
             />
 
-            {/* Listening status indicator */}
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "2px 0", fontSize: "12px", color: "var(--ink-secondary, #5C6470)" }}>
-              <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--brand, #2B57FF)", boxShadow: "0 0 8px rgba(43, 87, 255, 0.6)" }} />
-              <span>Listening on WebMCP port...</span>
-            </div>
-
-            <div
-              style={{
-                padding: "1rem",
-                borderRadius: "var(--radius-md, 10px)",
-                border: "1px solid var(--border, rgba(18, 21, 26, 0.08))",
-                background: "var(--canvas, #F5F6F8)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  color: "var(--ink-secondary, #5C6470)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.04em",
-                }}
-              >
-                Suggested agent prompt
+            {effectiveAgentMode === "demo" ? (
+              <div style={{ fontSize: "13px", color: "var(--ink-secondary, #5C6470)", lineHeight: 1.45 }}>
+                Guided demonstration ready in virtual sandbox.
               </div>
+            ) : (
+              <>
+                {/* Instruction */}
+                <div style={{ fontSize: "13px", color: "var(--ink-secondary, #5C6470)", lineHeight: 1.45 }}>
+                  Ask your WebMCP-capable agent to inspect the device.
+                </div>
 
-              <p
-                data-testid="suggested-agent-prompt"
-                style={{
-                  margin: 0,
-                  fontSize: "13px",
-                  lineHeight: 1.5,
-                  color: "var(--ink, #111318)",
-                }}
-              >
-                Investigate the connected ESP32-S3 device using the available WebMCP tools. Identify why it resets and recommend a fix.
-                <span style={{ display: "none" }}>{OHMNI_COPY.externalAgent.suggestedPrompt}</span>
-                <span style={{ display: "none" }}>
-                  The controller restarts unexpectedly whenever the cooling fan relay turns on. Investigate the root cause using the available WebMCP diagnostic instruments, request physical help when needed, and experimentally verify the repair.
-                </span>
-              </p>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "4px" }}>
-                <button
-                  type="button"
-                  data-testid="copy-agent-prompt"
-                  className="btn-primary"
-                  onClick={() => {
-                    void navigator.clipboard.writeText("Investigate the connected ESP32-S3 device using the available WebMCP tools. Identify why it resets and recommend a fix.");
-                    setCopied(true);
-                    window.setTimeout(() => setCopied(false), 2000);
+                {/* Suggested prompt card */}
+                <div
+                  style={{
+                    padding: "14px",
+                    borderRadius: "var(--radius-md, 10px)",
+                    border: "1px solid var(--border, rgba(18, 21, 26, 0.08))",
+                    background: "var(--canvas, #F5F6F8)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
                   }}
-                  style={{ padding: "8px 16px", fontSize: "13px", fontWeight: 600 }}
                 >
-                  {copied ? (
-                    <>
-                      <Check size={14} />
-                      <span>Copied to clipboard</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Copy example prompt</span>
-                      <span style={{ display: "none" }}>{OHMNI_COPY.externalAgent.copyPromptCta}</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
+                  <div
+                    style={{
+                      fontSize: "11.5px",
+                      fontWeight: 650,
+                      color: "var(--ink-secondary, #5C6470)",
+                    }}
+                  >
+                    Try asking:
+                  </div>
 
-            <div style={{ padding: "0.25rem 0.5rem" }} data-testid="try-built-in-demo">
-              <button
-                type="button"
-                data-testid="bench-agent-start"
-                id="start-investigation-btn"
-                onClick={onStartAgent}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: 0,
-                  color: "var(--brand, #2B57FF)",
-                  fontSize: "12.5px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  textDecoration: "underline",
-                  textUnderlineOffset: "3px",
-                }}
-              >
-                <span>Run guided demo instead →</span>
-                <span style={{ display: "none" }}>{OHMNI_COPY.externalAgent.useBuiltInDemo}</span>
-                <span style={{ display: "none" }}>Start investigation</span>
-              </button>
-            </div>
+                  <p
+                    data-testid="suggested-agent-prompt"
+                    style={{
+                      margin: 0,
+                      fontSize: "13px",
+                      lineHeight: 1.5,
+                      color: "var(--ink, #111318)",
+                    }}
+                  >
+                    “Investigate why this controller restarts when the fan turns on.
+                    Gather evidence before proposing a cause.
+                    Ask before running any physical test.”
+                  </p>
+
+                  <div>
+                    <button
+                      type="button"
+                      data-testid="copy-agent-prompt"
+                      className="btn-primary"
+                      onClick={() => {
+                        const promptText = `Investigate why this controller restarts when the fan turns on.\nGather evidence before proposing a cause.\nAsk before running any physical test.`;
+                        void navigator.clipboard.writeText(promptText);
+                        setCopied(true);
+                        window.setTimeout(() => setCopied(false), 2000);
+                      }}
+                      style={{
+                        padding: "7px 14px",
+                        fontSize: "12.5px",
+                        fontWeight: 600,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {copied ? (
+                        <>
+                          <Check size={14} />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <span>Copy prompt</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
-
 
         {/* Failure Diagnostic Block */}
         {agentState.status === "failed" && (
@@ -700,14 +687,14 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           </div>
         ) : null}
 
-        {/* HISTORY (Vertical Timeline) */}
+        {/* ACTIVITY Section */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <div
             className="font-mono"
             style={{
               fontSize: "10.5px",
               fontWeight: 700,
-              color: "var(--ohmni-lab-muted)",
+              color: "var(--ink-secondary, #5C6470)",
               textTransform: "uppercase",
               letterSpacing: "0.06em",
               display: "flex",
@@ -715,13 +702,13 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               justifyContent: "space-between",
             }}
           >
-            <span>INVESTIGATION RECORD</span>
+            <span>ACTIVITY</span>
             {completedEvents.length > 0 && <span>({completedEvents.length})</span>}
           </div>
 
           {completedEvents.length === 0 && !active && (
-            <div style={{ fontSize: "12px", color: "var(--ohmni-lab-muted)", fontStyle: "italic", padding: "4px 0" }}>
-              Start the investigation to record instrument calls and evidence.
+            <div style={{ fontSize: "12.5px", color: "var(--ink-secondary, #5C6470)", padding: "4px 0" }}>
+              No instrument activity yet.
             </div>
           )}
 

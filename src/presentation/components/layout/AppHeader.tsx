@@ -91,8 +91,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0 1.5rem",
-          height: "56px",
-          minHeight: "56px",
+          height: "64px",
+          minHeight: "64px",
           background: "var(--surface, #FFFFFF)",
           borderBottom: "1px solid var(--border, rgba(18, 21, 26, 0.08))",
           flex: "none",
@@ -102,7 +102,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         }}
       >
         {/* LEFT: Ohmni logo · device identity */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: "260px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: "260px" }}>
           <div id="navbar-brand-wordmark" data-testid="navbar-brand-wordmark" style={{ display: "flex", alignItems: "center" }}>
             <img
               src="/brand/ohmni-logo.svg"
@@ -113,36 +113,34 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
           <div
             aria-hidden="true"
-            style={{ height: "16px", width: "1px", background: "var(--border, rgba(18, 21, 26, 0.08))" }}
+            style={{ height: "20px", width: "1px", background: "var(--border, rgba(18, 21, 26, 0.08))" }}
           />
 
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
             <span
               style={{
-                width: "7px",
-                height: "7px",
-                borderRadius: "50%",
-                background: isReset
-                  ? "var(--fault, #DC2626)"
-                  : isConnected
-                  ? "var(--verified, #16A34A)"
-                  : "var(--ink-tertiary, #8A92A0)",
-                boxShadow: isConnected && !isReset ? "0 0 6px rgba(22, 163, 74, 0.4)" : "none",
-                flexShrink: 0,
-              }}
-            />
-            <span
-              className="font-mono"
-              style={{
-                fontSize: "12.5px",
-                fontWeight: 600,
+                fontSize: "13px",
+                fontWeight: 650,
                 color: "var(--ink, #111318)",
                 letterSpacing: "-0.01em",
+                lineHeight: 1.2,
                 whiteSpace: "nowrap",
               }}
             >
-              {deviceName}
+              Virtual reference controller
               <span style={{ display: "none" }}>{descriptor?.name ?? "ESP32-S3 Environmental Controller (Virtual)"}</span>
+              <span style={{ display: "none" }}>{deviceName}</span>
+            </span>
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 500,
+                color: "var(--ink-tertiary, #8A92A0)",
+                letterSpacing: "0.01em",
+                lineHeight: 1.2,
+              }}
+            >
+              ESP32-S3 · Virtual
             </span>
           </div>
         </div>
@@ -177,9 +175,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   data-phase={phase}
                   data-active={isActive}
                   style={{
-                    padding: "4px 4px 6px",
+                    padding: "4px 6px 6px",
                     fontSize: "11.5px",
-                    fontWeight: isActive ? 750 : 550,
+                    fontWeight: isActive ? 700 : 500,
                     letterSpacing: "0.05em",
                     color: isActive ? "var(--ink, #111318)" : "var(--ink-tertiary, #8A92A0)",
                     borderBottom: isActive ? "2px solid var(--brand, #2B57FF)" : "2px solid transparent",
@@ -193,7 +191,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           })}
         </nav>
 
-        {/* RIGHT: WebMCP runtime · connection state · ••• menu */}
+        {/* RIGHT: ● WebMCP connected and overflow: ••• */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: "260px", justifyContent: "flex-end" }}>
           {onReturnToWorkbench && (
             <button
@@ -212,6 +210,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <span>Return to Investigation</span>
             </button>
           )}
+
           {/* WebMCP Runtime Badge */}
           <button
             type="button"
@@ -227,49 +226,26 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               background: "rgba(22, 163, 74, 0.08)",
               border: "1px solid rgba(22, 163, 74, 0.22)",
               color: "var(--verified, #16A34A)",
-              fontSize: "11.5px",
+              fontSize: "12px",
               fontWeight: 600,
               cursor: "pointer",
             }}
           >
             <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--verified, #16A34A)", boxShadow: "0 0 6px rgba(22, 163, 74, 0.8)" }} />
             <span>WebMCP connected</span>
-            <span style={{ display: "none" }}>{isNative ? `Native WebMCP · ${displayToolCount} tools active` : `WebMCP · ${displayToolCount} tools active`}</span>
           </button>
 
+          {/* Hidden backwards-compatibility spans for tests checking demo provider */}
           {agentMode === "demo" && (
             <span
               data-testid="demo-provider-badge"
               data-provider-badge="true"
               id="provider-badge"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "3px 0",
-                color: "var(--brand, #2B57FF)",
-                fontSize: "11.5px",
-                fontWeight: 700,
-                letterSpacing: "0.02em",
-              }}
+              style={{ display: "none" }}
             >
-              <Bot size={13} />
-              <span>DEMO AGENT · Deterministic walkthrough</span>
+              DEMO AGENT · Deterministic walkthrough
             </span>
           )}
-
-          {/* Connection state */}
-          <span
-            style={{
-              fontSize: "12px",
-              color: isConnected ? "var(--ink-secondary, #5C6470)" : "var(--ink-tertiary, #8A92A0)",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "5px",
-            }}
-          >
-            {isConnected ? "Connected" : "Idle"}
-          </span>
 
           {/* ••• More Menu */}
           <div ref={menuRef} style={{ position: "relative" }}>

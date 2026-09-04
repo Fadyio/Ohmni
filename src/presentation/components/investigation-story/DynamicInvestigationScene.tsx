@@ -62,6 +62,7 @@ export interface DynamicInvestigationSceneProps {
   readonly agentMode?: AgentMode;
   readonly onSwitchToDemo?: () => void;
   readonly onRetryAgent?: () => void;
+  readonly onOpenDevInspector?: () => void;
   readonly activeSceneOverride?: "ready" | "observing" | "measurement" | "test-request" | "running" | "evidence" | "hypothesis" | "completed" | "repair" | "reveal" | null;
   readonly viewMode?: "welcome" | "investigation" | "repair" | "reveal";
   readonly deviceAdapter?: DeviceAdapter;
@@ -95,6 +96,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
   agentMode = "external",
   onSwitchToDemo,
   onRetryAgent,
+  onOpenDevInspector,
   activeSceneOverride,
   viewMode,
   deviceAdapter,
@@ -406,6 +408,7 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
             relayState={relayState}
             railVoltage={railVoltage}
             onStartInvestigation={onStartAgent}
+            onOpenDevInspector={onOpenDevInspector}
             agentMode={agentMode}
           />
         )}

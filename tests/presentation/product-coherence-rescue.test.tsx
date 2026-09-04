@@ -171,23 +171,22 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
   });
 
   describe("3. Deterministic Walkthrough & ReadyScene Handoff", () => {
-    it("ReadyScene renders target hardware info and Start investigation CTA", () => {
+    it("ReadyScene renders target hardware info and truthful unmeasured baseline state", () => {
       const html = renderToString(
         <ReadyScene
           isConnected={true}
           relayState="open"
-          railVoltage={3.31}
-          onStartInvestigation={() => undefined}
         />
       );
 
       expect(html).toContain('data-scene="ready"');
-      expect(html).toContain("ESP32-S3 Environmental Controller");
+      expect(html).toContain("Virtual reference controller");
       expect(html).not.toContain("Agent: Ready.");
-      expect(html).toContain('id="start-investigation-btn"');
-      expect(html).toContain("Start investigation");
-      expect(html).toContain("3.31");
-      expect(html).toContain("V supply");
+      expect(html).not.toContain('id="start-investigation-btn"');
+      expect(html).not.toContain("Start investigation");
+      expect(html).toContain("Not measured");
+      expect(html).toContain("Not inspected");
+      expect(html).toContain("Open");
     });
 
     it("MysteryIntroModal provides dialog role, aria-modal, title, and Begin button", () => {
