@@ -23,7 +23,7 @@ This document provides step-by-step instructions for testing Ohmni directly thro
 - Verify that the page loads cleanly with:
   - Header: `ESP32-S3 Environmental Controller (Virtual)`
 - Badge: `Native WebMCP` (or `Browser compatibility mode` if WebMCP flags are unconfigured)
-  - Badge: `Groq Live` or `Demo Agent`
+  - Badge: `External Agent` or `Demo Agent`
 
 ---
 

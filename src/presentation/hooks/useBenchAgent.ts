@@ -1,8 +1,4 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import {
-  HttpBenchAgentProvider,
-  fetchBenchAgentAvailability,
-} from "@/infrastructure/bench-agent/http-provider";
 import { DeterministicBenchAgentProvider } from "@/infrastructure/bench-agent/deterministic-provider";
 import { runBenchAgent } from "@/infrastructure/bench-agent/run-bench-agent";
 import type {
@@ -13,6 +9,7 @@ import type {
   BenchAgentRunResult,
 } from "@/infrastructure/bench-agent/types";
 import type { RegisteredTool } from "@/infrastructure/webmcp/types";
+
 export type BenchAgentActivityStatus =
   | "requested"
   | "waiting-approval"
@@ -104,6 +101,7 @@ export type BenchAgentProviderStatus =
   | "error"
   | "demo"
   | "external";
+
 interface BenchAgentStateBase {
   readonly agentMode?: AgentMode;
   readonly liveProvider?: string;
@@ -114,6 +112,7 @@ interface BenchAgentStateBase {
   readonly providerAvailable: boolean;
   readonly providerStatus: BenchAgentProviderStatus;
 }
+
 export type BenchAgentState =
   | (BenchAgentStateBase & {
       readonly status: "idle";
@@ -182,11 +181,11 @@ interface PendingApproval {
 
 const initialState: BenchAgentState = {
   status: "idle",
-  checkingAvailability: true,
+  checkingAvailability: false,
   goal: "",
   activity: [],
-  providerAvailable: false,
-  providerStatus: "unconfigured",
+  providerAvailable: true,
+  providerStatus: "external",
 };
 
 function updateActivity(
@@ -254,16 +253,8 @@ function resultState(
   current: BenchAgentState,
   result: BenchAgentRunResult,
 ): BenchAgentState {
-  const isSuccess = result.status === "completed" || result.status === "stopped" || result.status === "step-limit";
   const isDemo = current.agentMode === "demo";
-  const nextProviderStatus: BenchAgentProviderStatus =
-    isDemo
-      ? "demo"
-      : result.status === "failed"
-      ? "error"
-      : isSuccess && result.steps > 0
-      ? "live"
-      : current.providerStatus;
+  const nextProviderStatus: BenchAgentProviderStatus = isDemo ? "demo" : "external";
 
   const common = {
     agentMode: current.agentMode,
@@ -272,7 +263,7 @@ function resultState(
     goal: current.goal,
     runGoal: current.runGoal,
     activity: current.activity,
-    providerAvailable: isDemo ? true : result.status !== "failed",
+    providerAvailable: true,
     providerStatus: nextProviderStatus,
     steps: result.steps,
   };
@@ -312,7 +303,6 @@ export function useBenchAgent(
       ? (() => {
           const p = new URLSearchParams(window.location.search).get("agent");
           if (p === "demo") return "demo";
-          if (p === "groq") return "groq";
           return "external";
         })()
       : "external");
@@ -321,20 +311,14 @@ export function useBenchAgent(
   const agentModeRef = useRef<AgentMode>(resolvedInitialMode);
   agentModeRef.current = agentMode;
 
-  const httpProvider = useMemo(() => new HttpBenchAgentProvider(), []);
   const demoProvider = useMemo(() => new DeterministicBenchAgentProvider(), []);
 
   const [state, setReactState] = useState<BenchAgentState>(() => ({
     ...initialState,
     agentMode: resolvedInitialMode,
-    checkingAvailability: resolvedInitialMode === "groq",
-    providerAvailable: resolvedInitialMode !== "groq",
-    providerStatus:
-      resolvedInitialMode === "demo"
-        ? "demo"
-        : resolvedInitialMode === "external"
-        ? "external"
-        : "unconfigured",
+    checkingAvailability: false,
+    providerAvailable: true,
+    providerStatus: resolvedInitialMode === "demo" ? "demo" : "external",
   }));
   const stateRef = useRef<BenchAgentState>(state);
   const mountedRef = useRef(true);
@@ -355,95 +339,21 @@ export function useBenchAgent(
     }
   }, []);
 
-  const checkAvailability = useCallback(async () => {
-    if (agentModeRef.current === "external") {
-      commit({
-        status: "idle",
-        checkingAvailability: false,
-        agentMode: "external",
-        goal: stateRef.current.goal,
-        activity: stateRef.current.activity,
-        providerAvailable: true,
-        providerStatus: "external",
-      });
-      return;
-    }
-
-    if (agentModeRef.current === "demo") {
-      commit({
-        status: "idle",
-        checkingAvailability: false,
-        agentMode: "demo",
-        goal: stateRef.current.goal,
-        activity: stateRef.current.activity,
-        providerAvailable: true,
-        providerStatus: "demo",
-      });
-      return;
-    }
-
-    try {
-      const availability = await fetchBenchAgentAvailability();
-      if (!mountedRef.current) return;
-      const previous = stateRef.current;
-      const detectedProvider = (availability.provider || "groq") as "groq" | "demo";
-      const detectedModel = availability.model;
-      if (availability.available) {
-        commit({
-          status: "idle",
-          checkingAvailability: false,
-          agentMode: previous.agentMode ?? detectedProvider,
-          liveProvider: detectedProvider,
-          liveModel: detectedModel,
-          goal: previous.goal,
-          activity: [],
-          providerAvailable: true,
-          providerStatus: previous.providerStatus === "live" ? "live" : "configured",
-        });
-        return;
-      }
-      commit({
-        status: "unavailable",
-        agentMode: previous.agentMode ?? (detectedProvider === "demo" ? "demo" : "groq"),
-        liveProvider: detectedProvider,
-        liveModel: detectedModel,
-        goal: previous.goal,
-        activity: [],
-        providerAvailable: false,
-        providerStatus: "error",
-        message: "Groq API quota is currently unavailable or unconfigured on server.",
-      });
-    } catch (error: unknown) {
-      if (!mountedRef.current) return;
-      const previous = stateRef.current;
-      const requestId =
-        typeof (error as { requestId?: unknown })?.requestId === "string"
-          ? (error as { requestId: string }).requestId
-          : undefined;
-        const fallbackProvider = "groq";
-        commit({
-          status: "failed",
-          agentMode: previous.agentMode ?? fallbackProvider,
-          liveProvider: previous.liveProvider ?? fallbackProvider,
-          liveModel: previous.liveModel,
-        goal: previous.goal,
-        activity: [],
-        providerAvailable: false,
-        providerStatus: "error",
-        steps: 0,
-        requestId,
-        message:
-          error instanceof Error && error.message.trim().length > 0
-            ? error.message
-            : "Live AI quota is currently unavailable.",
-      });
-    }
+  const checkAvailability = useCallback(() => {
+    const isDemo = agentModeRef.current === "demo";
+    commit({
+      status: "idle",
+      checkingAvailability: false,
+      agentMode: isDemo ? "demo" : "external",
+      goal: stateRef.current.goal,
+      activity: stateRef.current.activity,
+      providerAvailable: true,
+      providerStatus: isDemo ? "demo" : "external",
+    });
   }, [commit]);
 
   useEffect(() => {
-    if (agentMode === "groq") {
-      void checkAvailability();
-    } else if (agentMode === "demo") {
+    if (agentMode === "demo") {
       commit({
         status: "idle",
         checkingAvailability: false,
@@ -464,7 +374,7 @@ export function useBenchAgent(
         providerStatus: "external",
       });
     }
-  }, [agentMode, checkAvailability, commit]);
+  }, [agentMode, commit]);
 
   const setAgentMode = useCallback(
     (mode: AgentMode) => {
@@ -478,38 +388,15 @@ export function useBenchAgent(
       setAgentModeState(mode);
       agentModeRef.current = mode;
 
-      if (mode === "demo") {
-        commit({
-          status: "idle",
-          checkingAvailability: false,
-          agentMode: "demo",
-          goal: stateRef.current.goal,
-          activity: [],
-          providerAvailable: true,
-          providerStatus: "demo",
-        });
-      } else if (mode === "external") {
-        commit({
-          status: "idle",
-          checkingAvailability: false,
-          agentMode: "external",
-          goal: stateRef.current.goal,
-          activity: [],
-          providerAvailable: true,
-          providerStatus: "external",
-        });
-      } else {
-        commit({
-          status: "idle",
-          checkingAvailability: true,
-          agentMode: "groq",
-          liveProvider: "groq",
-          goal: stateRef.current.goal,
-          activity: [],
-          providerAvailable: false,
-          providerStatus: "unconfigured",
-        });
-      }
+      commit({
+        status: "idle",
+        checkingAvailability: false,
+        agentMode: mode,
+        goal: stateRef.current.goal,
+        activity: [],
+        providerAvailable: true,
+        providerStatus: mode === "demo" ? "demo" : "external",
+      });
     },
     [commit, demoProvider]
   );
@@ -525,19 +412,12 @@ export function useBenchAgent(
     const currentMode = agentModeRef.current;
     commit({
       status: "idle",
-      checkingAvailability: currentMode === "groq",
+      checkingAvailability: false,
       agentMode: currentMode,
-      liveProvider: stateRef.current.liveProvider,
-      liveModel: stateRef.current.liveModel,
       goal: "",
       activity: [],
-      providerAvailable: currentMode !== "groq" ? true : stateRef.current.providerAvailable,
-      providerStatus:
-        currentMode === "demo"
-          ? "demo"
-          : currentMode === "external"
-          ? "external"
-          : stateRef.current.providerStatus,
+      providerAvailable: true,
+      providerStatus: currentMode === "demo" ? "demo" : "external",
     });
   }, [commit, demoProvider]);
 
@@ -604,22 +484,20 @@ export function useBenchAgent(
       previous.goal.trim() ||
       "The controller restarts when the fan turns on. Investigate the cause using the available instruments.";
     if (agentModeRef.current === "external") {
-      setAgentModeState("groq");
-      agentModeRef.current = "groq";
+      setAgentModeState("demo");
+      agentModeRef.current = "demo";
     }
     if (!goal || isActive(previous)) return;
     const modelContext = window.__agentModelContext ?? document.modelContext;
 
-    const isDemo = agentModeRef.current === "demo";
-
     if (!modelContext) {
       commit({
         status: "failed",
-        agentMode: previous.agentMode,
+        agentMode: "demo",
         goal: previous.goal,
         activity: [],
         providerAvailable: true,
-        providerStatus: previous.providerStatus,
+        providerStatus: "demo",
         steps: 0,
         message: "WebMCP model context is unavailable.",
       });
@@ -633,12 +511,12 @@ export function useBenchAgent(
 
     commit({
       status: "investigating",
-      agentMode: previous.agentMode,
+      agentMode: "demo",
       goal,
       runGoal: goal,
       activity: [],
       providerAvailable: true,
-      providerStatus: isDemo ? "demo" : previous.providerStatus === "live" ? "live" : "configured",
+      providerStatus: "demo",
       steps: 0,
     });
     const onEvent = (event: BenchAgentEvent) => {
@@ -649,12 +527,12 @@ export function useBenchAgent(
       if (event.type === "approval-requested") {
         commit({
           status: "approval",
-          agentMode: current.agentMode,
+          agentMode: "demo",
           goal: current.goal,
           runGoal: current.runGoal,
           activity,
           providerAvailable: true,
-          providerStatus: isDemo ? "demo" : "live",
+          providerStatus: "demo",
           steps: stepCount(activity),
           approval: { call: event.call, tool: event.tool },
         });
@@ -664,8 +542,8 @@ export function useBenchAgent(
         ...current,
         status: "investigating",
         activity,
-        agentMode: current.agentMode,
-        providerStatus: isDemo ? "demo" : "live",
+        agentMode: "demo",
+        providerStatus: "demo",
         steps: stepCount(activity),
       });
     };
@@ -675,11 +553,11 @@ export function useBenchAgent(
     void runBenchAgent({
       goal,
       modelContext,
-      provider: agentModeRef.current === "demo" ? demoProvider : httpProvider,
+      provider: demoProvider,
       signal: controller.signal,
       onEvent,
       approvalHandledByModelContext,
-      agentMode: isDemo ? "demo" : "groq",
+      agentMode: "demo",
       requestApproval: ({ call, tool }) => {
         if (activeRunIdRef.current !== runId || controller.signal.aborted) {
           return Promise.resolve(false);
@@ -693,12 +571,12 @@ export function useBenchAgent(
           const current = stateRef.current;
           commit({
             status: "approval",
-            agentMode: current.agentMode,
+            agentMode: "demo",
             goal: current.goal,
             runGoal: current.runGoal,
             activity: current.activity,
             providerAvailable: true,
-            providerStatus: isDemo ? "demo" : "live",
+            providerStatus: "demo",
             steps: stepCount(current.activity),
             approval: { call, tool },
           });
@@ -727,36 +605,29 @@ export function useBenchAgent(
         if (controller.signal.aborted) {
           commit({
             status: "stopped",
-            agentMode: current.agentMode,
+            agentMode: "demo",
             goal: current.goal,
             runGoal: current.runGoal,
             activity: current.activity,
             providerAvailable: true,
-            providerStatus: current.providerStatus,
+            providerStatus: "demo",
             steps: stepCount(current.activity),
           });
           return;
         }
-        const reqId =
-          typeof (error as { requestId?: unknown })?.requestId === "string"
-            ? (error as { requestId: string }).requestId
-            : undefined;
         commit({
           status: "failed",
-          agentMode: stateRef.current.agentMode,
+          agentMode: "demo",
           goal: current.goal,
           runGoal: current.runGoal,
           activity: current.activity,
-          // A failed turn does not mean the configured provider disappeared.
-          // Keep recovery actions and human-observation continuations enabled.
           providerAvailable: true,
-          providerStatus: isDemo ? "demo" : "error",
+          providerStatus: "demo",
           steps: stepCount(current.activity),
-          requestId: reqId,
           message: error instanceof Error ? error.message : "Bench Agent failed.",
         });
       });
-  }, [approvalHandledByModelContext, commit, demoProvider, httpProvider]);
+  }, [approvalHandledByModelContext, commit, demoProvider]);
 
   const sendObservation = useCallback(
     (observation: string) => {
@@ -777,9 +648,6 @@ export function useBenchAgent(
       }
       const modelContext = window.__agentModelContext ?? document.modelContext;
 
-
-      // A human-confirmed intervention supersedes any trailing diagnostic turn.
-      // Abort it before starting the self-contained verification phase.
       if (isActive(previous)) {
         controllerRef.current?.abort();
         controllerRef.current = null;
@@ -788,16 +656,14 @@ export function useBenchAgent(
         pending?.resolve(false);
       }
 
-      const isDemo = agentModeRef.current === "demo";
-
       if (!modelContext) {
         commit({
           status: "failed",
-          agentMode: previous.agentMode,
+          agentMode: "demo",
           goal: previous.goal,
           activity: previous.activity,
           providerAvailable: true,
-          providerStatus: previous.providerStatus,
+          providerStatus: "demo",
           steps: stepCount(previous.activity),
           message: "WebMCP model context is unavailable.",
         });
@@ -811,12 +677,12 @@ export function useBenchAgent(
 
       commit({
         status: "investigating",
-        agentMode: previous.agentMode,
+        agentMode: "demo",
         goal: previous.goal,
         runGoal: trimmed,
         activity: previous.activity,
         providerAvailable: true,
-        providerStatus: isDemo ? "demo" : previous.providerStatus === "live" ? "live" : "configured",
+        providerStatus: "demo",
         steps: stepCount(previous.activity),
       });
       const onEvent = (event: BenchAgentEvent) => {
@@ -827,12 +693,12 @@ export function useBenchAgent(
         if (event.type === "approval-requested") {
           commit({
             status: "approval",
-            agentMode: current.agentMode,
+            agentMode: "demo",
             goal: current.goal,
             runGoal: current.runGoal,
             activity,
             providerAvailable: true,
-            providerStatus: isDemo ? "demo" : "live",
+            providerStatus: "demo",
             steps: stepCount(activity),
             approval: { call: event.call, tool: event.tool },
           });
@@ -842,15 +708,12 @@ export function useBenchAgent(
           ...current,
           status: "investigating",
           activity,
-          agentMode: current.agentMode,
-          providerStatus: isDemo ? "demo" : "live",
+          agentMode: "demo",
+          providerStatus: "demo",
           steps: stepCount(activity),
         });
       };
 
-      // Human intervention starts a self-contained verification phase. The
-      // observation names the target hypothesis, so prior diagnostic turns do
-      // not need to be resent through the provider's short token window.
       const continuationHistory: AgentTranscriptItem[] = [
         { role: "user" as const, content: trimmed },
       ];
@@ -860,11 +723,11 @@ export function useBenchAgent(
         goal: trimmed,
         initialHistory: continuationHistory,
         modelContext,
-        provider: agentModeRef.current === "demo" ? demoProvider : httpProvider,
+        provider: demoProvider,
         signal: controller.signal,
         onEvent,
         approvalHandledByModelContext,
-        agentMode: isDemo ? "demo" : "groq",
+        agentMode: "demo",
         requestApproval: ({ call, tool }) => {
           if (activeRunIdRef.current !== runId || controller.signal.aborted) {
             return Promise.resolve(false);
@@ -878,12 +741,12 @@ export function useBenchAgent(
             const current = stateRef.current;
             commit({
               status: "approval",
-              agentMode: current.agentMode,
+              agentMode: "demo",
               goal: current.goal,
               runGoal: current.runGoal,
               activity: current.activity,
               providerAvailable: true,
-              providerStatus: isDemo ? "demo" : "live",
+              providerStatus: "demo",
               steps: stepCount(current.activity),
               approval: { call, tool },
             });
@@ -912,36 +775,30 @@ export function useBenchAgent(
           if (controller.signal.aborted) {
             commit({
               status: "stopped",
-              agentMode: current.agentMode,
+              agentMode: "demo",
               goal: current.goal,
               runGoal: current.runGoal,
               activity: current.activity,
               providerAvailable: true,
-              providerStatus: current.providerStatus,
+              providerStatus: "demo",
               steps: stepCount(current.activity),
             });
             return;
           }
-          const reqId =
-            typeof (error as { requestId?: unknown })?.requestId === "string"
-              ? (error as { requestId: string }).requestId
-              : undefined;
           commit({
             status: "failed",
-            agentMode: stateRef.current.agentMode,
+            agentMode: "demo",
             goal: current.goal,
             runGoal: current.runGoal,
             activity: current.activity,
-            // Preserve retryability after transient live-provider failures.
             providerAvailable: true,
-            providerStatus: isDemo ? "demo" : "error",
+            providerStatus: "demo",
             steps: stepCount(current.activity),
-            requestId: reqId,
             message: error instanceof Error ? error.message : "Bench Agent failed.",
           });
         });
     },
-    [approvalHandledByModelContext, commit, demoProvider, httpProvider]
+    [approvalHandledByModelContext, commit, demoProvider]
   );
 
   useEffect(() => {
@@ -965,10 +822,9 @@ export function useBenchAgent(
 
   const providerLabel = useMemo(() => {
     if (agentMode === "demo") return "DEMO AGENT";
-    if (agentMode === "external") return "EXTERNAL AGENT";
-    const p = state.liveProvider ?? "groq";
-    return p.toUpperCase();
-  }, [agentMode, state.liveProvider]);
+    return "EXTERNAL AGENT";
+  }, [agentMode]);
+
   return {
     state,
     agentMode,

@@ -20,7 +20,7 @@ export interface ReadySceneProps {
   readonly relayState?: "open" | "closed";
   readonly railVoltage?: number;
   readonly onStartInvestigation?: () => void;
-  readonly agentMode?: "demo" | "external" | "groq" | "cerebras";
+  readonly agentMode?: "demo" | "external";
 }
 
 export const ReadyScene: React.FC<ReadySceneProps> = ({

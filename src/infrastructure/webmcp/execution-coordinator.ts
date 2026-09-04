@@ -2,7 +2,7 @@
  * WebMCP Tool Execution Coordinator.
  * Intercepts tool calls at the WebMCP layer so that:
  * 1. Amber (physical actuation) tools pause for human approval via ToolApprovalGate
- *    regardless of caller (external WebMCP agent, Groq, deterministic walkthrough).
+ *    regardless of caller (external WebMCP agent or deterministic walkthrough).
  * 2. Every tool invocation is truthfully recorded in the InvestigationToolLedger.
  * 3. Human intervention requests trigger the physical intervention workflow.
  * 4. Safe abort and cancellation are observed without side effects.

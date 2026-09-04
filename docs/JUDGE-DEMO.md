@@ -6,13 +6,13 @@ Ohmni lets a bring-your-own WebMCP agent discover and call browser-local hardwar
 
 The primary walkthrough below uses the deterministic virtual DUT, so any displayed voltage and electrical behavior are simulator results. It does **not** prove electrical behavior on a physical ESP32 board.
 
-## Primary path: external WebMCP agent, no Groq
+## Primary path: external WebMCP agent
 
 ### Prerequisites
 
 - A browser-level agent or host that supports native WebMCP tool discovery and invocation, such as a compatible ChatGPT, Codex, or Chromium WebMCP environment.
 - The production workbench: [https://ohmni-three.vercel.app](https://ohmni-three.vercel.app)
-- No Groq credential and no physical board.
+- No API keys, external models, or physical board required.
 
 If the page reports browser compatibility mode rather than native WebMCP, use a WebMCP-capable host for this primary path. The compatibility context supports Ohmni's built-in fallback, but it does not manufacture browser-level tool access for an external agent.
 
@@ -68,14 +68,13 @@ Copy this prompt from the workbench and give it to the external agent:
 - **The instruments are structured.** The agent receives schemas and data, not pixels or copied console text.
 - **State is shared.** Calls originating outside the app still drive the investigation timeline, evidence, hypothesis, approval, and intervention UI.
 - **Safety is on the execution seam.** `run_relay_stress_test` cannot bypass the human gate just because the caller is external.
-- **The browser owns trust.** A physical descriptor advertises capabilities, but the browser's registry decides which known factories may become tools.
-- **Groq is not involved.** The primary script does not check, start, or call the built-in Groq provider.
+- **Pure tool server architecture.** The workbench runs without embedded live-LLM dependencies or serverless proxy requirements; external agents discover tools on document.modelContext.
 
-## Optional fallback: built-in agents
+## Optional fallback: built-in deterministic demo
 
 Use this only if the judge's browser-level agent does not support native WebMCP.
 
-### Deterministic fallback (recommended)
+### Deterministic walkthrough
 
 1. Reload the workbench and choose **Try built-in demo**.
 2. Start the deterministic brownout walkthrough. It requires no API key or network model.
@@ -84,10 +83,6 @@ Use this only if the judge's browser-level agent does not support native WebMCP.
 5. Approve the retest and observe the verified diagnosis.
 
 This fallback exercises the same registered tool implementations, approval coordinator, evidence ledger, and intervention workflow. It proves the page's behavior but is not a substitute for showing an external host discover native WebMCP tools.
-
-### Built-in Groq (optional convenience)
-
-If the deployment has its Groq endpoint configured, the built-in Groq agent can perform the same blind investigation. It remains secondary and executes through WebMCP rather than calling the device adapter directly. Do not configure Groq merely to run the judge path; the external script and deterministic fallback both work without it.
 
 ## Optional physical-device path
 

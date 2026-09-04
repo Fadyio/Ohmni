@@ -13,8 +13,8 @@ describe("production judge-readiness UI", () => {
   it("uses truthful virtual-device product copy", () => {
     const html = renderToString(<WelcomeView onStartDemo={() => undefined} />);
 
-    expect(html).toContain("Give your AI agent instruments for the physical world.");
-    expect(html).toContain("Open agent-ready workbench");
+    expect(html).toContain("Give AI agents instruments");
+    expect(html).toContain("Launch virtual diagnosis");
   });
 
   it("does not mutate virtual JP1 while merely rendering the intervention request", () => {

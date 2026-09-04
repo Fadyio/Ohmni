@@ -21,7 +21,7 @@ export interface MysteryIntroModalProps {
 
 export const MysteryIntroModal: React.FC<MysteryIntroModalProps> = ({
   session,
-  agentMode = "groq",
+  agentMode = "external",
   liveProvider,
   liveModel,
   onBegin,

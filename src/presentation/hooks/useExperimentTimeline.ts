@@ -54,6 +54,7 @@ export function useExperimentTimeline(eventBus?: ITelemetryEventBus): Experiment
   const [resetReason, setResetReason] = useState<ResetReason | null>(null);
 
   const experimentStartRef = useRef<number | null>(null);
+  const currentExperimentIdRef = useRef<string | null>(null);
   const thresholdLoggedRef = useRef<boolean>(false);
   const minVoltageRef = useRef<number>(3.31);
 
@@ -68,6 +69,7 @@ export function useExperimentTimeline(eventBus?: ITelemetryEventBus): Experiment
     setResetOccurred(false);
     setResetReason(null);
     experimentStartRef.current = null;
+    currentExperimentIdRef.current = null;
     thresholdLoggedRef.current = false;
     minVoltageRef.current = 3.31;
   };
@@ -146,7 +148,8 @@ export function useExperimentTimeline(eventBus?: ITelemetryEventBus): Experiment
     const unsubscribe = eventBus.subscribe((event: DeviceEvent, expId?: string) => {
       const now = Date.now();
       if (expId) {
-        if (experimentStartRef.current === null) {
+        if (currentExperimentIdRef.current !== expId) {
+          currentExperimentIdRef.current = expId;
           experimentStartRef.current = now;
           setActiveExperimentId(expId);
           setExperimentStatus("running");
@@ -185,7 +188,6 @@ export function useExperimentTimeline(eventBus?: ITelemetryEventBus): Experiment
           setExperimentStatus("running");
         } else if (event.state === "open") {
           setExperimentStatus("idle");
-          experimentStartRef.current = null;
         }
         const relayEvent: TimelineEventItem = {
           id: `evt_${now}_relay`,
@@ -198,7 +200,6 @@ export function useExperimentTimeline(eventBus?: ITelemetryEventBus): Experiment
         setEvents((prev) => [...prev, relayEvent]);
       } else if (event.type === "reset") {
         setExperimentStatus("idle");
-        experimentStartRef.current = null;
         const resetEvent: TimelineEventItem = {
           id: `evt_${now}_reset`,
           timestamp: now,

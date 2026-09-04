@@ -266,7 +266,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           tool: activity.call.name,
           durationMs: activity.durationMs,
           receipt: buildToolReceipt(activity),
-          origin: agentMode === "demo" ? "demo" : "groq",
+          origin: agentMode === "demo" ? "demo" : "external",
           status: activity.status,
         });
       }
@@ -519,7 +519,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               </div>
             </div>
 
-            <div style={{ padding: "0.25rem 0.5rem" }}>
+            <div style={{ padding: "0.25rem 0.5rem" }} data-testid="try-built-in-demo">
               <button
                 type="button"
                 data-testid="bench-agent-start"

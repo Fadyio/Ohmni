@@ -1,8 +1,8 @@
 /**
  * Tool Safety Approval Gate.
  * Enforces human-in-the-loop authorization for Amber (physical actuation) tools
- * regardless of whether the calling agent is an external WebMCP agent (ChatGPT, Codex),
- * the built-in Groq agent, or a deterministic walkthrough.
+ * regardless of whether the calling agent is an external WebMCP agent (ChatGPT, Codex)
+ * or a deterministic walkthrough.
  *
  * Invariants:
  * 1. Tool promise MUST NOT resolve until human operator explicitly approves or denies.

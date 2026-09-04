@@ -1,7 +1,7 @@
 /**
  * Domain-level Investigation Tool Ledger.
  * Records every tool invocation and outcome regardless of whether the agent
- * is external WebMCP (ChatGPT, Claude, Codex), built-in Groq, or deterministic demo.
+ * is external WebMCP (ChatGPT, Claude, Codex) or deterministic demo.
  *
  * Provides a truthful, unified domain record that drives UI timeline,
  * diagnostic state derivation, and auditability.
@@ -15,7 +15,7 @@ export type ToolExecutionStatus =
   | "failed"
   | "denied";
 
-export type ToolExecutionOrigin = "external" | "groq" | "demo" | "user";
+export type ToolExecutionOrigin = "external" | "demo" | "user";
 
 export interface ToolLedgerEntry {
   readonly id: string;

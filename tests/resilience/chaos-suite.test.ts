@@ -43,8 +43,8 @@ describe("Phase 12 — Resilience & Chaos Test Suite", () => {
     await registerHypothesisTools(modelContext, hypothesisStore);
   });
 
-  // 1. Gemini Unavailable (503 / missing API key)
-  it("Scenario 1: Gemini unavailable (503) produces safe error state without hanging", async () => {
+  // 1. Provider Unavailable (503 / missing API key)
+  it("Scenario 1: Provider unavailable (503) produces safe error state without hanging", async () => {
     const provider: BenchAgentProvider = {
       async turn() {
         const err = new Error("Service Unavailable: Model overloaded");
@@ -67,8 +67,8 @@ describe("Phase 12 — Resilience & Chaos Test Suite", () => {
     }
   });
 
-  // 2. Gemini 429 (Rate Limited)
-  it("Scenario 2: Gemini 429 rate limit is reported cleanly without uncaught exceptions", async () => {
+  // 2. Provider 429 (Rate Limited)
+  it("Scenario 2: Provider 429 rate limit is reported cleanly without uncaught exceptions", async () => {
     let callCount = 0;
     const provider: BenchAgentProvider = {
       async turn() {
@@ -94,8 +94,8 @@ describe("Phase 12 — Resilience & Chaos Test Suite", () => {
     expect(callCount).toBeGreaterThan(0);
   });
 
-  // 3. Gemini 500 (Server Error)
-  it("Scenario 3: Gemini 500 server error does not leak secrets and yields safe failure", async () => {
+  // 3. Provider 500 (Server Error)
+  it("Scenario 3: Provider 500 server error does not leak secrets and yields safe failure", async () => {
     const provider: BenchAgentProvider = {
       async turn() {
         const err = new Error("Internal Server Error with SECRET_KEY_DO_NOT_LEAK");
@@ -118,8 +118,8 @@ describe("Phase 12 — Resilience & Chaos Test Suite", () => {
     }
   });
 
-  // 4. Gemini Timeout
-  it("Scenario 4: Gemini request timeout aborts cleanly with timeout error", async () => {
+  // 4. Provider Timeout
+  it("Scenario 4: Provider request timeout aborts cleanly with timeout error", async () => {
     const { promise, reject } = Promise.withResolvers<AgentTurnResult>();
     const provider: BenchAgentProvider = {
       async turn(_req, options) {

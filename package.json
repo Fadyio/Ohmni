@@ -18,17 +18,11 @@
     "test:chaos": "bun run scripts/test-chaos.ts",
     "test:visual": "bun run scripts/test-visual.ts",
     "test:e2e:demo": "bun run scripts/test-e2e-demo.ts",
-    "test:e2e:production": "bun run scripts/test-e2e-production.ts",
-    "test:agent:groq": "bun run scripts/test-agent-groq.ts",
-    "test:agent:live": "bun run scripts/test-agent-live.ts",
-    "test:agent:supervised-ui": "bun run scripts/test-agent-supervised-ui.ts",
     "test:webmcp:external": "bun run scripts/test-webmcp-external.ts",
-    "test:agent:vercel": "bun run scripts/test-agent-vercel.ts",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit",
     "verify": "bun test && bun run typecheck && bun run build",
     "release:verify": "bun run verify && bun run test:serial && bun run test:e2e:serial && bun run test:chrome && bun run test:e2e:demo && bun run test:motion && bun run test:chaos && bun run test:visual",
-    "judge:verify": "bun run scripts/verify-judge.ts",
     "smoke": "bun run scripts/smoke.ts"
   },
   "devDependencies": {
@@ -41,7 +35,6 @@
     "vite": "^8.2.2"
   },
   "dependencies": {
-    "@google/genai": "2.20.0",
     "@gsap/react": "^2.1.2",
     "gsap": "^3.15.0",
     "lucide-react": "^1.39.0",

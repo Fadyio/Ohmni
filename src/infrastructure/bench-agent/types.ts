@@ -10,7 +10,6 @@ export interface AgentToolDeclaration {
   readonly parameters: Record<string, unknown>;
 }
 
-
 export interface AgentFunctionCall {
   readonly id: string;
   readonly name: string;
@@ -24,6 +23,7 @@ export interface AgentFunctionResult {
   readonly result: readonly { readonly type: "text"; readonly text: string }[];
   readonly is_error?: boolean;
 }
+
 export type AgentTranscriptItem =
   | {
       readonly role: "user";
@@ -55,7 +55,7 @@ export interface AgentTurnResult {
   readonly text?: string;
 }
 
-export type AgentMode = "external" | "groq" | "demo";
+export type AgentMode = "external" | "demo";
 
 export interface BenchAgentProvider {
   turn(
@@ -163,5 +163,5 @@ export interface RunBenchAgentOptions {
 export interface BenchAgentAvailability {
   readonly available: boolean;
   readonly model: string;
-  readonly provider?: "groq" | "demo" | string;
+  readonly provider?: "demo" | string;
 }

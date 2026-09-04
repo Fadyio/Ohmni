@@ -38,24 +38,24 @@ Cut to the Ohmni lab interface in Google Chrome with the `Native WebMCP` badge g
 
 ---
 
-### [0:25 – 0:50] Live Groq Agent: Autonomous Passive Probing
+### [0:25 – 0:50] Agent Investigation: Autonomous Passive Probing
 **Visual:**  
-Show top bar with **Groq Live** active.
+Show top bar with **External Agent** or **Demo Agent** active.
 - Start the deterministic virtual ESP32 challenge.
 - The sealed symptom appears: *"Controller resets when fan starts."*
-- Groq autonomously calls `read_reset_history`.
+- Agent autonomously calls `read_reset_history`.
 - Narrative timeline shows executed call: `read_reset_history (138 ms)`.
 - Finding appears: past `BROWNOUT` resets logged in non-volatile memory.
-- Groq autonomously calls `measure_supply_voltage`: nominal baseline reading of 3.31 V.
+- Agent autonomously calls `measure_supply_voltage`: nominal baseline reading of 3.31 V.
 
 **Voiceover:**  
-> *"We launch an unscripted investigation with a live Groq agent. Given only the symptom, the model autonomously probes passive instruments—reading the non-volatile reset history and baseline rail voltage—without interrupting us. It sees past brownout flags, but needs to test if the fan load causes the rail collapse."*
+> *"We launch an investigation with the agent. Given only the symptom, the agent autonomously probes passive instruments—reading the non-volatile reset history and baseline rail voltage—without interrupting us. It sees past brownout flags, but needs to test if the fan load causes the rail collapse."*
 
 ---
 
 ### [0:50 – 1:10] The Amber Safety Gate
 **Visual:**  
-Groq requests the mutating tool `run_relay_stress_test`.
+The agent requests the mutating tool `run_relay_stress_test`.
 - The screen transitions into the **Amber Safety Gate** (scene: `approval`).
 - The schematic highlights the GPIO14 cooling fan relay in amber.
 - The safety boundary is displayed: *500 ms maximum actuation • Auto-abort on reset*.
@@ -75,7 +75,7 @@ The main canvas activates the 60fps technical oscilloscope:
 - Waveform breaches the amber dashed line at **2.80 V reset threshold**.
 - Hardware brownout detector trips: red fault marker `BROWNOUT RESET TRIGGERED`.
 - Evidence tokens `E-001` (Reset log) and `E-002` (2.72 V dip) commit to the immutable ledger.
-- Narrative rail updates: Groq registers Hypothesis `H-001` (*Relay-induced MCU supply brownout due to shared 3.3 V rail*).
+- Narrative rail updates: The agent registers Hypothesis `H-001` (*Relay-induced MCU supply brownout due to shared 3.3 V rail*).
 
 **Voiceover:**  
 > *"Watch the oscilloscope. Under load, the supply rail collapses to 2.72 V, crossing the 2.80 V brownout threshold and tripping an MCU hardware reset. The agent records empirical evidence tokens and diagnoses the root cause. But a hypothesis is not proof—it cannot claim the bug is fixed without retesting."*
@@ -84,7 +84,7 @@ The main canvas activates the 60fps technical oscilloscope:
 
 ### [1:30 – 1:45] Diagnosis & Human Intervention Request
 **Visual:**  
-Groq requests human intervention: *"Move jumper JP1 from the shared 3.3 V rail to the independent 5 V auxiliary rail."*
+The agent requests human intervention: *"Move jumper JP1 from the shared 3.3 V rail to the independent 5 V auxiliary rail."*
 - Click **[ Proceed to Physical Repair ]**.
 - In the virtual challenge workbench, the jumper selector displays options.
 
@@ -97,7 +97,7 @@ Groq requests human intervention: *"Move jumper JP1 from the shared 3.3 V rail t
 **Visual:**  
 - Select **Independent 5 V** on jumper selector.
 - Click **[ Tell Agent I changed it ]**.
-- Groq evaluates the observation and requests an empirical verification retest.
+- The agent evaluates the observation and requests an empirical verification retest.
 - Click **[ Approve test ]**.
 - Oscilloscope executes the identical stress test under load.
 - Voltage dips only to 3.18 V, staying well above the 2.80 V threshold with 0 resets.

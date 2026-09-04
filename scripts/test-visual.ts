@@ -270,6 +270,7 @@ async function runVisualRegression(): Promise<void> {
 
     await assertLayout("Landing Page (1440x900)");
     await cdpClient.captureScreenshot(join(ARTIFACTS_DIR, "layout-landing-1440.png"));
+    await cdpClient.captureScreenshot(join(ARTIFACTS_DIR, "landing-final-1440.png"));
 
     // 2. Landing Page Layout on 1366x768
     console.info("[Visual] Testing Landing Page on 1366x768 resolution...");
@@ -277,13 +278,36 @@ async function runVisualRegression(): Promise<void> {
     await new Promise((r) => setTimeout(r, 400));
     await assertLayout("Landing Page (1366x768)");
     await cdpClient.captureScreenshot(join(ARTIFACTS_DIR, "layout-landing-1366.png"));
+    await cdpClient.captureScreenshot(join(ARTIFACTS_DIR, "landing-final-1366.png"));
+
+    // 2b. Landing Page Layout on Mobile (390x844)
+    console.info("[Visual] Testing Landing Page on 390x844 mobile resolution...");
+    await cdpClient.setViewport(390, 844);
+    await new Promise((r) => setTimeout(r, 400));
+    await assertLayout("Landing Page (390x844 Mobile)");
+    await cdpClient.captureScreenshot(join(ARTIFACTS_DIR, "landing-final-mobile.png"));
 
     // Reset viewport to 1440x900
     await cdpClient.setViewport(1440, 900);
     await new Promise((r) => setTimeout(r, 300));
 
-    // 3. Mystery Challenge Intro Modal Layout
-    console.info("[Visual] Opening Mystery Intro Modal...");
+    // 3. Functional Check: Connect Hardware Modal Open & Cancel
+    console.info("[Visual] Testing Connect Hardware Modal Open & Cancel...");
+    await cdpClient.evaluate(`document.getElementById("connect-hardware-btn")?.click()`);
+    await new Promise((r) => setTimeout(r, 400));
+    const connectModalOpen = await cdpClient.evaluate<boolean>(`Boolean(document.querySelector("[data-testid='connect-hardware-modal']"))`);
+    if (!connectModalOpen) throw new Error("Connect hardware modal failed to open");
+    console.info("  ✓ Connect hardware modal successfully opened.");
+
+    // Close Connect Hardware Modal
+    await cdpClient.evaluate(`document.querySelector("[aria-label='Close modal']")?.click()`);
+    await new Promise((r) => setTimeout(r, 400));
+    const connectModalClosed = await cdpClient.evaluate<boolean>(`!Boolean(document.querySelector("[data-testid='connect-hardware-modal']"))`);
+    if (!connectModalClosed) throw new Error("Connect hardware modal failed to close");
+    console.info("  ✓ Connect hardware modal successfully closed.");
+
+    // 4. Functional Check: Virtual Diagnosis Modal Open, Cancel, and Reopen
+    console.info("[Visual] Opening Virtual Diagnosis Modal...");
     await cdpClient.evaluate(`document.getElementById("start-mystery-btn")?.click()`);
     await new Promise((r) => setTimeout(r, 600));
 
@@ -298,7 +322,24 @@ async function runVisualRegression(): Promise<void> {
     await assertLayout("Mystery Challenge Modal");
     await cdpClient.captureScreenshot(join(ARTIFACTS_DIR, "layout-modal-1440.png"));
 
-    // 4. Lab Mode Workbench Layout (72% / 28% Grid)
+    // Cancel modal to verify return
+    console.info("[Visual] Testing cancel and return to landing...");
+    await cdpClient.evaluate(`(() => {
+      const btns = Array.from(document.querySelectorAll("button"));
+      const cancelBtn = btns.find(b => b.textContent?.trim() === "Cancel");
+      cancelBtn?.click();
+    })()`);
+    await new Promise((r) => setTimeout(r, 400));
+    const backOnLanding = await cdpClient.evaluate<boolean>(`Boolean(document.getElementById("welcome-view-root"))`);
+    if (!backOnLanding) throw new Error("Failed to return to landing after canceling mystery modal");
+    console.info("  ✓ Successfully canceled modal and returned to landing view.");
+
+    // Re-open virtual diagnosis and begin
+    console.info("[Visual] Re-launching virtual diagnosis to enter Lab Workbench...");
+    await cdpClient.evaluate(`document.getElementById("start-mystery-btn")?.click()`);
+    await new Promise((r) => setTimeout(r, 600));
+
+    // 5. Lab Mode Workbench Layout (72% / 28% Grid)
     console.info("[Visual] Entering Lab Mode Workbench...");
     await cdpClient.evaluate(`document.getElementById("begin-mystery-btn")?.click()`);
     await new Promise((r) => setTimeout(r, 800));

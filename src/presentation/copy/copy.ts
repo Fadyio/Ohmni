@@ -172,7 +172,7 @@ export const OHMNI_COPY = {
   errors: {
     modelUnavailable: {
       title: "Model temporarily unavailable",
-      body: "The external agent remains usable. The built-in Groq agent is temporarily unavailable.",
+      body: "The external agent remains usable. You can also run the deterministic guided demo.",
       retry: "Retry",
       useExternal: "Use external agent",
       useDemo: "Use deterministic demo",

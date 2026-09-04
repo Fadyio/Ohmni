@@ -99,13 +99,16 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
       expect(html).not.toContain("data-wordmark-variant");
 
       // 4. Hero must begin directly with required headline
-      expect(html).toContain("Give your AI agent instruments for the physical world.");
+      expect(html).toContain("Give AI agents instruments");
+      expect(html).toContain("for the physical world.");
       expect(html).toContain("WebMCP tools");
-      expect(html).toContain("Open agent-ready workbench");
+      expect(html).toContain("Launch virtual diagnosis");
       expect(html).toContain('id="diagnose-demo-btn"');
-      expect(html).toContain("Try built-in demo");
+      expect(html).toContain("How it works →");
       // 6. Plain bottom metadata
-      expect(html).toContain("Human-gated actuation · Evidence-backed diagnosis · Retest to verify");
+      expect(html).toContain("Human-approved actuation");
+      expect(html).toContain("Evidence-backed diagnosis");
+      expect(html).toContain("Retest to verify");
     });
 
     it("TopBar uses flat OHMNI logo and zero 3D wordmark", () => {
@@ -471,10 +474,10 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
     it("keeps the repair notification available until the observation is sent", () => {
       const investigatingState = {
         status: "investigating",
-        agentMode: "groq",
+        agentMode: "demo",
         activity: [],
         providerAvailable: true,
-        providerStatus: "live",
+        providerStatus: "demo",
       } as unknown as BenchAgentState;
       const adapter = {
         getInterventionPoint: () => "5v",
@@ -491,7 +494,7 @@ describe("OHMNI — Final Product Coherence Rescue Invariants", () => {
       );
 
       expect(html).toContain('id="tell-agent-repair-btn"');
-      expect(html).toContain("Notify Groq and run verification");
+      expect(html).toContain("Notify Demo and run verification");
       expect(html).not.toContain("is evaluating the virtual DUT change");
     });
 

@@ -36,11 +36,11 @@ Ohmni is fundamentally built around WebMCP; it cannot exist as a conventional we
 Ohmni is engineered to production standards with comprehensive automated verification:
 
 * **Working Production Deployment:** Live at [https://ohmni-three.vercel.app](https://ohmni-three.vercel.app), served over HTTPS with zero build errors.
-* **Live Groq Agent Orchestration:** Real production AI investigation driven by `openai/gpt-oss-120b` running on Groq LPUs via a secure serverless `/api/bench-agent` proxy. Zero API keys leak to the client bundle.
+* **External WebMCP Agent & Deterministic Walkthrough:** Ohmni is built external-agent first via standard `document.modelContext`, accompanied by a pure clientside deterministic demo walkthrough requiring zero API keys or external serverless proxies.
 * **Amber Safety Gate:** Human-in-the-loop authorization interlock. Passive observational tools execute autonomously; mutating or power-actuating tools pause execution and demand explicit human approval.
 * **60fps Technical Oscilloscope:** Hardware-accelerated Canvas oscilloscope rendering real-time supply voltage waveforms, threshold trigger lines (2.80 V BOD threshold), and annotated fault markers.
 * **Empirical Evidence Ledger:** Diagnostic findings are immutably recorded into an `EvidenceStore` (`E-001`, `E-002`). The agent cannot hallucinate a fix; it must cite empirical evidence tokens when proposing and confirming hypotheses (`H-001`).
-* **Automated Fail-Closed Judge Verification Gate:** The repository includes `bun run judge:verify`, an automated 12-point end-to-end audit script run via Chrome DevTools Protocol (CDP) verifying live Groq agent execution, zero Gemini leaks, native WebMCP registration, Amber gate blocking, fault reproduction, and repair verification.
+* **Automated Real Browser Acceptance Gates:** The repository includes `bun run test:chrome` and `bun run test:e2e:demo`, automated end-to-end audit suites run via Chrome DevTools Protocol (CDP) verifying native WebMCP registration, Amber gate blocking, fault reproduction, jumper intervention, and repair verification.
 * **Automated Test Battery:** 390 passing automated unit and domain tests across 55 test suites, full TypeScript strict typechecking (`tsc --noEmit`), and 17 end-to-end Chrome Web Serial protocol gates.
 
 ### 3. Potential Impact
@@ -86,10 +86,10 @@ Microcontroller (USB Serial) ──► Browser (Web Serial / Transport)
                              Capability Registry (Firewall)
                                         │
                                         ▼
-                            document.modelContext (WebMCP)
+                             document.modelContext (WebMCP)
                                         │
                                         ▼
-                              AI Agent (Groq / Llama)
+                       External Agent (WebMCP) / Demo Agent
 ```
 
 ---
@@ -101,7 +101,7 @@ Ohmni enforces a clear, principled division of responsibility between the agent,
 ```text
 ┌────────────────────────┐   ┌────────────────────────┐   ┌────────────────────────┐
 │        AI Agent        │   │    Browser (WebMCP)    │   │     Human Operator     │
-│   (Groq LPU / Llama)   │   │     (Safety Mesh)      │   │     (Physical Hands)   │
+│   (External / Demo)    │   │     (Safety Mesh)      │   │     (Physical Hands)   │
 ├────────────────────────┤   ├────────────────────────┤   ├────────────────────────┤
 │ • Measures voltages    │   │ • Registers tools      │   │ • Approves actuation   │
 │ • Reads reset history  │   │ • Enforces firewall    │   │ • Modifies jumpers     │
@@ -191,33 +191,28 @@ Ohmni provides two device backends behind the shared `DeviceAdapter` interface:
 
 ## 5. Judge Verification Instructions
 
-### Option 1: Interactive Browser Walkthrough (Recommended)
-1. Open **[https://ohmni-three.vercel.app](https://ohmni-three.vercel.app)** in Google Chrome or ChatGPT in-app browser.
-2. Click **[ Start AI diagnosis ]**.
-3. Read the sealed symptom: *"Controller resets when fan starts."*
-4. Click **[ Begin Investigation ]**:
-   - Verify the top bar displays **Native WebMCP** (in WebMCP-enabled Chrome) and **Groq Live**.
-   - Watch Groq autonomously probe passive instruments: `read_reset_history` and `measure_supply_voltage`.
-   - Groq requests the controlled relay stress test (`run_relay_stress_test`).
-   - The **Amber Safety Gate** halts execution: notice the relay remains open and safe.
-   - Click **[ Approve test ]**.
-   - The 60fps oscilloscope captures the supply collapsing to 2.72 V, crossing the 2.80 V BOD threshold.
-5. Groq diagnoses the shared power rail fault (`H-001`) and requests human intervention.
-6. Click **[ Proceed to Physical Repair ]**:
-   - Click **Independent 5 V** to move virtual jumper JP1.
-   - Click **[ Tell Agent I changed it ]**.
-7. Groq requests an empirical verification retest. Click **[ Approve test ]**.
-8. The verification oscilloscope confirms:
-   - **BEFORE:** 2.72 V minimum (Brownout reset triggered)
-   - **AFTER:** 3.18 V minimum (Stable, 0 resets)
-9. Ground truth is unsealed: **DIAGNOSIS MATCH ✓**.
+### Option 1: External Agent via ChatGPT Desktop or WebMCP Host
+1. Open **[https://ohmni-three.vercel.app](https://ohmni-three.vercel.app)** in ChatGPT Desktop App built-in browser or a WebMCP-enabled browser.
+2. Click **[ Open agent-ready workbench ]**.
+3. Copy the canonical prompt: *"The controller restarts unexpectedly whenever the cooling fan relay turns on. Investigate the root cause using the available WebMCP diagnostic instruments, request human help at the device boundary when needed, and experimentally verify the repair."*
+4. Provide the prompt to your external agent.
+5. The agent discovers Ohmni's 19 instruments on `document.modelContext`, probes reset logs and rail voltage, pauses at the Amber gate for `run_relay_stress_test`, requests moving jumper JP1 to 5 V, retests, and confirms diagnosis.
 
-### Option 2: Automated Fail-Closed Judge Verification Gate
+### Option 2: Deterministic Demo Walkthrough
+1. Open **[https://ohmni-three.vercel.app](https://ohmni-three.vercel.app)**.
+2. Click **[ Start blind diagnosis ]** -> **[ Begin ]**.
+3. Click **[ Start investigation ]** to run the built-in deterministic demo walkthrough.
+4. Approve the controlled relay stress test at the Amber gate.
+5. Move virtual jumper JP1 to Independent 5 V and click **[ Tell agent I changed it ]**.
+6. Approve the retest and observe the verified diagnosis (**DIAGNOSIS MATCH ✓**).
+
+### Option 3: Automated Chrome E2E Acceptance Gates
 From the repository root:
 ```bash
-bun run judge:verify
+bun run test:chrome       # Native WebMCP CDP orchestration & visual verification matrix
+bun run test:e2e:demo     # Pure static E2E deterministic golden path (0 mocks)
+bun run test:webmcp:external # External agent simulated WebMCP client flow
 ```
-This automated suite spins up Chrome, connects to the live production deployment, exercises the full live Groq investigation path, and validates all 12 audit gates.
 
 ### Option 3: Full Automated Test Battery
 ```bash

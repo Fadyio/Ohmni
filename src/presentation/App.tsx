@@ -203,7 +203,7 @@ export const App: React.FC<AppProps> = ({
     if (typeof window === "undefined") return undefined;
     const params = new URLSearchParams(window.location.search);
     const mode = params.get("agent");
-    if (mode === "demo" || mode === "groq") {
+    if (mode === "demo") {
       return mode;
     }
     return undefined;
@@ -798,9 +798,7 @@ export const App: React.FC<AppProps> = ({
         providerName={
           agentMode === "demo"
             ? "Deterministic Demo Provider"
-            : agentMode === "external"
-            ? "External WebMCP Agent"
-            : `${(agentState.liveProvider ?? "Groq").toUpperCase()} ${agentState.liveModel ?? "openai/gpt-oss-120b"} (Vercel Serverless)`
+            : "External WebMCP Agent"
         }
       />
     </div>

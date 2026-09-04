@@ -1,10 +1,10 @@
 /**
- * Milestone 7.6 Trust Audit: Hidden Fault Payload & Provider Identity Tests.
+ * Milestone 7.6 Trust Audit: Hidden Fault Payload & Zero Leak Tests.
  *
  * Verifies:
  * 1. Sanitization: No hidden fault state (e.g. relay_power, 3v3, JP3, hiddenFault, expectedFix, 5v, bad jumper)
- *    is leaked in tool descriptions, schemas, or agent system prompts.
- * 2. Provider Truthfulness: Provider identity is accurately represented without fabricating live status.
+ *    is leaked in tool descriptions or schemas.
+ * 2. Clean isolation: Disconnected state provides zero unearned evidence or hypotheses.
  */
 
 import { describe, it, expect } from "bun:test";
@@ -17,7 +17,6 @@ import { registerEvidenceTools } from "@/infrastructure/webmcp/evidence-tools";
 import { InMemoryHypothesisStore } from "@/domain/hypothesis/store";
 import { registerHypothesisTools } from "@/infrastructure/webmcp/hypothesis-tools";
 import { translateRegisteredTools } from "@/infrastructure/bench-agent/tool-translation";
-import { BENCH_AGENT_SYSTEM_INSTRUCTION } from "../../server/bench-agent/gemini-provider";
 
 describe("Milestone 7.6 — Trust Audit & Hidden Payload Leak Prevention", () => {
   const FORBIDDEN_LEAK_STRINGS = [
@@ -47,22 +46,15 @@ describe("Milestone 7.6 — Trust Audit & Hidden Payload Leak Prevention", () =>
     const tools = await modelContext.getTools();
     expect(tools.length).toBe(19);
 
-    const geminiDeclarations = translateRegisteredTools(tools);
-    const serializedTools = JSON.stringify(geminiDeclarations).toLowerCase();
+    const declarations = translateRegisteredTools(tools);
+    const serializedTools = JSON.stringify(declarations).toLowerCase();
 
     for (const forbidden of FORBIDDEN_LEAK_STRINGS) {
       expect(serializedTools.includes(forbidden.toLowerCase())).toBe(false);
     }
   });
 
-  it("2. Bench Agent system instruction contains zero hidden fault spoilers", () => {
-    const serializedInstruction = BENCH_AGENT_SYSTEM_INSTRUCTION.toLowerCase();
-    for (const forbidden of FORBIDDEN_LEAK_STRINGS) {
-      expect(serializedInstruction.includes(forbidden.toLowerCase())).toBe(false);
-    }
-  });
-
-  it("3. Disconnected state provides zero unearned evidence or hypotheses", () => {
+  it("2. Disconnected state provides zero unearned evidence or hypotheses", () => {
     const evidenceStore = new InMemoryEvidenceStore();
     const hypothesisStore = new InMemoryHypothesisStore();
 

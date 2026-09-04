@@ -237,9 +237,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <span style={{ display: "none" }}>{isNative ? `Native WebMCP · ${displayToolCount} tools active` : `WebMCP · ${displayToolCount} tools active`}</span>
           </button>
 
-          {(agentMode === "demo" || agentMode === "groq") && (
+          {agentMode === "demo" && (
             <span
-              data-testid={agentMode === "demo" ? "demo-provider-badge" : "groq-provider-badge"}
+              data-testid="demo-provider-badge"
               data-provider-badge="true"
               id="provider-badge"
               style={{
@@ -247,33 +247,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 alignItems: "center",
                 gap: "6px",
                 padding: "3px 0",
-                color:
-                  agentMode === "demo"
-                    ? "var(--brand, #2B57FF)"
-                    : agentState?.providerAvailable
-                    ? "var(--verified, #16A34A)"
-                    : "var(--ink-tertiary, #8A92A0)",
+                color: "var(--brand, #2B57FF)",
                 fontSize: "11.5px",
                 fontWeight: 700,
                 letterSpacing: "0.02em",
               }}
             >
-              {agentMode === "demo" ? (
-                <>
-                  <Bot size={13} />
-                  <span>DEMO AGENT · Deterministic walkthrough</span>
-                </>
-              ) : agentState?.providerAvailable ? (
-                <>
-                  <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--verified, #16A34A)", boxShadow: "0 0 6px rgba(22, 163, 74, 0.8)" }} />
-                  <span>{agentIdentity.displayName} · Live</span>
-                </>
-              ) : (
-                <>
-                  <Bot size={13} />
-                  <span>{agentIdentity.displayName} · Connecting...</span>
-                </>
-              )}
+              <Bot size={13} />
+              <span>DEMO AGENT · Deterministic walkthrough</span>
             </span>
           )}
 

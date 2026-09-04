@@ -175,7 +175,7 @@ export async function runBenchAgent(
     maxSteps = MAX_AGENT_STEPS,
     previousInteractionId: initialInteractionId,
     approvalHandledByModelContext = false,
-    agentMode = "groq",
+    agentMode = "demo",
   } = options;
   const requestedStepLimit = Number.isFinite(maxSteps)
     ? Math.floor(maxSteps)
