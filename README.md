@@ -76,7 +76,8 @@ Ohmni is built **external-agent first**. The built-in demo is a secondary walkth
    - retest under identical parameters
    - confirm hypothesis (`confirm_hypothesis`)
 
-Detailed step-by-step verification instructions: [docs/CHATGPT-SITE-TOOLS-TEST.md](docs/CHATGPT-SITE-TOOLS-TEST.md).
+Detailed step-by-step verification instructions and acceptance results: [docs/CHATGPT-SITE-TOOLS-TEST.md](docs/CHATGPT-SITE-TOOLS-TEST.md).
+**Live manual test status:** PASS (Verified by human on 2026-09-04 using ChatGPT Desktop App with live WebMCP site tools).
 
 ---
 
@@ -272,7 +273,7 @@ bun run release:verify
 
 ## Real-Hardware Limitation
 
-**Verified in software:** Virtual reference device physics, WebMCP registration and execution, Amber safety interlocks, evidence collection and hypothesis linking, Web Serial transport and framing, and automated Chrome browser flows.
+**Verified in software and live agent:** Virtual reference device physics, WebMCP registration and execution, Amber safety interlocks, evidence collection and hypothesis linking, Web Serial transport and framing, automated Chrome browser flows, and live manual end-to-end testing with ChatGPT Desktop.
 
 **Electrical verification:** Electrical validation (exact analog noise floor, real coil inrush dv/dt, divider tolerances, and attached physical hardware repair) requires physical breadboard hardware and external laboratory instruments.
 

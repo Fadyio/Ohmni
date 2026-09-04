@@ -41,7 +41,8 @@ Ohmni is engineered to production standards with comprehensive automated verific
 * **60fps Technical Oscilloscope:** Hardware-accelerated Canvas oscilloscope rendering real-time supply voltage waveforms, threshold trigger lines (2.80 V BOD threshold), and annotated fault markers.
 * **Empirical Evidence Ledger:** Diagnostic findings are immutably recorded into an `EvidenceStore` (`E-001`, `E-002`). The agent cannot hallucinate a fix; it must cite empirical evidence tokens when proposing and confirming hypotheses (`H-001`).
 * **Automated Real Browser Acceptance Gates:** The repository includes `bun run test:chrome` and `bun run test:e2e:demo`, automated end-to-end audit suites run via Chrome DevTools Protocol (CDP) verifying native WebMCP registration, Amber gate blocking, fault reproduction, jumper intervention, and repair verification.
-* **Automated Test Battery:** 390 passing automated unit and domain tests across 55 test suites, full TypeScript strict typechecking (`tsc --noEmit`), and 17 end-to-end Chrome Web Serial protocol gates.
+* **Manually Verified with External ChatGPT:** The end-to-end external WebMCP flow has been verified live by a human in the ChatGPT Desktop app with Ohmni's site tools, completing the entire cycle from discovery and observation through Amber approval, fault reproduction, evidence-backed hypothesis, jumper repair, verification retest, and final hypothesis confirmation.
+* **Automated Test Battery:** 347 passing automated unit and domain tests across 52 test suites, full TypeScript strict typechecking (`tsc --noEmit`), and 17 end-to-end Chrome Web Serial protocol gates.
 
 ### 3. Potential Impact
 
@@ -182,10 +183,10 @@ Ohmni provides two device backends behind the shared `DeviceAdapter` interface:
 
 > **Honesty & Verification Notice:**
 > 
-> * **Implemented & Verified:** Browser Web Serial transport (`WebSerialTransport`), device protocol framing (`NDJSONParser`), descriptor negotiation, dynamic tool discovery, WebMCP tool registration, high-frequency telemetry ingestion, Amber approval gating, emergency cutoff, and clean disconnect unregistration. These are verified end-to-end in real Google Chrome using a simulated serial peer across 17 automated acceptance gates (`bun run test:e2e:serial`).
-> * **Not Physically Validated:** Actual physical electrical behavior on an attached physical ESP32 board (including real ADC resistor divider tolerances, board-specific noise floors, and physical relay coil flyback spikes) has not yet been benchmarked on a physical test bench.
+> * **Implemented & Verified:** Browser Web Serial transport (`WebSerialTransport`), device protocol framing (`NDJSONParser`), descriptor negotiation, dynamic tool discovery, WebMCP tool registration, high-frequency telemetry ingestion, Amber approval gating, emergency cutoff, clean disconnect unregistration (17 automated gates in Chrome with simulated peer), and real live external agent flow manually verified with ChatGPT Desktop.
+> * **Real Physical Hardware Electrical Test: NOT PERFORMED:** Actual physical electrical behavior on an attached physical ESP32 board (including real ADC resistor divider tolerances, board-specific noise floors, and physical relay coil flyback spikes) has not been benchmarked on a physical test bench.
 > 
-> We do not claim physical board electrical validation that has not occurred. The software transport and protocol layers are fully implemented and verified.
+> We do not claim physical board electrical validation that has not occurred. The software transport, protocol, and WebMCP external-agent layers are fully implemented and verified.
 
 ---
 

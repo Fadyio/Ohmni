@@ -4,7 +4,7 @@
 
 Ohmni lets a bring-your-own WebMCP agent discover and call browser-local hardware instruments as typed tools. The external agent does not need screenshots, UI-coordinate automation, a Groq key, or a private Ohmni API. Its calls use the page's native `document.modelContext`, while Ohmni keeps authorization and physical intervention under human control and reflects every call in the same investigation UI.
 
-The primary walkthrough below uses the deterministic virtual DUT, so any displayed voltage and electrical behavior are simulator results. It does **not** prove electrical behavior on a physical ESP32 board.
+The end-to-end external agent flow using ChatGPT Desktop site tools has been manually verified live by a human (see [docs/CHATGPT-SITE-TOOLS-TEST.md](CHATGPT-SITE-TOOLS-TEST.md)). The primary walkthrough below uses the deterministic virtual DUT, so any displayed voltage and electrical behavior are simulator results. It does **not** prove electrical behavior on a physical ESP32 board (REAL PHYSICAL HARDWARE ELECTRICAL TEST: NOT PERFORMED).
 
 ## Primary path: external WebMCP agent
 

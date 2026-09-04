@@ -1,6 +1,31 @@
 # ChatGPT Desktop Site-Tools Manual Verification Guide
 
-FINAL MANUAL GATE — MUST BE DONE BY FADY
+## Acceptance Status
+
+REAL CHATGPT SITE-TOOLS MANUAL TEST: PASS
+Verified by Human (Fady) on 2026-09-04 using ChatGPT Desktop App with Ohmni live WebMCP site tools.
+
+### Acceptance Results (2026-09-04)
+- **WebMCP tools discovered:** PASS
+- **Read-only instrument calls:** PASS
+- **Human approval gate:** PASS
+- **Fault reproduced:** PASS
+- **Evidence-backed diagnosis:** PASS
+- **Human intervention request:** PASS
+- **Verification retest:** PASS
+- **Final hypothesis confirmation:** PASS
+- **Before/after minimum voltages:** 2.72 V → 3.18 V
+- **Root cause:** cooling-fan relay load shared the 3.3 V MCU rail, causing MCU brownout.
+- **Final repair:** relay supply isolated onto independent 5 V rail.
+- **Final verification:** 3.18 V minimum, zero resets.
+
+> [!NOTE]
+> **Observed Caveat:**
+> The ChatGPT test-call interface displayed a timeout while waiting for the human authorization step. Ohmni itself correctly displayed the Amber approval gate, executed only after authorization, recorded the experiment, completed the subsequent workflow, and reached the final verified result.
+
+---
+
+## Verification Protocol (Reference)
 
 1. Open production Ohmni inside the ChatGPT browser/site-tools environment.
 2. Enter the virtual workbench.
@@ -11,11 +36,6 @@ FINAL MANUAL GATE — MUST BE DONE BY FADY
 7. Simulate the requested repair.
 8. Approve the verification test.
 9. Confirm ChatGPT independently reaches the verified diagnosis.
-
-REAL CHATGPT SITE-TOOLS MANUAL TEST:
-NOT YET VERIFIED BY HUMAN
-
----
 
 ## Architecture Context
 
@@ -124,3 +144,11 @@ When ChatGPT calls `request_human_intervention`:
     - **SEALED VIRTUAL GROUND TRUTH**: Relay Supply Misconfiguration
     - **AGENT DIAGNOSIS**: Relay-induced MCU supply brownout
     - Right rail displays: **COMPLETED**
+
+---
+
+## Hardware Boundary & Verification Disclosures
+
+- **Real ChatGPT External WebMCP Flow:** Manually tested and passed.
+- **Web Serial Protocol:** Tested with simulated serial peer across 17 automated gates.
+- **Real Physical Hardware Electrical Test:** NOT PERFORMED (Physical attached board electrical validation remains future work).
