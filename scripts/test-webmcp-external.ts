@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer, type Server } from "node:http";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, normalize } from "node:path";
@@ -112,6 +112,7 @@ class CDPClient {
     resolve: (value: unknown) => void;
     reject: (error: Error) => void;
   }>();
+  public readonly consoleErrors: string[] = [];
 
   private constructor(private readonly socket: WebSocket) {
     socket.onmessage = (event) => {
@@ -119,13 +120,31 @@ class CDPClient {
         id?: number;
         result?: unknown;
         error?: { message: string };
+        method?: string;
+        params?: {
+          type?: string;
+          args?: Array<{ value?: string; description?: string }>;
+          exceptionDetails?: { text?: string; exception?: { description?: string } };
+        };
       };
-      if (typeof message.id !== "number") return;
-      const pending = this.pending.get(message.id);
-      if (!pending) return;
-      this.pending.delete(message.id);
-      if (message.error) pending.reject(new Error(message.error.message));
-      else pending.resolve(message.result);
+      if (typeof message.id === "number") {
+        const pending = this.pending.get(message.id);
+        if (!pending) return;
+        this.pending.delete(message.id);
+        if (message.error) pending.reject(new Error(message.error.message));
+        else pending.resolve(message.result);
+        return;
+      }
+      if (message.method === "Runtime.consoleAPICalled" && message.params) {
+        const { type, args } = message.params;
+        if (type === "error" && args) {
+          const msg = args.map((a) => a.value || a.description || JSON.stringify(a)).join(" ");
+          this.consoleErrors.push(msg);
+        }
+      } else if (message.method === "Runtime.exceptionThrown" && message.params) {
+        const desc = message.params.exceptionDetails?.exception?.description || message.params.exceptionDetails?.text;
+        this.consoleErrors.push(`Uncaught Exception: ${desc}`);
+      }
     };
   }
 
@@ -160,6 +179,12 @@ class CDPClient {
       );
     }
     return evaluation.result.value as T;
+  }
+
+  public async captureScreenshot(outputPath: string): Promise<void> {
+    const raw = await this.send<{ data: string }>("Page.captureScreenshot", { format: "png" });
+    const buffer = Buffer.from(raw.data, "base64");
+    writeFileSync(outputPath, buffer);
   }
 
   public close(): void {
@@ -249,6 +274,9 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
   console.info("Building the production browser bundle...");
   await runCommand("bun", ["run", "build"]);
 
+  const screenshotsDir = join(process.cwd(), "artifacts", "screenshots");
+  mkdirSync(screenshotsDir, { recursive: true });
+
   const serverPort = Number(process.env.WEBMCP_EXTERNAL_PORT ?? 5181);
   const debugPort = Number(process.env.WEBMCP_EXTERNAL_CDP_PORT ?? 9238);
   const { server, url, getAgentRequestCount } = await startStaticServer(join(process.cwd(), "dist"), serverPort);
@@ -323,10 +351,10 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
       hasGroqBadge: Boolean(document.querySelector("[data-testid='groq-provider-badge']")),
     })`);
     assert(readyUi.heading.includes("READY FOR YOUR AGENT"), "Workbench should announce external-agent readiness");
+    const canonicalPrompt =
+      "There is a problem with this controller: it resets when the cooling fan turns on. Investigate the root cause using the available hardware instruments. Gather evidence before proposing a diagnosis. You may use read-only measurements autonomously, but ask for my approval before any actuation or physical change. If you identify a repair, ask me to perform it and then experimentally verify that the problem is fixed.";
     assert(
-      readyUi.prompt.includes(
-        "The controller restarts unexpectedly whenever the cooling fan relay turns on. Investigate the root cause using the available WebMCP diagnostic instruments, request physical help when needed, and experimentally verify the repair.",
-      ),
+      readyUi.prompt.includes(canonicalPrompt),
       "Workbench should show the canonical suggested external-agent prompt",
     );
     assert(readyUi.copyLabel.includes("Copy prompt"), "Workbench should expose prompt copy action");
@@ -334,14 +362,23 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
     assert(readyUi.agentMode === "external", "Default workbench mode should belong to the external agent");
     assert(!readyUi.hasGroqBadge, "Default workbench must not present Groq as the active provider");
 
+    // Screenshot 01: Ready scene
+    await client.captureScreenshot(join(screenshotsDir, "01-ready.png"));
+
     const toolNames = await client.evaluate<string[]>(
       `(async () => (await document.modelContext.getTools()).map((tool) => tool.name))()`,
     );
     for (const required of [
+      "read_device_info",
       "read_reset_history",
+      "read_system_health",
       "measure_supply_voltage",
       "run_relay_stress_test",
+      "list_evidence",
+      "get_evidence",
       "propose_hypothesis",
+      "update_hypothesis",
+      "link_evidence",
       "request_human_intervention",
       "confirm_hypothesis",
     ]) {
@@ -351,10 +388,18 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
       assert(!toolNames.includes(forbidden), `Red capability ${forbidden} must not be exposed`);
     }
 
+    const deviceInfo = await invokeTool<{ mcu: string }>(client, "read_device_info");
+    assert(Boolean(deviceInfo), "Device info must be returned");
+
     const resetHistory = await invokeTool<{ count: number; resets: unknown[] }>(client, "read_reset_history");
-    const voltage = await invokeTool<{ voltage: number; status: string }>(client, "measure_supply_voltage");
     assert(resetHistory.count >= 1 && (resetHistory.resets[0] as { reason?: string })?.reason === "POWER_ON", "Initial reset history should show normal cold boot");
+
+    // Screenshot 02: Reset history scene
+    await client.captureScreenshot(join(screenshotsDir, "02-reset-history.png"));
+
+    const voltage = await invokeTool<{ voltage: number; status: string }>(client, "measure_supply_voltage");
     assert(Math.abs(voltage.voltage - 3.31) < 0.02, "Initial supply voltage should be 3.31 V");
+
     await waitFor<boolean>(
       client,
       `(() => {
@@ -391,7 +436,12 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
     assert(pendingSafety.pendingTool === "run_relay_stress_test", "Gate should identify the pending tool");
     assert(/authoriz|approval|energize/i.test(pendingSafety.approvalText), "Approval UI must explain the authorization");
 
+    // Screenshot 03: Amber Approval scene
+    await client.captureScreenshot(join(screenshotsDir, "03-approval.png"));
+
     await click(client, "[data-testid='bench-agent-approve']");
+    // Screenshot 04: Load test running scene (with active relay actuation)
+    await client.captureScreenshot(join(screenshotsDir, "04-load-test-running.png"));
     const failedStress = await readPendingStress<{
       experiment_id: string;
       unexpected_resets: number;
@@ -401,14 +451,21 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
     assert(failedStress.unexpected_resets > 0, "Approved test should reproduce a reset");
     assert(failedStress.supply_voltage.minimum_v < 2.8, "Approved test should capture the voltage sag");
     assert(failedStress.evidence_ids.length > 0, "Approved test should create evidence");
+
+    const relayAfterTest = await client.evaluate<string>("window.__virtualDevice.getRelayState()");
+    assert(relayAfterTest === "open", "Relay must safely return to open state after test");
+
     await waitFor<boolean>(
       client,
       `document.body.innerText.includes("2.72") &&
-       document.body.innerText.includes("BROWNOUT") &&
+       document.body.innerText.includes("FAULT REPRODUCED") &&
        window.__evidenceStore.count() > 0`,
-      "sag and evidence in the workbench UI",
+      "sag and fault reproduced in the workbench UI",
       15_000,
     );
+
+    // Screenshot 05: Fault Reproduced
+    await client.captureScreenshot(join(screenshotsDir, "05-fault-reproduced.png"));
 
     const proposal = await invokeTool<{ hypothesis: { id: string } }>(client, "propose_hypothesis", {
       title: "Relay-induced MCU supply brownout",
@@ -431,10 +488,13 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
       "grounded hypothesis UI",
     );
 
+    // Screenshot 06: Working Diagnosis
+    await client.captureScreenshot(join(screenshotsDir, "06-diagnosis.png"));
+
     await invokeTool(client, "request_human_intervention", {
       target: "relay_power_jumper",
-      instruction: "Move JP1 from the shared 3.3 V rail to the isolated 5 V rail.",
-      rationale: "Remove relay coil inrush from the MCU rail before the verification experiment.",
+      instruction: "Move the relay supply from the shared 3.3 V MCU rail to the independent 5 V supply.",
+      rationale: "This isolates the relay load from the controller's sensitive supply rail.",
       evidence_ids: failedStress.evidence_ids,
     });
     await waitFor<boolean>(
@@ -442,13 +502,16 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
       `Boolean(document.querySelector("[data-testid='simulate-jp1-btn']"))`,
       "human repair UI",
     );
+
+    // Screenshot 07: Human Repair
+    await client.captureScreenshot(join(screenshotsDir, "07-human-repair.png"));
+
     const evidenceBeforeRepair = await client.evaluate<number>("window.__evidenceStore.count()");
     await click(client, "[data-testid='simulate-jp1-btn']");
     assert(
       await client.evaluate("window.__virtualDevice.getInterventionPoint('relay_power_jumper') === '5v'"),
       "The jumper must change through the UI",
     );
-    await click(client, "[data-testid='tell-agent-repair-btn']");
     await waitFor<boolean>(
       client,
       `window.__evidenceStore.count() > ${evidenceBeforeRepair} &&
@@ -468,6 +531,7 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
     })`);
     assert(!retestPending.settled, "Retest promise must remain pending before approval");
     assert(retestPending.relay === "open", "Relay must remain open before retest approval");
+
     const repairApprovalVisible = await client.evaluate<boolean>(
       `Boolean(document.querySelector("[data-testid='repair-approve-btn']"))`,
     );
@@ -481,6 +545,19 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
     }>(client, "retest");
     assert(stableStress.unexpected_resets === 0, "Post-repair retest should have no reset");
     assert(stableStress.supply_voltage.minimum_v >= 3.18, "Post-repair MCU rail should remain stable");
+
+    const finalRelayState = await client.evaluate<string>("window.__virtualDevice.getRelayState()");
+    assert(finalRelayState === "open", "Relay must safely return to open state after verification retest");
+
+    await waitFor<boolean>(
+      client,
+      `document.body.innerText.includes("3.18") &&
+       (document.body.innerText.includes("Stable · No reset") || document.body.innerText.includes("VERIFICATION TEST"))`,
+      "verification test scene",
+    );
+
+    // Screenshot 08: Verification Test
+    await client.captureScreenshot(join(screenshotsDir, "08-verification-test.png"));
 
     await invokeTool(client, "confirm_hypothesis", {
       hypothesis_id: proposal.hypothesis.id,
@@ -501,6 +578,10 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
       "verified final UI",
       15_000,
     );
+
+    // Screenshot 09: Repair Verified
+    await client.captureScreenshot(join(screenshotsDir, "09-repair-verified.png"));
+
     const finalState = await client.evaluate<{
       hypothesisStatus?: string;
       verificationStatus?: string;
@@ -508,10 +589,16 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
       relay: string;
       latestResets?: number;
       everyInvocationExternal: boolean;
+      isVerified: boolean;
+      hasContradictoryLabels: boolean;
     }>(`(() => {
       const hypothesis = window.__hypothesisStore.get(${JSON.stringify(proposal.hypothesis.id)});
       const experiments = window.__experimentStore.getExperiments();
       const latest = experiments[experiments.length - 1];
+      const body = document.body.innerText;
+      const contradictory =
+        (body.includes("DIAGNOSIS MATCH ✓") && (body.includes("NOT_VERIFIED") || body.includes("UNVERIFIED"))) ||
+        (body.includes("Repair verified") && body.includes("INVESTIGATION INCOMPLETE"));
       return {
         hypothesisStatus: hypothesis?.status,
         verificationStatus: hypothesis?.verificationStatus,
@@ -519,6 +606,8 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
         relay: window.__virtualDevice.getRelayState(),
         latestResets: latest?.summary?.unexpected_resets,
         everyInvocationExternal: window.__toolLedger.getEntries().every((entry) => entry.origin === "external"),
+        isVerified: body.includes("REPAIR VERIFIED"),
+        hasContradictoryLabels: contradictory,
       };
     })()`);
     assert(finalState.hypothesisStatus === "CONFIRMED", "Final hypothesis should be confirmed");
@@ -527,7 +616,14 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
     assert(finalState.relay === "open", "Final relay state should be safely open");
     assert(finalState.latestResets === 0, "Final experiment should be stable");
     assert(finalState.everyInvocationExternal, "Every direct invocation should be attributed to the external agent");
+    assert(finalState.isVerified, "Final UI must announce REPAIR VERIFIED");
+    assert(!finalState.hasContradictoryLabels, "Final screen must not contain contradictory status labels");
     assert(getAgentRequestCount() === 0, "The external-agent flow must never call Groq or another built-in provider");
+
+    assert(
+      client.consoleErrors.length === 0,
+      `Detected ${client.consoleErrors.length} unexpected console error(s):\n${client.consoleErrors.join("\n")}`,
+    );
 
     console.info("External WebMCP browser flow passed.");
   } finally {

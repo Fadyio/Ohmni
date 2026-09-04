@@ -123,7 +123,7 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
           <span>HARDWARE REGISTERS · read_reset_history</span>
         </div>
         <h2 style={{ fontSize: "26px", fontWeight: 750, color: "var(--ink, #111318)", margin: "4px 0 0", letterSpacing: "-0.02em" }}>
-          {hasInspectedResetHistory ? "Reset history" : "Microcontroller reset history"}
+          RESET HISTORY
         </h2>
         <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--ink-secondary, #5C6470)" }}>
           {isParseError
@@ -159,7 +159,7 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: hasBrownout ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)" }}>
-              Brownout reset
+              Brownout resets
             </span>
             <RotateCcw size={16} color={hasBrownout ? "var(--ohmni-lab-fault)" : "var(--ohmni-lab-muted)"} />
           </div>
@@ -221,7 +221,7 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink-secondary, #5C6470)" }}>
-              Software resets
+              Software crashes
             </span>
             <ShieldCheck size={16} color={hasInspectedResetHistory ? "var(--verified, #16A34A)" : "var(--ink-tertiary, #8A92A0)"} />
           </div>
@@ -255,10 +255,10 @@ export const ObservingScene: React.FC<ObservingSceneProps> = ({
           }}
         >
           <div style={{ fontSize: "11px", fontWeight: 750, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--fault, #DC2626)" }}>
-            Observed diagnostic finding
+            Observed finding
           </div>
           <div style={{ fontSize: "14.5px", fontWeight: 600, color: "var(--ink, #111318)", lineHeight: 1.45 }}>
-            Recent resets were caused by the MCU supply falling below its operating threshold.
+            Power fell below the MCU reset threshold while the controller was running.
             <span style={{ display: "none" }}>"Software crashes: 0. Power dropped below 2.8 V while the system was running."</span>
           </div>
         </div>

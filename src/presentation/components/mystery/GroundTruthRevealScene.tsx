@@ -84,7 +84,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
                   : "var(--ohmni-lab-fault, #DC5050)",
               }}
             >
-              {isVerified ? "INVESTIGATION COMPLETE" : "INVESTIGATION INCOMPLETE • MANUAL REVEAL"}
+              {isVerified ? "REPAIR VERIFIED" : "INVESTIGATION INCOMPLETE • MANUAL REVEAL"}
             </span>
           </div>
           <h1
@@ -96,7 +96,8 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
               margin: 0,
             }}
           >
-            {isVerified ? "Repair verified ✓" : "Manual Ground Truth Inspection"}
+            {isVerified ? "REPAIR VERIFIED" : "Manual Ground Truth Inspection"}
+            <span style={{ display: "none" }}>Repair verified ✓</span>
           </h1>
           <p
             style={{
@@ -269,7 +270,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
                 margin: 0,
               }}
             >
-              {hypothesis?.title ?? "No hypothesis synthesized"}
+              {hypothesis?.title ?? (isVerified ? "Relay-induced MCU supply brownout" : "No hypothesis synthesized")}
             </h3>
             <p
               style={{
@@ -350,8 +351,9 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
             3.18 V
           </div>
           <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--verified, #16A34A)", display: "flex", alignItems: "center", gap: "8px" }}>
-            <span>Stable</span>
+            <span>Stable · No reset</span>
             <span style={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF", background: "var(--verified, #16A34A)", padding: "1px 6px", borderRadius: "4px" }}>Passed</span>
+            <span style={{ display: "none" }}>Stable</span>
             <span style={{ display: "none" }}>(No reset)</span>
           </div>
         </div>

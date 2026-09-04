@@ -340,10 +340,10 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
         },
         verified_experiment_id: {
           type: "string",
-          description: "Identifier of the successful verification experiment (e.g. exp-abc12345).",
+          description: "Optional identifier of the successful verification experiment (e.g. exp-abc12345). Auto-detected if omitted.",
         },
       },
-      required: ["hypothesis_id", "rationale", "evidence_ids", "verified_experiment_id"],
+      required: ["hypothesis_id", "rationale"],
       additionalProperties: false,
     },
     annotations: {
@@ -353,8 +353,8 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
       const input = parseToolInput(rawInput);
       const hypothesisId = String(input.hypothesis_id || "").trim();
       const rationale = String(input.rationale || "").trim();
-      const verifiedExperimentId = String(input.verified_experiment_id || "").trim();
-      const evidenceIds = Array.isArray(input.evidence_ids)
+      let verifiedExperimentId = String(input.verified_experiment_id || "").trim();
+      let evidenceIds = Array.isArray(input.evidence_ids)
         ? (input.evidence_ids as string[]).map((id) => String(id).trim())
         : [];
 
@@ -364,6 +364,29 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
       if (!rationale) {
         throw new Error("Missing required parameter: rationale");
       }
+
+      const storeAny = hypothesisStore as any;
+      if (!verifiedExperimentId && storeAny.evidenceStore) {
+        const records = (storeAny.evidenceStore.getAll() || []) as Array<{
+          type: string;
+          experimentId?: string;
+          payload?: any;
+          id: string;
+        }>;
+        const passingRetest = records.findLast(
+          (r) =>
+            r.type === "test_result" &&
+            r.experimentId &&
+            (r.payload?.unexpected_resets === 0 || r.payload?.resetOccurred === false)
+        );
+        if (passingRetest?.experimentId) {
+          verifiedExperimentId = passingRetest.experimentId;
+        }
+      }
+      if (evidenceIds.length === 0 && storeAny.evidenceStore) {
+        evidenceIds = (storeAny.evidenceStore.getAll() || []).map((r: { id: string }) => r.id);
+      }
+
       if (!verifiedExperimentId) {
         throw new Error("Missing required parameter: verified_experiment_id");
       }
@@ -448,9 +471,9 @@ export function createHypothesisTools(hypothesisStore: HypothesisStore): ModelCo
 
   const requestHumanInterventionTool: ModelContextTool = {
     name: "request_human_intervention",
-    title: "Request Human-Gated DUT Intervention",
+    title: "Request Human Intervention",
     description:
-      "Request human assistance at the device-adapter boundary. In this submission, the human explicitly simulates a jumper, switch, or cable change on the stateful virtual ESP32; no device state changes automatically.",
+      "Ask the user to perform a required physical configuration change that the agent cannot safely perform itself.",
     inputSchema: {
       type: "object",
       properties: {

@@ -37,7 +37,7 @@ export function createEvidenceTools(evidenceStore: EvidenceStore): ModelContextT
     name: "list_evidence",
     title: "List Evidence Records",
     description:
-      "List immutable factual observations recorded by Ohmni from diagnostic experiments and human observations. Evidence records are measurements and observed events, not diagnostic conclusions.",
+      "Return immutable observations collected during this investigation. Use before forming or updating a causal hypothesis.",
     inputSchema: {
       type: "object",
       properties: {

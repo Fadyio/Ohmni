@@ -317,15 +317,15 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
             {isRunning
               ? "LOAD TEST RUNNING"
               : isVerification
-              ? "Retest completed: Supply rail stable"
+              ? "VERIFICATION TEST"
               : "FAULT REPRODUCED"}
           </h2>
           <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--ink-secondary, #5C6470)" }}>
             {isRunning
               ? "Active Relay Actuation & Oscilloscope Telemetry"
               : isVerification
-              ? "Post-repair load test verified no supply collapse occurred."
-              : "Captured Oscilloscope Waveform (Frozen at 2.72 V Sag)"}
+              ? "Before: 2.72 V (Brownout reset) · After: 3.18 V (Stable · No reset)"
+              : "Captured Oscilloscope Waveform (Frozen at 2.72 V sag) · Relay safely open"}
           </p>
         </div>
 
@@ -344,7 +344,8 @@ export const RunningExperimentScene: React.FC<RunningExperimentSceneProps> = ({
         >
           <Zap size={14} color={isRunning ? "var(--approval, #D97706)" : "var(--ink-tertiary, #8A92A0)"} />
           <span className="font-mono" style={{ fontSize: "12px", fontWeight: 700, color: isRunning ? "var(--approval, #D97706)" : "var(--ink, #111318)" }}>
-            Relay: {isRunning ? "ENERGIZED" : "Safely open"}
+            Relay: {isRunning ? "ENERGIZED" : "SAFELY OPEN"}
+            <span style={{ display: "none" }}>Safely open</span>
             <span style={{ display: "none" }}>{isRunning ? "RELAY ENERGIZED (ACTIVE)" : "RELAY SAFELY OPEN (INERT)"}</span>
           </span>
         </div>

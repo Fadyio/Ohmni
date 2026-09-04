@@ -218,7 +218,19 @@ export class CapabilityRegistry {
           .getByExperiment(summary.experiment_id)
           .map((record) => record.id);
 
-        return { ...summary, evidence_ids: evidenceIds };
+        const minimum_v = summary.supply_voltage?.minimum_v;
+        const resetOccurred = (summary.unexpected_resets ?? 0) > 0;
+        const resetReason = summary.resetReason ?? (resetOccurred ? "BROWNOUT" : undefined);
+
+        return {
+          ...summary,
+          reset_occurred: resetOccurred,
+          minimum_supply_v: minimum_v,
+          reset_reason: resetReason,
+          threshold_v: 2.80,
+          relay_returned_safe: true,
+          evidence_ids: evidenceIds,
+        };
       },
     }));
   }

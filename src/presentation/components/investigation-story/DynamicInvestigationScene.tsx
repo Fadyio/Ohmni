@@ -238,11 +238,14 @@ export const DynamicInvestigationScene: React.FC<DynamicInvestigationSceneProps>
       return "measurement";
     }
 
-    const hasEvidenceToolResult =
-      isCompleted &&
-      (latestToolName.includes("evidence") ||
-        latestToolName.includes("stress"));
-    if (evidenceRecords.length > 0 || hasEvidenceToolResult) return "evidence";
+    if (isCompleted && latestToolName.includes("stress")) {
+      return "running";
+    }
+
+    if (isCompleted && latestToolName.includes("evidence")) {
+      return "evidence";
+    }
+
     const hasObservationTool =
       latestToolName !== "" &&
       (latestLedgerEntry ? (latestLedgerEntry.status !== "failed" && latestLedgerEntry.status !== "denied") : (latestActivity?.status !== "failed")) &&

@@ -344,6 +344,10 @@ export const TestRequestScene: React.FC<TestRequestSceneProps> = ({
                 <span>Maximum actuation: 500 ms</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--ink, #111318)" }}>
+                <AlertTriangle size={14} color="var(--approval, #D97706)" />
+                <span>Auto-abort on reset</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--ink, #111318)" }}>
                 <Activity size={14} color="var(--verified, #16A34A)" />
                 <span>Relay returns open automatically</span>
               </div>

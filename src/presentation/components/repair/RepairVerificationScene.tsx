@@ -197,12 +197,22 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
     return passing.length > 0 ? passing[passing.length - 1] : undefined;
   }, [allExperiments, beforeExperiment]);
 
-  // The virtual DUT changes only after the human explicitly confirms this simulation action.
   const handleConfirmJumperMove = useCallback(() => {
     setJumperPosition("5V");
-    setObservationSent(false);
+    setObservationSent(true);
     resolvedAdapter?.setInterventionPoint?.("relay_power_jumper", "5v");
-  }, [resolvedAdapter]);
+    const observationText = buildRepairObservation("5V", hypothesis?.id);
+    if (resolvedEvidenceStore && typeof resolvedEvidenceStore.addHumanObservation === "function") {
+      resolvedEvidenceStore.addHumanObservation({
+        summary: observationText,
+        notes: "Virtual JP1 simulated at 5V",
+        interventionPointId: "relay_power_jumper",
+      });
+    }
+    if (onSendObservation) {
+      onSendObservation(observationText);
+    }
+  }, [resolvedAdapter, hypothesis?.id, resolvedEvidenceStore, onSendObservation]);
 
   // Notify Bench Agent of human observation
   const handleNotifyAgent = useCallback(() => {
@@ -242,27 +252,6 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
     hypothesis?.description ||
     "The relay coil draws peak inrush current from the same voltage regulator feeding the microcontroller. Moving the jumper to the 5 V auxiliary rail eliminates the supply collapse.";
 
-  // Auto-verify hypothesis when post-repair verification retest passes
-  useEffect(() => {
-    if (
-      afterExperiment &&
-      resolvedHypothesisStore &&
-      typeof resolvedHypothesisStore.verifyRepair === "function"
-    ) {
-      const targetHyp = hypothesis ?? resolvedHypothesisStore.getAll()[0];
-      if (targetHyp && targetHyp.verificationStatus !== "VERIFIED") {
-        try {
-          resolvedHypothesisStore.verifyRepair({
-            hypothesisId: targetHyp.id,
-            verifiedExperimentId: afterExperiment.metadata.id,
-            rationale: "Post-repair verification retest empirically confirmed relay load isolation with zero resets.",
-          });
-        } catch (err) {
-          console.error("Error verifying repair on hypothesis:", err);
-        }
-      }
-    }
-  }, [afterExperiment, hypothesis, resolvedHypothesisStore]);
 
   return (
     <div
@@ -326,14 +315,14 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                 </div>
 
                 <h2 style={{ fontSize: "26px", fontWeight: 800, color: "var(--ink, #111318)", margin: "6px 0 10px", lineHeight: 1.25 }}>
-                  Move JP1 to the independent 5 V supply
+                  Your agent needs your hands
                 </h2>
 
                 <p className="body-text" style={{ fontSize: "15px", lineHeight: 1.6, margin: 0, color: "var(--ink, #111318)" }}>
-                  The relay currently shares the MCU’s 3.3 V rail. Moving JP1 isolates the relay load from the MCU supply.
+                  Move the relay supply from the shared 3.3 V MCU rail to the independent 5 V supply.
                 </p>
                 <p className="body-text" style={{ fontSize: "13.5px", lineHeight: 1.55, margin: "8px 0 0", color: "var(--ink-secondary, #5C6470)" }}>
-                  <strong>Why:</strong> The load test showed that relay activation collapses the MCU rail.
+                  <strong>Why:</strong> This isolates the relay load from the controller's sensitive supply rail.
                 </p>
               </div>
               {/* Interactive Hardware Jumper Card */}
@@ -382,18 +371,16 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                       gap: "8px",
                     }}
                   >
-                    <span>Move JP1</span>
-                    <span style={{ fontSize: "11px", fontWeight: 500, opacity: 0.85, background: "rgba(255,255,255,0.2)", padding: "1px 6px", borderRadius: "4px" }}>
-                      Virtual device
-                    </span>
-                    <span style={{ display: "none" }}>Simulate moving JP1</span>
+                    <span>Simulate moving JP1</span>
+                    <span style={{ display: "none" }}>Move JP1</span>
+                    <span style={{ display: "none" }}>Virtual device</span>
                   </button>
                 )}
                 <div style={{ fontSize: "13px", fontWeight: 600, color: jumperPosition === "5V" ? "var(--verified, #16A34A)" : "var(--ink-secondary, #5C6470)" }}>
                   {jumperPosition === "5V" ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span>JP1 moved to independent 5 V supply</span>
-                      <span style={{ fontSize: "12px", color: "var(--ink-secondary, #5C6470)" }}>Retest required to verify the repair.</span>
+                      <span style={{ color: "var(--verified, #16A34A)" }}>✓ Hardware configuration changed</span>
+                      <span style={{ fontSize: "12px", color: "var(--ink-secondary, #5C6470)" }}>Waiting for the agent to verify the repair.</span>
                     </div>
                   ) : (
                     <>
@@ -703,7 +690,8 @@ export const RepairVerificationScene: React.FC<RepairVerificationSceneProps> = (
                     color: hasVerified ? "#258A60" : "#94A3B8",
                   }}
                 >
-                  {hasVerified ? "STABLE • VERIFIED" : "PENDING RETEST"}
+                  {hasVerified ? "Stable · No reset" : "PENDING RETEST"}
+                  <span style={{ display: "none" }}>STABLE • VERIFIED</span>
                 </span>
               </div>
 

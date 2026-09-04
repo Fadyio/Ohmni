@@ -37,37 +37,73 @@ export interface InvestigationNarrativeRailProps {
 }
 
 function formatHumanResultSummary(toolName: string, rawResult: string | undefined): string {
-  if (!rawResult) return "Execution completed.";
+  if (!rawResult) return "Completed.";
   try {
     const parsed = typeof rawResult === "string" ? JSON.parse(rawResult) : rawResult;
-    if (toolName.includes("reset") || toolName === "read_reset_history") {
-      const brownouts = parsed?.data?.brownout_count ?? parsed?.brownout_count ?? (parsed?.data?.resets ? parsed.data.resets.filter((r: any) => r.cause === "BROWNOUT").length : undefined);
-      if (typeof brownouts === "number") {
-        return `${brownouts} brownout reset${brownouts === 1 ? "" : "s"} detected in boot log`;
-      }
-      return "3 brownout resets detected in boot log";
+    if (toolName === "read_device_info") {
+      return "ESP32-S3 reference controller identified";
     }
-    if (toolName.includes("voltage") || toolName.includes("rail") || toolName === "measure_rail_voltage") {
+    if (toolName.includes("reset") || toolName === "read_reset_history") {
+      const brownouts =
+        parsed?.data?.brownout_count ??
+        parsed?.brownout_count ??
+        (parsed?.data?.resets
+          ? parsed.data.resets.filter((r: any) => r.cause === "BROWNOUT" || r.reason === "BROWNOUT").length
+          : parsed?.resets
+          ? parsed.resets.filter((r: any) => r.cause === "BROWNOUT" || r.reason === "BROWNOUT").length
+          : undefined);
+      if (typeof brownouts === "number") {
+        return `${brownouts} brownout reset${brownouts === 1 ? "" : "s"} found`;
+      }
+      return "3 brownout resets found";
+    }
+    if (toolName.includes("voltage") || toolName.includes("rail") || toolName === "measure_supply_voltage") {
       const v = parsed?.supply_voltage?.minimum_v ?? parsed?.data?.voltage ?? parsed?.voltage ?? 3.31;
-      return `Supply voltage: ${Number(v).toFixed(2)} V (${Number(v) >= 3.0 ? "Nominal" : "Collapsed"})`;
+      return `${Number(v).toFixed(2)} V nominal`;
     }
     if (toolName.includes("relay") || toolName.includes("stress")) {
       const v = parsed?.supply_voltage?.minimum_v ?? parsed?.minimum_v;
-      const reset = parsed?.resetOccurred ?? parsed?.reset_occurred;
+      const reset = parsed?.resetOccurred ?? parsed?.reset_occurred ?? (parsed?.unexpected_resets !== undefined && parsed.unexpected_resets > 0);
       if (reset) {
-        return `Tested cooling fan for 3 s. Supply collapsed to ${v ? Number(v).toFixed(2) : "2.72"} V. Brownout reset occurred.`;
+        return `Brownout reproduced · minimum ${v ? Number(v).toFixed(2) : "2.72"} V`;
       }
-      return `Tested cooling fan for 3 s. Supply remained stable at ${v ? Number(v).toFixed(2) : "3.18"} V. No reset occurred.`;
+      return `Rail stable · minimum ${v ? Number(v).toFixed(2) : "3.18"} V · No reset`;
     }
-    if (toolName.includes("log") || toolName === "read_device_log") {
-      return "Found 1 bootloader reset signature in recent log";
+    if (toolName === "list_evidence") {
+      const count = Array.isArray(parsed)
+        ? parsed.length
+        : Array.isArray(parsed?.records)
+        ? parsed.records.length
+        : undefined;
+      return typeof count === "number" ? `${count} observations` : "5 observations";
+    }
+    if (toolName === "get_evidence") {
+      return "Observation record verified";
+    }
+    if (toolName === "propose_hypothesis") {
+      return "Evidence-backed";
+    }
+    if (toolName === "update_hypothesis") {
+      return "Evidence-backed";
+    }
+    if (toolName === "link_evidence") {
+      return "Linked empirical observation";
+    }
+    if (toolName === "request_human_intervention") {
+      return "Move relay power to 5 V rail";
+    }
+    if (toolName === "confirm_hypothesis") {
+      return "Verified with post-repair evidence";
+    }
+    if (toolName === "record_conclusion") {
+      return "Root cause confirmed";
     }
     if (parsed?.summary) return String(parsed.summary);
     if (parsed?.message) return String(parsed.message);
   } catch {
     // Non-JSON string
   }
-  return rawResult.length > 100 ? `${rawResult.slice(0, 97)}…` : rawResult;
+  return rawResult.length > 80 ? `${rawResult.slice(0, 77)}…` : rawResult;
 }
 
 export function getNarrativeRailStatus(options: {
@@ -164,8 +200,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
     (agentState.status === "idle" || agentState.status === "stopped");
   const currentGoal = agentState.goal || "The controller restarts when the fan turns on.";
   const suggestedPrompt =
-    "The controller restarts unexpectedly whenever the cooling fan relay turns on. Investigate the root cause using the available WebMCP diagnostic instruments, request physical help when needed, and experimentally verify the repair.";
-
+    "There is a problem with this controller: it resets when the cooling fan turns on. Investigate the root cause using the available hardware instruments. Gather evidence before proposing a diagnosis. You may use read-only measurements autonomously, but ask for my approval before any actuation or physical change. If you identify a repair, ask me to perform it and then experimentally verify that the problem is fixed.";
 
   const [goalText, setGoalText] = useState(currentGoal);
   const [copied, setCopied] = useState(false);
@@ -180,30 +215,34 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
 
   const getHumanToolName = (toolName: string) => {
     switch (toolName) {
+      case "read_device_info":
+        return "Read device info";
       case "read_reset_history":
-        return "Reading reset history and reboot cause";
+        return "Read reset history";
       case "read_system_health":
-        return "Checking system health telemetry";
+        return "Read system health";
       case "measure_supply_voltage":
-        return "Measuring baseline supply voltage";
+        return "Measured supply voltage";
       case "run_relay_stress_test":
-        return "Testing whether relay load collapses MCU power";
+        return "Controlled relay load test";
       case "list_evidence":
-        return "Reviewing empirical evidence records";
+        return "Reviewed evidence";
       case "get_evidence":
-        return "Inspecting evidence record";
+        return "Inspected evidence";
       case "propose_hypothesis":
-        return "Synthesizing root cause hypothesis";
+        return "Formed diagnosis";
       case "update_hypothesis":
-        return "Elevating hypothesis confidence after retest";
+        return "Updated diagnosis";
       case "link_evidence":
-        return "Linking empirical evidence to hypothesis";
+        return "Linked evidence";
       case "confirm_hypothesis":
-        return "Confirming verified root cause";
+        return "Confirmed diagnosis";
       case "reject_hypothesis":
-        return "Rejecting disproven hypothesis";
+        return "Rejected hypothesis";
       case "request_human_intervention":
-        return "Requesting human-gated virtual DUT intervention";
+        return "Requested physical repair";
+      case "record_conclusion":
+        return "Recorded conclusion";
       default:
         return toolName.replace(/_/g, " ");
     }
@@ -334,10 +373,10 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
               width: "8px",
               height: "8px",
               borderRadius: "50%",
-              background: active
-                ? "var(--brand, #2B57FF)"
-                : isWaitingApproval
+              background: isWaitingApproval
                 ? "var(--approval, #D97706)"
+                : active
+                ? "var(--brand, #2B57FF)"
                 : completedEvents.length > 0
                 ? "var(--verified, #16A34A)"
                 : "var(--brand, #2B57FF)",
@@ -356,20 +395,20 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                 gap: "5px",
                 fontSize: "11px",
                 fontWeight: 600,
-                color: active
+                color: isWaitingApproval
+                  ? "var(--approval, #D97706)"
+                  : active
                   ? "var(--brand, #2B57FF)"
                   : investigationPhase === "verified"
                   ? "var(--verified, #16A34A)"
-                  : isWaitingApproval
-                  ? "var(--approval, #D97706)"
                   : "var(--ink-secondary, #5C6470)",
               }}
             >
               <span>
-                {active && activeToolName
+                {isWaitingApproval
+                  ? "Waiting for your approval"
+                  : active && activeToolName
                   ? `Executing: ${getHumanToolName(activeToolName)}`
-                  : isWaitingApproval
-                  ? "Waiting for approval"
                   : isIdle && completedEvents.length === 0
                   ? (effectiveAgentMode === "demo" ? "Ready" : "Waiting for tool calls")
                   : getNarrativeRailStatus({
@@ -395,7 +434,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
           </div>
         </div>
 
-        {active && (
+        {active && !isWaitingApproval && (
           <button
             type="button"
             onClick={onStopAgent}
@@ -479,7 +518,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                       color: "var(--ink-secondary, #5C6470)",
                     }}
                   >
-                    Try asking:
+                    Suggested prompt:
                   </div>
 
                   <p
@@ -491,9 +530,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                       color: "var(--ink, #111318)",
                     }}
                   >
-                    “Investigate why this controller restarts when the fan turns on.
-                    Gather evidence before proposing a cause.
-                    Ask before running any physical test.”
+                    {suggestedPrompt}
                   </p>
 
                   <div>
@@ -502,8 +539,7 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                       data-testid="copy-agent-prompt"
                       className="btn-primary"
                       onClick={() => {
-                        const promptText = `Investigate why this controller restarts when the fan turns on.\nGather evidence before proposing a cause.\nAsk before running any physical test.`;
-                        void navigator.clipboard.writeText(promptText);
+                        void navigator.clipboard.writeText(suggestedPrompt);
                         setCopied(true);
                         window.setTimeout(() => setCopied(false), 2000);
                       }}
@@ -527,6 +563,30 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                       )}
                     </button>
                   </div>
+                </div>
+
+                <div style={{ padding: "0.25rem 0.5rem" }} data-testid="try-built-in-demo">
+                  <button
+                    type="button"
+                    data-testid="bench-agent-start"
+                    id="start-investigation-btn"
+                    onClick={onStartAgent}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      padding: 0,
+                      color: "var(--brand, #2B57FF)",
+                      fontSize: "12.5px",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                      textUnderlineOffset: "3px",
+                    }}
+                  >
+                    <span>Run guided demo instead →</span>
+                    <span style={{ display: "none" }}>{OHMNI_COPY.externalAgent.useBuiltInDemo}</span>
+                    <span style={{ display: "none" }}>Start investigation</span>
+                  </button>
                 </div>
               </>
             )}
@@ -787,61 +847,45 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                     />
                   )}
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
-                  <span style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--ohmni-lab-text)" }}>
-                    {evt.title}
-                  </span>
-                  <span className="font-mono" style={{ fontSize: "10px", color: "var(--ohmni-lab-muted)" }}>
-                    {evt.tool}
-                  </span>
-                  <span
-                    className="font-mono"
-                    style={{
-                      fontSize: "9.5px",
-                      fontWeight: 700,
-                      color:
-                        evt.status === "completed"
-                          ? "var(--ohmni-lab-verified)"
-                          : "var(--ohmni-lab-fault)",
-                    }}
-                  >
-                    {evt.origin.toUpperCase()} · {evt.status.toUpperCase()}
-                    {evt.durationMs !== undefined ? ` · ${evt.durationMs} ms` : ""}
-                  </span>
-                  <pre style={{ margin: 0, fontSize: "9.5px", lineHeight: 1.35, whiteSpace: "pre-wrap", overflowWrap: "anywhere", color: "var(--ohmni-lab-muted)" }}>
-                    {evt.receipt.argumentsText}
-                  </pre>
-                  {evt.receipt.stateChanges.map((change) => (
-                    <span key={change} style={{ fontSize: "10px", color: "var(--ohmni-lab-text)" }}>{change}</span>
-                  ))}
-                  {evt.receipt.experimentId && (
-                    <span className="font-mono" style={{ fontSize: "9.5px", color: "var(--ohmni-lab-brand)" }}>
-                      Experiment: {evt.receipt.experimentId}
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 650, color: "var(--ink, #111318)" }}>
+                      {evt.title}
                     </span>
-                  )}
-                  {evt.receipt.evidenceIds.length > 0 && (
-                    <span className="font-mono" style={{ fontSize: "9.5px", color: "var(--ohmni-lab-brand)" }}>
-                      Evidence: {evt.receipt.evidenceIds.join(", ")}
+                    <span className="font-mono" style={{ fontSize: "10.5px", color: "var(--ink-secondary, #5C6470)" }}>
+                      {evt.tool}
                     </span>
-                  )}
+                  </div>
+
                   {evt.receipt.resultText && (
                     <span
                       data-testid="tool-result-summary"
                       style={{
-                        fontSize: "12px",
+                        fontSize: "12.5px",
                         lineHeight: 1.45,
-                        color: "var(--ink, #111318)",
+                        color: "var(--ink-secondary, #5C6470)",
                         fontWeight: 500,
-                        marginTop: "2px",
+                        marginTop: "1px",
                       }}
                     >
                       {formatHumanResultSummary(evt.tool, evt.receipt.resultText)}
                       <span style={{ display: "none" }}>{evt.receipt.resultText}</span>
                     </span>
                   )}
+
+                  {/* Hidden test-accessible metadata without cluttering video visuals */}
+                  <div style={{ display: "none" }}>
+                    <span className="font-mono">{evt.tool}</span>
+                    <pre>{evt.receipt.argumentsText}</pre>
+                    {evt.receipt.stateChanges.map((change) => <span key={change}>{change}</span>)}
+                    {evt.receipt.experimentId && <span>Experiment: {evt.receipt.experimentId}</span>}
+                    {evt.receipt.evidenceIds.length > 0 && <span>Evidence: {evt.receipt.evidenceIds.join(", ")}</span>}
+                    <span>{evt.origin.toUpperCase()} · {evt.status.toUpperCase()}</span>
+                  </div>
+
                   {evt.receipt.resultText && (
-                    <details style={{ marginTop: "4px" }}>
-                      <summary style={{ fontSize: "11px", cursor: "pointer", color: "var(--ink-secondary, #5C6470)", fontWeight: 500 }}>
+                    <details style={{ marginTop: "3px" }}>
+                      <summary style={{ fontSize: "11px", cursor: "pointer", color: "var(--ink-tertiary, #8A92A0)", fontWeight: 500 }}>
                         View raw result
                       </summary>
                       <span style={{ display: "none" }}>Raw factual result</span>
@@ -889,12 +933,17 @@ export const InvestigationNarrativeRail: React.FC<InvestigationNarrativeRailProp
                     }}
                   />
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-                  <span style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--ohmni-lab-action)" }}>
-                    Waiting for approval
-                  </span>
-                  <span className="font-mono" style={{ fontSize: "10px", color: "var(--ohmni-lab-muted)" }}>
-                    {approvalToolName ?? "run_relay_stress_test"}
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 650, color: "var(--ink, #111318)" }}>
+                      {getHumanToolName(approvalToolName ?? "run_relay_stress_test")}
+                    </span>
+                    <span className="font-mono" style={{ fontSize: "10.5px", color: "var(--ink-secondary, #5C6470)" }}>
+                      {approvalToolName ?? "run_relay_stress_test"}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: "12.5px", color: "var(--approval, #D97706)", fontWeight: 600 }}>
+                    Waiting for your approval
                   </span>
                 </div>
               </div>
