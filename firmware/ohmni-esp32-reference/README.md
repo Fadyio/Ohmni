@@ -1,8 +1,8 @@
 # OHMNI ESP32-S3 Reference Firmware
 
-Reference firmware implementing the **ADR 0006 Versioned NDJSON Protocol (v1)** for microcontroller diagnostic instrumentation over Web Serial.
+Reference firmware implementing the **Ohmni NDJSON Protocol v1** for microcontroller diagnostic instrumentation over Web Serial.
 
-Exposes physical measurements, MCU health, reset history, and bounded actuator stress testing directly to the in-browser WebMCP AI Bench Agent.
+Exposes physical measurements, MCU health, reset history, and bounded actuator stress testing directly to browser WebMCP tools and external agents.
 
 ---
 
@@ -24,7 +24,7 @@ Defaults configured at the top of `src/main.cpp`:
 | `OHMNI_RELAY_PIN` | `GPIO 4` | Active-HIGH transistor gate/base driving relay coil |
 | `OHMNI_SUPPLY_ADC_PIN` | `GPIO 5` | Analog input connected to 3.3V rail voltage divider |
 | `OHMNI_SUPPLY_ADC_SCALE` | `2.0` | Scaling factor for external voltage divider (e.g. 10k/10k) |
-| `OHMNI_BAUD_RATE` | `115200` | Standard serial baud rate for ADR 0006 v1 |
+| `OHMNI_BAUD_RATE` | `115200` | Standard serial baud rate for Ohmni NDJSON Protocol v1 |
 
 > **IMPORTANT:** Reference firmware demonstrates the protocol on an ESP32-S3. Actual ADC scaling, GPIO mapping, voltage-divider values, relays, and hardware interfaces **MUST** be configured for your target board before flashing. Do not assume arbitrary boards match these pins.
 
