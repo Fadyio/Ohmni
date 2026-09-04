@@ -12,8 +12,8 @@ FINAL MANUAL GATE — MUST BE DONE BY FADY
 8. Approve the verification test.
 9. Confirm ChatGPT independently reaches the verified diagnosis.
 
-REAL CHATGPT TESTED:
-NO
+REAL CHATGPT SITE-TOOLS MANUAL TEST:
+NOT YET VERIFIED BY HUMAN
 
 ---
 
@@ -113,5 +113,14 @@ When ChatGPT calls `request_human_intervention`:
 - Click `[ Simulate moving JP1 ]` to isolate the relay onto the independent 5 V rail.
 - Ohmni displays: `✓ Hardware configuration changed · Waiting for the agent to verify the repair.`
 - When ChatGPT requests the retest, approve the verification test (`Authorize & Energize`).
-- Retest completes: 3.18 V stable rail with no reset.
-- Final comparison displays: **REPAIR VERIFIED** (Before 2.72 V / Brownout reset vs After 3.18 V / Stable · No reset).
+- Retest completes with 3.18 V stable rail and zero resets:
+  - Immediately displays empirical result: `Retest passed · rail stable at 3.18 V` / `Awaiting agent confirmation`.
+  - Right rail displays verification pending / awaiting confirmation.
+  - Zero premature "REPAIR VERIFIED" text is rendered before agent confirmation.
+- ChatGPT reviews the empirical evidence and calls `confirm_hypothesis`:
+  - Ohmni transitions to the final reveal scene:
+    - **REPAIR VERIFIED**
+    - **DIAGNOSIS MATCH ✓**
+    - **SEALED VIRTUAL GROUND TRUTH**: Relay Supply Misconfiguration
+    - **AGENT DIAGNOSIS**: Relay-induced MCU supply brownout
+    - Right rail displays: **COMPLETED**

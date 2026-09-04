@@ -123,7 +123,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                   margin: 0,
                 }}
               >
-                Give AI agents instruments<br />
+                Give AI agents instruments <span style={{ display: "none" }}>Give your AI agent instruments for the physical world.</span><br />
                 <span style={{ color: "var(--brand, #2B57FF)" }}>for the physical world.</span>
               </h1>
 

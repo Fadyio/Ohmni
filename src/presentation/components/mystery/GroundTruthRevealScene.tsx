@@ -167,8 +167,7 @@ export const GroundTruthRevealScene: React.FC<GroundTruthRevealSceneProps> = ({
               color: "var(--ohmni-lab-secondary, #64748B)",
             }}
           >
-            ACTUAL HARDWARE FAULT
-            <span style={{ display: "none" }}>SEALED GROUND TRUTH</span>
+            SEALED VIRTUAL GROUND TRUTH
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>

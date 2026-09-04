@@ -56,17 +56,25 @@ Ohmni is built **external-agent first**. The built-in demo is a secondary walkth
 
 ### Quickstart with ChatGPT Desktop
 
-1. Open the **ChatGPT Desktop App** and launch its built-in browser.
-2. Navigate to [https://ohmni-three.vercel.app](https://ohmni-three.vercel.app).
-3. Click **[ Open agent-ready workbench ]**.
-4. ChatGPT will discover Ohmni's 19 registered instruments via `document.modelContext`.
-5. Enter the canonical prompt (or click **Copy prompt** in Ohmni's right rail):
+1. Open the **ChatGPT Desktop App** and launch its built-in browser (or navigate in any WebMCP-capable browser).
+2. Open: [https://ohmni-three.vercel.app](https://ohmni-three.vercel.app).
+3. Click: **[ Launch virtual diagnosis ]**.
+4. Confirm the page indicates WebMCP is connected and registered instruments are available.
+5. Give ChatGPT/external agent this canonical prompt (or click **Copy prompt** in Ohmni's right rail):
 
-> "Investigate why this controller resets when the fan turns on. Use the available instruments. Gather evidence before proposing a cause. Do not perform physical actuation without my approval."
+> "There is a problem with this controller: it resets when the cooling fan turns on. Investigate the root cause using the available hardware instruments. Gather evidence before proposing a diagnosis. You may use read-only measurements autonomously, but ask for my approval before any actuation or physical change. If you identify a repair, ask me to perform it and then experimentally verify that the problem is fixed."
 
-6. Watch your agent autonomously read device registers and measure baseline voltage.
-7. When the agent requests a controlled load test (`run_relay_stress_test`), Ohmni's Amber safety gate appears. Click **[ Approve test ]**.
-8. After fault reproduction, follow your agent's request to move the relay power jumper, then confirm retest to verify the repair.
+6. The external agent will:
+   - inspect device info (`read_device_info`)
+   - inspect reset history (`read_reset_history`)
+   - measure supply voltage (`measure_supply_voltage`)
+   - request controlled load test (`run_relay_stress_test`)
+   - wait for human authorization at the Amber safety gate
+   - use structured evidence (`list_evidence`, `get_evidence`)
+   - form diagnosis (`propose_hypothesis`)
+   - request human intervention (`request_human_intervention`)
+   - retest under identical parameters
+   - confirm hypothesis (`confirm_hypothesis`)
 
 Detailed step-by-step verification instructions: [docs/CHATGPT-SITE-TOOLS-TEST.md](docs/CHATGPT-SITE-TOOLS-TEST.md).
 
@@ -110,7 +118,35 @@ Firmware reference implementation: [`firmware/ohmni-esp32-reference/`](firmware/
 
 Ohmni registers native WebMCP tools directly with `document.modelContext`.
 
-### Real Registration Example
+### Native WebMCP registration shape
+
+The WebMCP specification provides `document.modelContext.registerTool(...)` for exposing typed tools to browser agents. Conceptually, the dynamically generated registration is equivalent to:
+
+```js
+document.modelContext.registerTool({
+  name: "measure_supply_voltage",
+  description:
+    "Measure the connected device's primary supply rail without changing hardware state.",
+  inputSchema: {
+    type: "object",
+    properties: {},
+    additionalProperties: false,
+  },
+  annotations: {
+    readOnlyHint: true,
+  },
+  execute: async () => {
+    return deviceAdapter.executeCapability("measure_supply_voltage");
+  },
+});
+```
+
+In production, registrations are dynamically materialized, secured, and mirrored across execution environments:
+- [`DeviceToolRegistrar`](src/infrastructure/webmcp/device-tool-registrar.ts): Validates device capabilities against security bounds before registration.
+- [`CapabilityRegistry`](src/infrastructure/webmcp/capability-registry.ts): Defines schemas, titles, descriptions, read-only hints, and execution handlers.
+- [`MirroredModelContext`](src/infrastructure/webmcp/mirrored-model-context.ts): Bridges native `document.modelContext` with execution coordination and safety gates.
+
+### Real Registration Loop
 
 Copied directly from production source ([`src/infrastructure/webmcp/device-tool-registrar.ts`](src/infrastructure/webmcp/device-tool-registrar.ts)):
 

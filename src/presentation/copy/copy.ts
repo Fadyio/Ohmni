@@ -30,7 +30,7 @@ export const OHMNI_COPY = {
     heroSubline:
       "Ohmni exposes safe hardware measurements and controlled experiments as WebMCP tools, so ChatGPT, Codex, or another compatible agent can operate the hardware workbench directly. The browser keeps physical side effects under your control.",
     proofLine: "WebMCP tools · Human-gated actuation · Web Serial",
-    primaryCta: "Open agent-ready workbench",
+    primaryCta: "Launch virtual diagnosis",
     secondaryCta: "Connect hardware",
     tertiaryCta: "Try built-in demo →",
     deviceBadge: "Virtual ESP32 reference device",
@@ -41,7 +41,7 @@ export const OHMNI_COPY = {
     railSubtitle: "Ready for a WebMCP-capable agent",
     suggestedPromptTitle: "Suggested prompt",
     suggestedPrompt:
-      "Investigate why this controller resets when the fan turns on. Use the available instruments. Gather evidence before proposing a cause. Do not perform physical actuation without my approval.",
+      "There is a problem with this controller: it resets when the cooling fan turns on. Investigate the root cause using the available hardware instruments. Gather evidence before proposing a diagnosis. You may use read-only measurements autonomously, but ask for my approval before any actuation or physical change. If you identify a repair, ask me to perform it and then experimentally verify that the problem is fixed.",
     copyPromptCta: "Copy prompt",
     copiedPrompt: "Copied to clipboard",
     useBuiltInDemo: "Use built-in demo agent",
@@ -158,7 +158,7 @@ export const OHMNI_COPY = {
 
   webmcp: {
     inspectorTitle: "WebMCP Instrument Inspector",
-    inspectorSubtitle: "19 instruments registered with document.modelContext",
+    inspectorSubtitle: "Registered instruments with document.modelContext",
     footerNotice: "These instruments are available to the agent currently viewing this page.",
     categories: {
       observe: "OBSERVE",

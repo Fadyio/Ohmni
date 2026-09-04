@@ -193,17 +193,17 @@ Ohmni provides two device backends behind the shared `DeviceAdapter` interface:
 
 ### Option 1: External Agent via ChatGPT Desktop or WebMCP Host
 1. Open **[https://ohmni-three.vercel.app](https://ohmni-three.vercel.app)** in ChatGPT Desktop App built-in browser or a WebMCP-enabled browser.
-2. Click **[ Open agent-ready workbench ]**.
-3. Copy the canonical prompt: *"The controller restarts unexpectedly whenever the cooling fan relay turns on. Investigate the root cause using the available WebMCP diagnostic instruments, request human help at the device boundary when needed, and experimentally verify the repair."*
+2. Click **[ Launch virtual diagnosis ]**.
+3. Copy the canonical prompt: *"There is a problem with this controller: it resets when the cooling fan turns on. Investigate the root cause using the available hardware instruments. Gather evidence before proposing a diagnosis. You may use read-only measurements autonomously, but ask for my approval before any actuation or physical change. If you identify a repair, ask me to perform it and then experimentally verify that the problem is fixed."*
 4. Provide the prompt to your external agent.
-5. The agent discovers Ohmni's 19 instruments on `document.modelContext`, probes reset logs and rail voltage, pauses at the Amber gate for `run_relay_stress_test`, requests moving jumper JP1 to 5 V, retests, and confirms diagnosis.
+5. The agent discovers Ohmni's registered instruments on `document.modelContext`, probes reset logs and rail voltage, pauses at the Amber gate for `run_relay_stress_test`, requests moving jumper JP1 to 5 V, retests, and confirms diagnosis.
 
 ### Option 2: Deterministic Demo Walkthrough
 1. Open **[https://ohmni-three.vercel.app](https://ohmni-three.vercel.app)**.
-2. Click **[ Start blind diagnosis ]** -> **[ Begin ]**.
-3. Click **[ Start investigation ]** to run the built-in deterministic demo walkthrough.
+2. Click **[ Launch virtual diagnosis ]** (or click **How it works →**).
+3. Follow the guided demo walkthrough.
 4. Approve the controlled relay stress test at the Amber gate.
-5. Move virtual jumper JP1 to Independent 5 V and click **[ Tell agent I changed it ]**.
+5. Move virtual jumper JP1 to Independent 5 V and notify the agent.
 6. Approve the retest and observe the verified diagnosis (**DIAGNOSIS MATCH ✓**).
 
 ### Option 3: Automated Chrome E2E Acceptance Gates

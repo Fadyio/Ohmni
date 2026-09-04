@@ -322,7 +322,10 @@ async function runSerialE2ETest(): Promise<void> {
     const landingHeadline = await cdpClient.evaluate<string>(
       `document.querySelector("h1")?.textContent?.trim() || ""`
     );
-    if (!landingHeadline.includes("Give your AI agent instruments for the physical world.")) {
+    if (
+      !landingHeadline.includes("Give your AI agent instruments for the physical world.") &&
+      !landingHeadline.includes("Give AI agents instruments for the physical world.")
+    ) {
       throw new Error(`Unexpected hero headline: "${landingHeadline}"`);
     }
     console.info("[test:e2e:serial] ✓ Truthful hero headline verified.");

@@ -324,6 +324,15 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
       `Boolean(document.querySelector("#start-mystery-btn"))`,
       "agent-ready landing action",
     );
+
+    // Screenshot 00: Landing
+    await client.captureScreenshot(join(screenshotsDir, "00-landing.png"));
+
+    const landingOverflow = await client.evaluate<number>(
+      `document.documentElement.scrollWidth - window.innerWidth`
+    );
+    assert(landingOverflow <= 0, `Landing page must have zero horizontal overflow, found: ${landingOverflow}px`);
+
     await click(client, "#start-mystery-btn");
     await waitFor<boolean>(
       client,
@@ -335,6 +344,11 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
       "connected agent-ready virtual workbench",
       15_000,
     );
+
+    const workbenchOverflow = await client.evaluate<number>(
+      `document.documentElement.scrollWidth - window.innerWidth`
+    );
+    assert(workbenchOverflow <= 0, `Workbench must have zero horizontal overflow, found: ${workbenchOverflow}px`);
     const readyUi = await client.evaluate<{
       heading: string;
       prompt: string;
@@ -552,9 +566,30 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
     await waitFor<boolean>(
       client,
       `document.body.innerText.includes("3.18") &&
-       (document.body.innerText.includes("Stable · No reset") || document.body.innerText.includes("VERIFICATION TEST"))`,
+       (document.body.innerText.includes("Stable · No reset") || document.body.innerText.includes("Retest passed"))`,
       "verification test scene",
     );
+
+    // Assert STATE A invariants before calling confirm_hypothesis
+    const stateA = await client.evaluate<{
+      hasRetestPassed: boolean;
+      hasAwaitingConfirmation: boolean;
+      hasPrematureVerified: boolean;
+      hasBenchAgentCopy: boolean;
+    }>(`(() => {
+      const body = document.body.innerText;
+      return {
+        hasRetestPassed: body.includes("Retest passed"),
+        hasAwaitingConfirmation: body.includes("Awaiting agent confirmation"),
+        hasPrematureVerified: body.includes("REPAIR VERIFIED"),
+        hasBenchAgentCopy: body.toLowerCase().includes("bench agent") || body.includes("Empirically Verified"),
+      };
+    })()`);
+
+    assert(stateA.hasRetestPassed, "State A: UI must display 'Retest passed'");
+    assert(stateA.hasAwaitingConfirmation, "State A: UI must display 'Awaiting agent confirmation'");
+    assert(!stateA.hasPrematureVerified, "State A: UI MUST NOT display 'REPAIR VERIFIED' before confirm_hypothesis");
+    assert(!stateA.hasBenchAgentCopy, "State A: UI MUST NOT display 'Bench Agent' or 'Empirically Verified'");
 
     // Screenshot 08: Verification Test
     await client.captureScreenshot(join(screenshotsDir, "08-verification-test.png"));
@@ -590,6 +625,8 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
       latestResets?: number;
       everyInvocationExternal: boolean;
       isVerified: boolean;
+      hasGroundTruthHeading: boolean;
+      hasActualHardwareFault: boolean;
       hasContradictoryLabels: boolean;
     }>(`(() => {
       const hypothesis = window.__hypothesisStore.get(${JSON.stringify(proposal.hypothesis.id)});
@@ -598,7 +635,10 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
       const body = document.body.innerText;
       const contradictory =
         (body.includes("DIAGNOSIS MATCH ✓") && (body.includes("NOT_VERIFIED") || body.includes("UNVERIFIED"))) ||
-        (body.includes("Repair verified") && body.includes("INVESTIGATION INCOMPLETE"));
+        (body.includes("Repair verified") && body.includes("INVESTIGATION INCOMPLETE")) ||
+        (body.includes("REPAIR VERIFIED") && body.includes("VERIFICATION PENDING")) ||
+        body.toLowerCase().includes("bench agent") ||
+        body.includes("ACTUAL HARDWARE FAULT");
       return {
         hypothesisStatus: hypothesis?.status,
         verificationStatus: hypothesis?.verificationStatus,
@@ -607,6 +647,8 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
         latestResets: latest?.summary?.unexpected_resets,
         everyInvocationExternal: window.__toolLedger.getEntries().every((entry) => entry.origin === "external"),
         isVerified: body.includes("REPAIR VERIFIED"),
+        hasGroundTruthHeading: body.includes("SEALED VIRTUAL GROUND TRUTH"),
+        hasActualHardwareFault: body.includes("ACTUAL HARDWARE FAULT"),
         hasContradictoryLabels: contradictory,
       };
     })()`);
@@ -617,6 +659,8 @@ async function runExternalAgentBrowserFlow(): Promise<void> {
     assert(finalState.latestResets === 0, "Final experiment should be stable");
     assert(finalState.everyInvocationExternal, "Every direct invocation should be attributed to the external agent");
     assert(finalState.isVerified, "Final UI must announce REPAIR VERIFIED");
+    assert(finalState.hasGroundTruthHeading, "Final UI must display SEALED VIRTUAL GROUND TRUTH");
+    assert(!finalState.hasActualHardwareFault, "Final UI must NOT display ACTUAL HARDWARE FAULT");
     assert(!finalState.hasContradictoryLabels, "Final screen must not contain contradictory status labels");
     assert(getAgentRequestCount() === 0, "The external-agent flow must never call Groq or another built-in provider");
 

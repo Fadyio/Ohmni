@@ -20,13 +20,13 @@ If the page reports browser compatibility mode rather than native WebMCP, use a 
 
 Copy this prompt from the workbench and give it to the external agent:
 
-> The controller restarts unexpectedly whenever the cooling fan relay turns on. Investigate the root cause using the available WebMCP diagnostic instruments, request human help at the device boundary when needed, and experimentally verify the repair.
+> There is a problem with this controller: it resets when the cooling fan turns on. Investigate the root cause using the available hardware instruments. Gather evidence before proposing a diagnosis. You may use read-only measurements autonomously, but ask for my approval before any actuation or physical change. If you identify a repair, ask me to perform it and then experimentally verify that the problem is fixed.
 
 ### 19-step script
 
 1. **Open Ohmni** at [https://ohmni-three.vercel.app](https://ohmni-three.vercel.app) inside the WebMCP-capable agent host.
 
-2. **Choose `Open agent-ready workbench`.** Keep the virtual device selected. This route must become ready without checking or starting Groq.
+2. **Choose `Launch virtual diagnosis`.** Keep the virtual device selected. This route becomes ready without checking or starting any built-in AI provider.
 
 3. **Confirm the ready state.** It should identify an external WebMCP agent path, show the suggested prompt and a **Copy prompt** action, and identify the connected virtual DUT rather than claiming a physical board.
 
